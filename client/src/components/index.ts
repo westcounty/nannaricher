@@ -16,3 +16,4 @@ export { CardDetail } from './CardDetail';
 export { EventModal } from './EventModal';
 export { TrainingPlanView } from './TrainingPlanView';
 export { CellTooltip } from './CellTooltip';
+export { ChoiceDialog, PlayerChoiceDialog, LineChoiceDialog, pendingActionToChoices } from './ChoiceDialog';

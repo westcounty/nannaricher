@@ -50,7 +50,7 @@ export function DiceRoller({
     Array.from({ length: count }, () => 1)
   );
   const { isAnimating, progress, animate } = useAnimation(rollDuration);
-  const { offset, startShake, transform } = useShakeAnimation(3);
+  const { startShake, transform } = useShakeAnimation(3);
 
   // Randomize display values during roll
   useEffect(() => {

@@ -8,7 +8,7 @@ import { ChatPanel } from './ChatPanel';
 import { GameLog } from './GameLog';
 import { useChat } from '../hooks/useChat';
 import './ChatPanel.css';
-import '../styles/GameScreen.css';
+import '../styles/game.css';
 
 export function GameScreen() {
   const { gameState, playerId } = useGameState();

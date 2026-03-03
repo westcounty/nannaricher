@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
-import type { PendingAction } from '@nannaricher/shared';
 import './EventModal.css';
 
 interface EffectPreview {

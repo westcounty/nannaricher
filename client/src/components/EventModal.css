@@ -1,0 +1,230 @@
+.event-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.15s ease-out;
+}
+
+.event-modal-overlay.closing {
+  opacity: 0;
+}
+
+.event-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  max-width: 450px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.event-modal.closing {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0;
+  color: white;
+}
+
+.modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.modal-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+  margin: 0 0 20px 0;
+}
+
+.effects-preview {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.effects-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.effect-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #ddd;
+}
+
+.effect-item.positive {
+  border-left-color: #22c55e;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, white 50%);
+}
+
+.effect-item.negative {
+  border-left-color: #ef4444;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, white 50%);
+}
+
+.effect-icon {
+  font-size: 1.3rem;
+}
+
+.effect-label {
+  font-size: 0.95rem;
+  color: #555;
+  flex: 1;
+}
+
+.effect-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.effect-item.positive .effect-value {
+  color: #16a34a;
+}
+
+.effect-item.negative .effect-value {
+  color: #dc2626;
+}
+
+.effect-item.cards-effect {
+  border-left-color: #8b5cf6;
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.1) 0%, white 50%);
+}
+
+.effect-item.cards-effect .effect-value {
+  color: #7c3aed;
+  font-size: 0.9rem;
+}
+
+.effect-item.status-effect {
+  border-left-color: #f59e0b;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, white 50%);
+}
+
+.effect-item.status-effect .effect-value {
+  color: #d97706;
+  font-size: 0.9rem;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.confirm-button {
+  padding: 12px 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.confirm-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.confirm-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.confirm-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .event-modal {
+    width: 95%;
+    margin: 16px;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-title {
+    font-size: 1.2rem;
+  }
+
+  .effect-item {
+    padding: 8px 12px;
+  }
+}

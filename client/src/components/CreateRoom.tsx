@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { socket } from '../socket';
+import { useSocket } from '../context/SocketContext';
 
 interface CreateRoomProps {
   onRoomCreated: (roomId: string, playerId: string, playerName: string) => void;
@@ -7,6 +7,7 @@ interface CreateRoomProps {
 }
 
 export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
+  const { socket } = useSocket();
   const [playerName, setPlayerName] = useState('');
   const [diceOption, setDiceOption] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +15,11 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!socket) {
+      setError('Not connected to server');
+      return;
+    }
 
     if (!playerName.trim()) {
       setError('Please enter your name');

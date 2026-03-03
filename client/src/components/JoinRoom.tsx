@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { socket } from '../socket';
+import { useSocket } from '../context/SocketContext';
 
 interface JoinRoomProps {
   onRoomJoined: (roomId: string, playerId: string, playerName: string) => void;
@@ -7,6 +7,7 @@ interface JoinRoomProps {
 }
 
 export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
+  const { socket } = useSocket();
   const [roomCode, setRoomCode] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [diceOption, setDiceOption] = useState<1 | 2>(1);
@@ -20,6 +21,11 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!socket) {
+      setError('Not connected to server');
+      return;
+    }
 
     if (!roomCode || roomCode.length !== 6) {
       setError('Please enter a valid 6-character room code');
