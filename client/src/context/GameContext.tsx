@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { GameState } from '@nannaricher/shared';
 import { useSocket } from './SocketContext';
 
@@ -7,6 +7,8 @@ interface GameContextValue {
   roomId: string | null;
   playerId: string | null;
   isLoading: boolean;
+  useCard: (cardId: string, targetPlayerId?: string) => void;
+  confirmPlan: (planId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue>({
@@ -14,6 +16,8 @@ const GameContext = createContext<GameContextValue>({
   roomId: null,
   playerId: null,
   isLoading: true,
+  useCard: () => {},
+  confirmPlan: () => {},
 });
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
@@ -57,12 +61,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, [gameState?.roomId]);
 
+  const useCard = useCallback((cardId: string, targetPlayerId?: string) => {
+    if (socket) {
+      socket.emit('game:use-card', { cardId, targetPlayerId });
+    }
+  }, [socket]);
+
+  const confirmPlan = useCallback((planId: string) => {
+    if (socket) {
+      socket.emit('game:confirm-plan', { planId });
+    }
+  }, [socket]);
+
   return (
     <GameContext.Provider value={{
       gameState,
       roomId,
       playerId,
-      isLoading: !isConnected
+      isLoading: !isConnected,
+      useCard,
+      confirmPlan,
     }}>
       {children}
     </GameContext.Provider>
