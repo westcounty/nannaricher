@@ -79,22 +79,33 @@ export interface PendingAction {
   id: string;
   playerId: string;
   type: 'choose_option' | 'roll_dice' | 'choose_player' | 'choose_line'
-    | 'choose_card' | 'multi_player_choice' | 'draw_training_plan';
+    | 'choose_card' | 'multi_player_choice' | 'draw_training_plan'
+    | 'multi_vote'           // 全体投票（如四校联动、泳馆常客）
+    | 'chain_action';        // 连锁行动（如八卦秘闻、南行玫瑰）
   prompt: string;
   options?: { label: string; value: string }[];
   targetPlayerIds?: string[];     // for multi-player choices
   responses?: Record<string, string>; // collected responses
   timeoutMs: number;
+  cardId?: string;            // 触发此action的卡牌ID
+  chainOrder?: string[];      // 连锁行动的玩家顺序
 }
 
 // === Game State ===
-export type GamePhase = 'waiting' | 'setup_plans' | 'playing' | 'finished';
+export type GamePhase = 'waiting' | 'setup_plans' | 'playing' | 'finished'
+  | 'rolling_dice'      // 掷骰子
+  | 'moving'            // 移动中
+  | 'event_popup'       // 事件弹窗
+  | 'making_choice'     // 做选择
+  | 'waiting_others'    // 等待他人
+  | 'multi_interaction'; // 多人互动
 
 export interface GameState {
   roomId: string;
   phase: GamePhase;
   currentPlayerIndex: number;
   turnNumber: number;
+  roundNumber: number;  // 每6回合一个大轮
   players: Player[];
   cardDecks: {
     chance: Card[];
@@ -144,4 +155,50 @@ export interface ServerToClientEvents {
   'game:announcement': (data: { message: string; type: 'info' | 'warning' | 'success' }) => void;
   'game:player-won': (data: { playerId: string; playerName: string; condition: string }) => void;
   'game:chat': (data: { playerName: string; message: string }) => void;
+}
+
+// === Player History Tracking ===
+export interface PositionRecord {
+  turn: number;
+  position: Position;
+  timestamp: number;
+}
+
+export interface CardDrawRecord {
+  cardId: string;
+  cardName: string;
+  deckType: 'chance' | 'destiny';
+  hasEnglish: boolean;        // 外国语学院
+  startsWithDigit: boolean;   // 信息管理学院
+  turn: number;
+}
+
+export interface LineExitRecord {
+  lineId: string;
+  entryTurn: number;
+  exitTurn: number;
+  gpaBefore: number;
+  gpaAfter: number;
+  explorationBefore: number;
+  explorationAfter: number;
+  moneyBefore: number;
+  moneyAfter: number;
+}
+
+export interface PlayerHistory {
+  positions: PositionRecord[];
+  linesVisited: string[];
+  lineEventsTriggered: Record<string, number[]>;
+  sharedCellsWith: Record<string, number[]>;  // playerId -> turn numbers
+  cardsDrawn: CardDrawRecord[];
+  moneyHistory: number[];                     // 每回合金钱值（大气学院）
+  chanceCardsUsedOnPlayers: Record<string, number>;
+  lineExits: LineExitRecord[];
+  hospitalVisits: number;
+  moneyZeroCount: number;
+  gulouEndpointReached: number;
+  campusLineOrder: string[];                  // 历史学院：校区经过顺序
+  foodLineNegativeFreeStreak: number;         // 食堂线连续无负面次数
+  plansConfirmedTurn: number[];               // 确认培养计划的回合
+  mainCellVisited: string[];                  // 建筑学院：主要格子访问记录
 }
