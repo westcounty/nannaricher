@@ -1,0 +1,18 @@
+// client/src/components/index.ts
+export { PlayerPanel } from './PlayerPanel';
+export { StatusBar } from './StatusBar';
+export { ChatPanel } from './ChatPanel';
+export type { ChatMessage } from './ChatPanel';
+export { GameLog } from './GameLog';
+export { GameScreen } from './GameScreen';
+export { CurrentPlayerPanel } from './CurrentPlayerPanel';
+export { CreateRoom } from './CreateRoom';
+export { JoinRoom } from './JoinRoom';
+export { Lobby } from './Lobby';
+export { WaitingRoom } from './WaitingRoom';
+export { DiceRoller } from './DiceRoller';
+export { CardHand } from './CardHand';
+export { CardDetail } from './CardDetail';
+export { EventModal } from './EventModal';
+export { TrainingPlanView } from './TrainingPlanView';
+export { CellTooltip } from './CellTooltip';

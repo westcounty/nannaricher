@@ -4,10 +4,15 @@ import { useGameState } from '../context/GameContext';
 import { StatusBar } from './StatusBar';
 import { PlayerPanel } from './PlayerPanel';
 import { CurrentPlayerPanel } from './CurrentPlayerPanel';
+import { ChatPanel } from './ChatPanel';
+import { GameLog } from './GameLog';
+import { useChat } from '../hooks/useChat';
+import './ChatPanel.css';
 import '../styles/GameScreen.css';
 
 export function GameScreen() {
   const { gameState, playerId } = useGameState();
+  const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
 
   if (!gameState) {
     return <div className="game-screen loading">Loading game...</div>;
@@ -74,20 +79,11 @@ export function GameScreen() {
         </div>
 
         <div className="bottom-section chat-section">
-          <span className="section-title">聊天</span>
-          <div className="chat-placeholder">聊天功能即将推出</div>
+          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
         </div>
 
         <div className="bottom-section log-section">
-          <span className="section-title">日志</span>
-          <div className="game-log">
-            {gameState.log.slice(-5).map((entry, index) => (
-              <div key={index} className="log-entry">
-                <span className="log-turn">[{entry.turn}]</span>
-                <span className="log-message">{entry.message}</span>
-              </div>
-            ))}
-          </div>
+          <GameLog entries={gameState.log} players={gameState.players} />
         </div>
       </div>
     </div>
