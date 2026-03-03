@@ -1,5 +1,6 @@
 // server/src/data/board.ts
 import { BoardData } from '@nannaricher/shared';
+import { allLines } from './lines';
 
 export const boardData: BoardData = {
   mainBoard: [
@@ -40,7 +41,7 @@ export const boardData: BoardData = {
     { index: 26, id: 'qingong', name: '勤工助学', type: 'event' },
     { index: 27, id: 'chance_7', name: '机会/命运', type: 'chance' },
   ],
-  lines: {}, // Populated in Task 5
+  lines: allLines,
 };
 
 export const MAIN_BOARD_SIZE = boardData.mainBoard.length;
