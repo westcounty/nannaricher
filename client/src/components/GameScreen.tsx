@@ -137,8 +137,7 @@ export function GameScreen() {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isMyTurn = currentPlayer?.id === playerId;
   const allPlayers = gameState.players;
-  // otherPlayers available if needed for future use
-  const _otherPlayers = allPlayers.filter((p) => p.id !== playerId);
+  // Note: otherPlayers can be derived from allPlayers.filter(p => p.id !== playerId) if needed
   const myPlayer = allPlayers.find((p) => p.id === playerId);
 
   // Pending action checks
