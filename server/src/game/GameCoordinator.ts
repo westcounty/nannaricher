@@ -55,6 +55,22 @@ export class GameCoordinator {
   }
 
   // --------------------------------------------------
+  // Dice helper
+  // --------------------------------------------------
+
+  /** Roll dice and broadcast result to all clients */
+  private rollAndBroadcast(count: number = 1): number {
+    const values = this.engine.rollDice(count);
+    const total = values.reduce((a, b) => a + b, 0);
+    this.io.to(this.roomId).emit('game:dice-result', {
+      playerId: 'system',
+      values,
+      total,
+    });
+    return total;
+  }
+
+  // --------------------------------------------------
   // Broadcasting
   // --------------------------------------------------
 
@@ -277,9 +293,10 @@ export class GameCoordinator {
       timeoutMs: 60000,
     };
 
-    // Decrement all effect turns
+    // Decrement all effect turns (except skip_turn which is handled in skip logic above)
     state.players.forEach(player => {
       player.effects = player.effects.filter(e => {
+        if (e.type === 'skip_turn') return e.turnsRemaining > 0; // Already decremented in skip logic
         e.turnsRemaining--;
         return e.turnsRemaining > 0;
       });
@@ -610,7 +627,7 @@ export class GameCoordinator {
       }
       case 'chance_transfer_moment': {
         // 换乘时刻 — vote + dice
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         const isOdd = dice % 2 === 1;
         if (isOdd) {
           for (const pid of groups['xinjiekou'] || []) this.engine.modifyPlayerExploration(pid, -1);
@@ -625,7 +642,7 @@ export class GameCoordinator {
       }
       case 'chance_wit_words': {
         // 妙语连珠 — vote + dice
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         const isOdd = dice % 2 === 1;
         if (isOdd) {
           for (const pid of groups['debate'] || []) this.engine.modifyPlayerExploration(pid, 2);
@@ -641,7 +658,7 @@ export class GameCoordinator {
       }
       case 'chance_school_sports_meet': {
         // 校运动会 — vote + dice
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         const isOdd = dice % 2 === 1;
         if (isOdd) {
           for (const pid of groups['exercise'] || []) {
@@ -681,7 +698,7 @@ export class GameCoordinator {
       }
       case 'destiny_four_schools': {
         // 四校联动 — 奇数：选人数>1的校区玩家各探索+2，偶数：选人数=1的校区玩家各探索+2
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         const isOdd = dice % 2 === 1;
         for (const [campus, pids] of Object.entries(groups)) {
           const qualifies = isOdd ? pids.length > 1 : pids.length === 1;
@@ -694,7 +711,7 @@ export class GameCoordinator {
       }
       case 'chance_swimming_pool_regular': {
         // 泳馆常客 — 骰子奇偶决定效果
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           // 闭馆不赔：年卡金钱-300，按次金钱+100
           for (const pid of groups['annual'] || []) this.engine.modifyPlayerMoney(pid, -300);
@@ -713,7 +730,7 @@ export class GameCoordinator {
       }
       case 'chance_meeting_is_fate': {
         // 相逢是缘 — 骰子奇偶决定效果
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           // 纸条传情：图书馆GPA+0.2,金钱-100
           for (const pid of groups['library'] || []) {
@@ -751,7 +768,7 @@ export class GameCoordinator {
       }
       case 'chance_strange_tales': {
         // 怪奇物谈 — 骰子奇偶
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           for (const pid of groups['ding'] || []) this.engine.modifyPlayerExploration(pid, 2);
           this.addLog('system', `怪奇物谈(${dice}奇)：理论专家，选鼎里的探索值+2`);
@@ -764,7 +781,7 @@ export class GameCoordinator {
       case 'chance_delivery_theft': {
         // 外卖贼盗 — 骰子vs选监控报警人数
         const reportCount = (groups['report'] || []).length;
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         // Find the card drawer (the player who started the action)
         const allPlayerIds = [...(groups['report'] || []), ...(groups['silent'] || [])];
         // The drawer is the one NOT in allPlayerIds (since only others voted)
@@ -787,7 +804,7 @@ export class GameCoordinator {
       }
       case 'chance_root_finding_moment': {
         // 寻根时刻 — 骰子奇偶
-        const dice = this.engine.rollDice(1)[0];
+        const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           // 工期紧张：装潢暂停一回合，历史古迹金钱+200
           for (const pid of groups['renovate'] || []) this.engine.skipPlayerTurn(pid, 1);
