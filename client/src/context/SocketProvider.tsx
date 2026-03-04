@@ -192,7 +192,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     socket.on('game:player-won', (data) => {
       store.getState().setWinner(data);
-      playSound('victory_fanfare');
+      playSound('victory');
+      // Fanfare follows after a brief delay
+      setTimeout(() => playSound('victory_fanfare'), 300);
     });
 
     // ------ Cleanup ------

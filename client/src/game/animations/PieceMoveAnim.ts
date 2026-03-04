@@ -4,6 +4,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
+import { playSound } from '../../audio/AudioManager';
 
 export async function animatePieceMove(
   piece: Container,
@@ -37,6 +38,12 @@ export async function animatePieceMove(
 
     // Landing ripple at each step
     createRipple(effectLayer, target.x, target.y);
+    playSound('piece_step');
+  }
+
+  // Final landing sound
+  if (path.length > 0) {
+    playSound('piece_land');
   }
 }
 
