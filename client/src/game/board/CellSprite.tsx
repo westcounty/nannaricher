@@ -2,7 +2,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { Container, Graphics, Text } from '@pixi/react';
 import { Graphics as PixiGraphics, TextStyle } from 'pixi.js';
-import { DESIGN_TOKENS } from '../../styles/tokens';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 interface CellSpriteProps {
   cell: {
@@ -30,22 +30,29 @@ export const CellSprite: React.FC<CellSpriteProps> = ({
 }) => {
   const size = isCorner ? CORNER_SIZE : CELL_SIZE;
 
-  // 获取格子颜色
+  // 获取格子颜色 — using design tokens
   const cellColor = useMemo(() => {
+    const ct = DESIGN_TOKENS.color.cell;
     if (isCorner) {
       switch (cell.id) {
-        case 'start': return 0x4CAF50;
-        case 'hospital': return 0xF44336;
-        case 'ding': return 0xFFC107;
-        case 'waiting_room': return 0x2196F3;
+        case 'start': return hexToPixi(ct.corner.start[1]);
+        case 'hospital': return hexToPixi(ct.corner.hospital[1]);
+        case 'ding': return hexToPixi(ct.corner.ding[1]);
+        case 'waiting_room': return hexToPixi(ct.corner.waitingRoom[1]);
         default: return 0xffffff;
       }
     }
 
     switch (cell.type) {
-      case 'event': return 0xFF9800;
-      case 'chance': return 0x9C27B0;
-      case 'line_entry': return 0x607D8B;
+      case 'event': return hexToPixi(ct.event[1]);
+      case 'chance': return hexToPixi(ct.chance[1]);
+      case 'line_entry': {
+        const lineId = cell.lineId as keyof typeof ct.lineEntry | undefined;
+        if (lineId && lineId in ct.lineEntry) {
+          return hexToPixi(ct.lineEntry[lineId][1]);
+        }
+        return hexToPixi(ct.lineEntry.pukou[1]);
+      }
       default: return 0xffffff;
     }
   }, [cell, isCorner]);

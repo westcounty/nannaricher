@@ -12,6 +12,8 @@ import {
   LINE_CELL_SIZE,
   LINE_SPACING,
   getCellPosition,
+  getLineColor,
+  getLineColorDark,
 } from '../layout/BoardLayout';
 
 export class LineLayer implements RenderLayer {
@@ -46,6 +48,8 @@ export class LineLayer implements RenderLayer {
   private drawAllLines(): void {
     LINE_CONFIGS.forEach(line => {
       const entryPos = getCellPosition(line.entryIndex);
+      const lineColor = getLineColor(line.id);
+      const lineColorDark = getLineColorDark(line.id);
 
       // FIX: Render ALL cells in the line, not just Math.min(cellCount, 5)
       for (let i = 0; i < line.cellCount; i++) {
@@ -73,6 +77,8 @@ export class LineLayer implements RenderLayer {
         if (absX < CENTER_AREA_SIZE / 2 && absY < CENTER_AREA_SIZE / 2) continue;
 
         const cellGfx = new Graphics();
+
+        // Dark base fill
         cellGfx.roundRect(
           -LINE_CELL_SIZE / 2,
           -LINE_CELL_SIZE / 2,
@@ -80,8 +86,28 @@ export class LineLayer implements RenderLayer {
           LINE_CELL_SIZE,
           4,
         );
-        cellGfx.fill({ color: line.color, alpha: 0.7 });
-        cellGfx.stroke({ width: 1, color: 0x333333, alpha: 0.3 });
+        cellGfx.fill({ color: lineColorDark, alpha: 0.7 });
+
+        // Lighter top highlight
+        cellGfx.roundRect(
+          -LINE_CELL_SIZE / 2,
+          -LINE_CELL_SIZE / 2,
+          LINE_CELL_SIZE,
+          LINE_CELL_SIZE * 0.5,
+          4,
+        );
+        cellGfx.fill({ color: lineColor, alpha: 0.3 });
+
+        // Border using line theme color
+        cellGfx.roundRect(
+          -LINE_CELL_SIZE / 2,
+          -LINE_CELL_SIZE / 2,
+          LINE_CELL_SIZE,
+          LINE_CELL_SIZE,
+          4,
+        );
+        cellGfx.stroke({ width: 1, color: lineColor, alpha: 0.4 });
+
         cellGfx.x = x;
         cellGfx.y = y;
 

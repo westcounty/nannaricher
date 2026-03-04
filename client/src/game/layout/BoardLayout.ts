@@ -9,6 +9,7 @@ import {
   type BoardCellData,
   type LineConfig,
 } from '@nannaricher/shared';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 // ============================================
 // Layout Constants
@@ -157,23 +158,72 @@ export function getLineCellPosition(
 // ============================================
 
 export function getCellColor(cell: BoardCellData, index: number): number {
+  const ct = DESIGN_TOKENS.color.cell;
   if (CORNER_INDICES.includes(index)) {
     switch (cell.id) {
-      case 'start': return 0x4CAF50;
-      case 'hospital': return 0xF44336;
-      case 'ding': return 0xFFC107;
-      case 'waiting_room': return 0x2196F3;
+      case 'start': return hexToPixi(ct.corner.start[1]);
+      case 'hospital': return hexToPixi(ct.corner.hospital[1]);
+      case 'ding': return hexToPixi(ct.corner.ding[1]);
+      case 'waiting_room': return hexToPixi(ct.corner.waitingRoom[1]);
     }
   }
   switch (cell.type) {
-    case 'event': return 0xFF9800;
-    case 'chance': return 0x9C27B0;
+    case 'event': return hexToPixi(ct.event[1]);
+    case 'chance': return hexToPixi(ct.chance[1]);
     case 'line_entry': {
-      const line = LINE_CONFIGS.find(l => l.id === cell.lineId);
-      return line?.color || 0x607D8B;
+      const lineId = cell.lineId as keyof typeof ct.lineEntry | undefined;
+      if (lineId && lineId in ct.lineEntry) {
+        return hexToPixi(ct.lineEntry[lineId][1]);
+      }
+      return hexToPixi(ct.lineEntry.pukou[1]);
     }
   }
   return 0xffffff;
+}
+
+/** Get the darker shade of a cell color (for gradient base) */
+export function getCellColorDark(cell: BoardCellData, index: number): number {
+  const ct = DESIGN_TOKENS.color.cell;
+  if (CORNER_INDICES.includes(index)) {
+    switch (cell.id) {
+      case 'start': return hexToPixi(ct.corner.start[0]);
+      case 'hospital': return hexToPixi(ct.corner.hospital[0]);
+      case 'ding': return hexToPixi(ct.corner.ding[0]);
+      case 'waiting_room': return hexToPixi(ct.corner.waitingRoom[0]);
+    }
+  }
+  switch (cell.type) {
+    case 'event': return hexToPixi(ct.event[0]);
+    case 'chance': return hexToPixi(ct.chance[0]);
+    case 'line_entry': {
+      const lineId = cell.lineId as keyof typeof ct.lineEntry | undefined;
+      if (lineId && lineId in ct.lineEntry) {
+        return hexToPixi(ct.lineEntry[lineId][0]);
+      }
+      return hexToPixi(ct.lineEntry.pukou[0]);
+    }
+  }
+  return 0xcccccc;
+}
+
+/** Get line theme color from design tokens */
+export function getLineColor(lineId: string): number {
+  const ct = DESIGN_TOKENS.color.cell.lineEntry;
+  const key = lineId as keyof typeof ct;
+  if (key in ct) {
+    return hexToPixi(ct[key][1]);
+  }
+  return hexToPixi(ct.pukou[1]);
+}
+
+/** Get line dark theme color from design tokens */
+export function getLineColorDark(lineId: string): number {
+  const ct = DESIGN_TOKENS.color.cell.lineEntry;
+  const key = lineId as keyof typeof ct;
+  if (key in ct) {
+    return hexToPixi(ct[key][0]);
+  }
+  return hexToPixi(ct.pukou[0]);
 }
 
 // ============================================

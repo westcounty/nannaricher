@@ -11,7 +11,9 @@ import {
   CORNER_SIZE,
   getCellPosition,
   getCellColor,
+  getCellColorDark,
 } from '../layout/BoardLayout';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 export interface BoardLayerOptions {
   onCellClick?: (cellId: string, position: Position) => void;
@@ -56,18 +58,29 @@ export class BoardLayer implements RenderLayer {
       const pos = getCellPosition(index);
       const isCorner = CORNER_INDICES.includes(index);
       const size = isCorner ? CORNER_SIZE : CELL_SIZE;
-      const color = getCellColor(cell, index);
+      const colorLight = getCellColor(cell, index);
+      const colorDark = getCellColorDark(cell, index);
+      const cornerRadius = isCorner ? 12 : 6;
 
-      // Cell shape
+      // Cell shape with gradient-simulated fill
       const cellGfx = new Graphics();
-      cellGfx.roundRect(-size / 2, -size / 2, size, size, isCorner ? 8 : 4);
-      cellGfx.fill({ color });
-      cellGfx.stroke({ width: 2, color: 0x333333, alpha: 0.2 });
 
-      // Force-entry marker
+      // Dark base fill
+      cellGfx.roundRect(-size / 2, -size / 2, size, size, cornerRadius);
+      cellGfx.fill({ color: colorDark, alpha: 0.9 });
+
+      // Lighter top highlight overlay
+      cellGfx.roundRect(-size / 2, -size / 2, size, size * 0.6, cornerRadius);
+      cellGfx.fill({ color: colorLight, alpha: 0.4 });
+
+      // Border
+      cellGfx.roundRect(-size / 2, -size / 2, size, size, cornerRadius);
+      cellGfx.stroke({ width: isCorner ? 2 : 1.5, color: colorLight, alpha: 0.5 });
+
+      // Force-entry marker (red dot)
       if (cell.forceEntry) {
-        cellGfx.circle(0, 0, 8);
-        cellGfx.fill({ color: 0xFF0000, alpha: 0.6 });
+        cellGfx.circle(0, size / 2 - 10, 5);
+        cellGfx.fill({ color: hexToPixi(DESIGN_TOKENS.color.text.danger), alpha: 0.8 });
       }
 
       cellGfx.x = pos.x;
@@ -80,12 +93,13 @@ export class BoardLayer implements RenderLayer {
 
       this.container!.addChild(cellGfx);
 
-      // Cell label — use the short display name from the client-oriented data
+      // Cell label — use the short display name
       const displayName = this.getShortName(cell.name);
       const nameText = new Text({
         text: displayName,
         style: new TextStyle({
-          fontSize: isCorner ? 12 : 9,
+          fontFamily: DESIGN_TOKENS.typography.fontFamily,
+          fontSize: isCorner ? 13 : 9,
           fill: 0xffffff,
           fontWeight: 'bold',
           align: 'center',
@@ -93,7 +107,7 @@ export class BoardLayer implements RenderLayer {
       });
       nameText.anchor.set(0.5);
       nameText.x = pos.x;
-      nameText.y = pos.y;
+      nameText.y = pos.y - (isCorner ? 4 : 0);
       this.container!.addChild(nameText);
     });
   }
