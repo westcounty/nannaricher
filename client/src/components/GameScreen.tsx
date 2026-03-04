@@ -2,7 +2,7 @@
 // Three-layout responsive game screen: desktop (>=1024), tablet (768-1023), mobile (<768)
 // Integrates StatusIndicator, references VotePanel and ChainActionPanel.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameState } from '../context/GameContext';
 import { StatusBar } from './StatusBar';
 import { PlayerPanel } from './PlayerPanel';
@@ -15,6 +15,7 @@ import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './Choic
 import { StatusIndicator } from './StatusIndicator';
 import { VotePanel } from './VotePanel';
 import { ChainActionPanel } from './ChainActionPanel';
+import { DiceRoller } from './DiceRoller';
 import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import type { Player } from '@nannaricher/shared';
@@ -87,6 +88,8 @@ export function GameScreen() {
     announcement,
     winner,
     clearWinner,
+    isRolling,
+    diceResult,
   } = useGameState();
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
@@ -94,6 +97,31 @@ export function GameScreen() {
   // Tab state for tablet/mobile
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(false);
+
+  // Dice overlay state
+  const [showDiceOverlay, setShowDiceOverlay] = useState(false);
+  const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show dice overlay when rolling starts, hide 2.5s after result arrives
+  useEffect(() => {
+    if (isRolling) {
+      setShowDiceOverlay(true);
+    }
+  }, [isRolling]);
+
+  useEffect(() => {
+    if (diceResult) {
+      diceTimerRef.current = setTimeout(() => {
+        setShowDiceOverlay(false);
+      }, 2500);
+    }
+    return () => {
+      if (diceTimerRef.current) {
+        clearTimeout(diceTimerRef.current);
+        diceTimerRef.current = null;
+      }
+    };
+  }, [diceResult]);
 
   // Close sheets when switching layout
   useEffect(() => {
@@ -339,6 +367,16 @@ export function GameScreen() {
       {/* ============================================
          MODALS & OVERLAYS (all layouts)
          ============================================ */}
+
+      {/* Dice Roller Overlay */}
+      {showDiceOverlay && (
+        <div className="dice-overlay">
+          <DiceRoller
+            count={myPlayer?.diceCount === 2 ? 2 : 1}
+            autoRoll={true}
+          />
+        </div>
+      )}
 
       {/* Vote Panel */}
       {isVoting && gameState.pendingAction && playerId && (

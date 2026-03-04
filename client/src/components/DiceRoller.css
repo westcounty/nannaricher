@@ -54,18 +54,18 @@
 }
 
 .dice-body {
-  fill: white;
-  stroke: #e0e0e0;
+  fill: #1a1a2e;
+  stroke: #3a3a5e;
   stroke-width: 2;
 }
 
 .dice-dot {
-  fill: #1a1a2e;
+  fill: #e0e0e0;
 }
 
 .rolling-indicator {
   font-size: 1.1rem;
-  color: #666;
+  color: #a0a0c0;
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -108,49 +108,26 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: linear-gradient(145deg, #ffffff, #f0f0f0);
+  background: linear-gradient(145deg, #2a2a4e, #1a1a3e);
   border-radius: 10px;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #1a1a2e;
+  color: #e0e0e0;
   box-shadow:
-    2px 2px 5px rgba(0, 0, 0, 0.2),
-    -1px -1px 3px rgba(255, 255, 255, 0.5);
+    2px 2px 5px rgba(0, 0, 0, 0.4),
+    -1px -1px 3px rgba(60, 60, 100, 0.3);
 }
 
 .dice-total {
   font-size: 1.2rem;
-  color: #444;
+  color: #c0c0e0;
 }
 
 .total-number {
   font-weight: bold;
   font-size: 1.4rem;
-  color: #667eea;
+  color: #FFD700;
   margin-left: 4px;
-}
-
-.roll-button {
-  padding: 12px 32px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.roll-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-}
-
-.roll-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
 }
 
 /* 3D-ish enhancement */
@@ -166,4 +143,24 @@
   border-radius: 15px;
   pointer-events: none;
   z-index: 1;
+}
+
+/* Dice overlay positioning */
+.dice-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  animation: dice-overlay-fade-in 0.2s ease-out;
+}
+
+@keyframes dice-overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
