@@ -37,6 +37,13 @@ function diffAndPlaySounds(
     }
     if (nextPlayer?.id === localPlayerId) {
       playSound('turn_start');
+      // Notify player when tab is in the background
+      if (document.hidden) {
+        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('菜根人生', { body: '轮到你了！' });
+        }
+      }
     }
   }
 

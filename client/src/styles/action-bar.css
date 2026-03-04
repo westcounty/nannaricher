@@ -46,7 +46,14 @@
 .action-bar__cards {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  position: relative;
+}
+
+.action-bar__card-count {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  padding: 4px 8px;
+  white-space: nowrap;
 }
 
 /* Override CardHand's fixed positioning when inside ActionBar */

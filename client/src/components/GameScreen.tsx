@@ -567,13 +567,13 @@ function MorePanel({
           className={`more-panel-tab ${tab === 'chat' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('chat')}
         >
-          聊天
+          💬 聊天
         </button>
         <button
           className={`more-panel-tab ${tab === 'log' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('log')}
         >
-          日志
+          📜 日志
         </button>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>

@@ -22,7 +22,7 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
   const initial = player.name.charAt(0);
 
   return (
-    <div className={classNames}>
+    <div className={classNames} title={player.isBankrupt ? '已破产' : undefined}>
       <div
         className="compact-player__avatar"
         style={{ backgroundColor: player.color }}

@@ -64,14 +64,19 @@ export function ActionBar({ myPlayer, isMyTurn, currentPlayerName, useCard, play
 
       {/* Center: cards */}
       <div className="action-bar__cards">
-        {myPlayer && (
-          <CardHand
-            player={myPlayer}
-            onUseCard={useCard}
-            isCurrentPlayer={isMyTurn}
-            players={players}
-          />
-        )}
+        {myPlayer ? (
+          <>
+            <CardHand
+              player={myPlayer}
+              onUseCard={useCard}
+              isCurrentPlayer={isMyTurn}
+              players={players}
+            />
+            {myPlayer.heldCards.length === 0 && (
+              <span className="action-bar__card-count">🃏 无手牌</span>
+            )}
+          </>
+        ) : null}
       </div>
 
       {/* Right: dice button */}

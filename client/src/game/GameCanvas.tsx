@@ -78,6 +78,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const stage = new GameStage();
       stage.addLayer(new BackgroundLayer());
       stage.addLayer(new LineLayer());
+      // TODO: onCellClick may capture a stale closure if the callback references
+      // component state that changes between renders. Consider using a ref-based
+      // approach (e.g., onCellClickRef.current) to always call the latest callback.
       stage.addLayer(new BoardLayer({ onCellClick }));
 
       // Create PlayerLayer with animation support
