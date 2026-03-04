@@ -43,6 +43,13 @@ export class GameEngine implements IGameEngine {
   /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
   private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
   private diceResultCallback: ((playerId: string, values: number[], total: number) => void) | null = null;
+  private resourceChangeCallback: ((data: {
+    playerId: string;
+    playerName: string;
+    stat: 'money' | 'gpa' | 'exploration';
+    delta: number;
+    current: number;
+  }) => void) | null = null;
 
   constructor(roomId: string) {
     this.state = this.createInitialState(roomId);
@@ -229,6 +236,16 @@ export class GameEngine implements IGameEngine {
 
     this.log(`金钱 ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.money})`, playerId);
 
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'money',
+        delta,
+        current: player.money,
+      });
+    }
+
     // Check bankruptcy after modification
     if (player.money < 0) {
       this.checkBankruptcy(playerId);
@@ -250,6 +267,16 @@ export class GameEngine implements IGameEngine {
 
     player.gpa = parseFloat(Math.max(0, Math.min(5.0, newGpa)).toFixed(1));
     this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa})`, playerId);
+
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'gpa',
+        delta,
+        current: player.gpa,
+      });
+    }
   }
 
   modifyPlayerExploration(playerId: string, delta: number): void {
@@ -258,6 +285,16 @@ export class GameEngine implements IGameEngine {
 
     player.exploration = Math.max(0, player.exploration + delta);
     this.log(`探索值 ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.exploration})`, playerId);
+
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'exploration',
+        delta,
+        current: player.exploration,
+      });
+    }
   }
 
   // ============================================
@@ -1216,6 +1253,10 @@ export class GameEngine implements IGameEngine {
 
   setDiceResultCallback(cb: (playerId: string, values: number[], total: number) => void): void {
     this.diceResultCallback = cb;
+  }
+
+  setResourceChangeCallback(cb: typeof this.resourceChangeCallback): void {
+    this.resourceChangeCallback = cb;
   }
 
   rollDiceAndBroadcast(playerId: string, count?: number): number[] {

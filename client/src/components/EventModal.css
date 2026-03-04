@@ -266,6 +266,41 @@
   padding: 20px 24px;
 }
 
+/* Read-only mode (other player's event) */
+.event-modal-overlay.read-only {
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.event-modal.read-only {
+  opacity: 0.85;
+  max-width: 380px;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 15px 30px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(94, 58, 141, 0.15);
+}
+
+.event-modal.read-only .modal-header {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  padding: 14px 20px;
+}
+
+.event-modal.read-only .modal-body {
+  padding: 16px 20px;
+}
+
+.read-only-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .event-modal {

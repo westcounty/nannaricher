@@ -116,6 +116,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const playerIdRef = useRef<string | null>(null);
   playerIdRef.current = playerId;
+  const lastEventActionId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -146,11 +147,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsRolling(false);
     };
 
-    const handleEventTrigger = (data: { title: string; description: string; pendingAction: PendingAction }) => {
-      // Only show event modal if this event is for the current player
-      if (data.pendingAction?.playerId && data.pendingAction.playerId !== playerIdRef.current) {
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => {
+      // Dedup: skip if same pendingAction.id as last event
+      if (data.pendingAction?.id && data.pendingAction.id === lastEventActionId.current) {
         return;
       }
+      if (data.pendingAction?.id) {
+        lastEventActionId.current = data.pendingAction.id;
+      }
+
+      // Show event to ALL players — EventModal handles read-only vs interactive
       setCurrentEvent({
         title: data.title,
         description: data.description,
@@ -180,6 +186,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setWinner(data);
     };
 
+    const handleResourceChange = (data: { playerId: string; playerName: string; stat: string; delta: number; current: number }) => {
+      // Use announcement to show resource changes prominently
+      const statName = data.stat === 'money' ? '金钱' : data.stat === 'gpa' ? 'GPA' : '探索值';
+      const sign = data.delta >= 0 ? '+' : '';
+      setAnnouncement({
+        message: `${data.playerName}: ${statName} ${sign}${data.delta} (当前: ${data.current})`,
+        type: data.delta >= 0 ? 'success' : 'warning',
+        timestamp: Date.now(),
+      });
+    };
+
     socket.on('game:state-update', handleStateUpdate);
     socket.on('room:created', handleRoomCreated);
     socket.on('room:joined', handleRoomJoined);
@@ -189,6 +206,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     socket.on('game:card-drawn', handleCardDrawn);
     socket.on('game:announcement', handleAnnouncement);
     socket.on('game:player-won', handlePlayerWon);
+    socket.on('game:resource-change', handleResourceChange);
 
     return () => {
       socket.off('game:state-update', handleStateUpdate);
@@ -200,6 +218,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       socket.off('game:card-drawn', handleCardDrawn);
       socket.off('game:announcement', handleAnnouncement);
       socket.off('game:player-won', handlePlayerWon);
+      socket.off('game:resource-change', handleResourceChange);
     };
   }, [socket]);
 

@@ -40,6 +40,11 @@ export class GameCoordinator {
     this.engine.setDiceResultCallback((pid, vals, total) => {
       this.io.to(this.roomId).emit('game:dice-result', { playerId: pid, values: vals, total });
     });
+
+    // Wire up resource change broadcast for prominent stat change notifications
+    this.engine.setResourceChangeCallback((data) => {
+      this.io.to(this.roomId).emit('game:resource-change', data);
+    });
   }
 
   // --------------------------------------------------
@@ -1438,14 +1443,42 @@ export class GameCoordinator {
 
   handleUseCard(playerId: string, cardId: string, targetPlayerId?: string): void {
     const state = this.engine.getState();
-
     const player = state.players.find(p => p.id === playerId);
     if (!player) return;
 
-    const card = player.heldCards.find(c => c.id === cardId);
-    if (!card) return;
+    const cardIndex = player.heldCards.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return;
+    const card = player.heldCards[cardIndex];
 
-    // Execute card effects
+    // Remove card from hand
+    player.heldCards.splice(cardIndex, 1);
+    this.addLog(playerId, `${player.name} 使用手牌: ${card.name}`);
+
+    // Check if there's a registered handler for this card
+    const handlerId = `card_${card.id}`;
+    if (this.engine.getEventHandler().hasHandler(handlerId)) {
+      // Execute card handler (may return PendingAction for further interaction)
+      const pendingAction = this.engine.getEventHandler().execute(handlerId, playerId, targetPlayerId);
+
+      if (card.returnToDeck) {
+        state.discardPiles[card.deckType].push(card);
+      }
+
+      if (pendingAction) {
+        state.pendingAction = pendingAction;
+        this.io.to(this.roomId).emit('game:event-trigger', {
+          title: `使用手牌: ${card.name}`,
+          description: pendingAction.prompt,
+          pendingAction,
+        });
+      }
+
+      this.broadcastState();
+      if (this.checkAndEmitWin()) return;
+      return;
+    }
+
+    // Fallback: apply simple effects from card.effects array
     card.effects.forEach(effect => {
       let targetId = playerId;
 
@@ -1456,31 +1489,29 @@ export class GameCoordinator {
             break;
           case 'all':
             state.players.forEach(p => {
-              if (p.id !== playerId) {
-                if (effect.stat === 'money' && effect.delta) {
-                  this.engine.modifyPlayerMoney(p.id, effect.delta);
-                }
-                if (effect.stat === 'gpa' && effect.delta) {
-                  this.engine.modifyPlayerGpa(p.id, effect.delta);
-                }
-                if (effect.stat === 'exploration' && effect.delta) {
-                  this.engine.modifyPlayerExploration(p.id, effect.delta);
-                }
+              if (p.id !== playerId && !p.isBankrupt) {
+                if (effect.stat === 'money' && effect.delta) this.engine.modifyPlayerMoney(p.id, effect.delta);
+                if (effect.stat === 'gpa' && effect.delta) this.engine.modifyPlayerGpa(p.id, effect.delta);
+                if (effect.stat === 'exploration' && effect.delta) this.engine.modifyPlayerExploration(p.id, effect.delta);
               }
             });
             return;
           case 'richest':
             targetId = this.engine.getPlayersByMoneyRank()[0]?.id || playerId;
             break;
-          case 'poorest':
-            targetId = this.engine.getPlayersByMoneyRank()[this.engine.getAllPlayers().length - 1]?.id || playerId;
+          case 'poorest': {
+            const ranked = this.engine.getPlayersByMoneyRank();
+            targetId = ranked[ranked.length - 1]?.id || playerId;
             break;
+          }
           case 'highest_gpa':
             targetId = this.engine.getPlayersByGpaRank()[0]?.id || playerId;
             break;
-          case 'lowest_gpa':
-            targetId = this.engine.getPlayersByGpaRank()[this.engine.getAllPlayers().length - 1]?.id || playerId;
+          case 'lowest_gpa': {
+            const ranked = this.engine.getPlayersByGpaRank();
+            targetId = ranked[ranked.length - 1]?.id || playerId;
             break;
+          }
         }
       }
 
@@ -1491,18 +1522,12 @@ export class GameCoordinator {
       }
     });
 
-    this.addLog(playerId, `${player.name} 使用了 ${card.name}`);
-    player.heldCards = player.heldCards.filter(c => c.id !== cardId);
-
     if (card.returnToDeck) {
-      if (card.deckType === 'chance') {
-        state.discardPiles.chance.push(card);
-      } else {
-        state.discardPiles.destiny.push(card);
-      }
+      state.discardPiles[card.deckType].push(card);
     }
 
     this.broadcastState();
+    if (this.checkAndEmitWin()) return;
   }
 
   handleConfirmPlan(playerId: string, planId: string): { error?: string } {

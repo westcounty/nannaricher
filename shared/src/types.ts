@@ -154,10 +154,11 @@ export interface ServerToClientEvents {
   'room:error': (data: { message: string }) => void;
   'game:state-update': (state: GameState) => void;
   'game:dice-result': (data: { playerId: string; values: number[]; total: number }) => void;
-  'game:event-trigger': (data: { title: string; description: string; pendingAction: PendingAction }) => void;
+  'game:event-trigger': (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => void;
   'game:card-drawn': (data: { card: Card; deckType: string }) => void;
   'game:announcement': (data: { message: string; type: 'info' | 'warning' | 'success' }) => void;
   'game:player-won': (data: { playerId: string; playerName: string; condition: string }) => void;
+  'game:resource-change': (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => void;
   'game:chat': (data: { playerName: string; message: string }) => void;
 }
 
