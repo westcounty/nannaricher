@@ -1,6 +1,7 @@
 // client/src/components/StatusBar.tsx
 import React from 'react';
 import type { GamePhase } from '@nannaricher/shared';
+import { AudioControl } from './AudioControl';
 
 interface StatusBarProps {
   roomId: string;
@@ -35,6 +36,9 @@ export function StatusBar({ roomId, turnNumber, roundNumber, currentPlayerName, 
       <div className="status-item">
         <span className="status-label">阶段</span>
         <span className={`status-value phase-${phase}`}>{phaseLabels[phase]}</span>
+      </div>
+      <div className="status-item" style={{ marginLeft: 'auto' }}>
+        <AudioControl />
       </div>
     </div>
   );
