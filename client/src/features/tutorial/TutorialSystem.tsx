@@ -1,174 +1,411 @@
 // client/src/features/tutorial/TutorialSystem.tsx
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// 非阻塞新手引导系统 — 基于游戏状态触发，显示定位提示气泡
 
-interface TutorialStep {
-  id: string;
-  title: string;
-  content: string;
-  target?: string;
-  position: 'top' | 'bottom' | 'left' | 'right' | 'center';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { TUTORIAL_STEPS, type TutorialStep, type TutorialTrigger } from './TutorialSteps';
+import { useGameStore } from '../../stores/gameStore';
+
+// ============================================
+// Constants
+// ============================================
+
+const STORAGE_KEY = 'nannaricher_tutorial_completed';
+const FADE_DURATION_MS = 250;
+
+// ============================================
+// Persistence Helpers
+// ============================================
+
+function loadCompletedSteps(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw) as string[];
+      return new Set(arr);
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
 }
 
-const TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    id: 'welcome',
-    title: '欢迎来到菜根人生',
-    content: '这是一个以南大校园为主题的大富翁游戏。你将扮演一名南大学生，通过投骰子前进，体验校园生活中的各种事件。',
-    position: 'center',
-  },
-  {
-    id: 'resources',
-    title: '三种资源',
-    content: '游戏中有三种资源：金钱💰、GPA📚、探索值🧭。它们之间可以换算：1探索 = 0.1GPA = 100金钱。',
-    position: 'bottom',
-  },
-  {
-    id: 'dice',
-    title: '投骰子',
-    content: '每回合点击"掷骰子"按钮，根据点数前进。按R键也可以快速掷骰。',
-    target: '[data-tutorial="dice"]',
-    position: 'top',
-  },
-  {
-    id: 'board',
-    title: '棋盘格子',
-    content: '棋盘有28个格子，包括4个角落格、9个事件格、7个机会格和8条支线入口。不同颜色代表不同类型的格子。',
-    position: 'center',
-  },
-  {
-    id: 'lines',
-    title: '支线系统',
-    content: '从入口格可以进入支线探索。有些支线是强制的（如浦口线、食堂线），有些是可选的（需付入场费）。',
-    position: 'center',
-  },
-  {
-    id: 'plans',
-    title: '培养计划',
-    content: '游戏开始时你会抽取3张培养计划，选择1-2项保留。除了基础胜利条件外，达成培养计划条件也能获胜。',
-    position: 'left',
-  },
-  {
-    id: 'cards',
-    title: '卡牌系统',
-    content: '在机会格可以抽取卡牌。命运卡是单人事件，机会卡涉及多人互动。手持型卡牌可以在合适时机使用。',
-    position: 'left',
-  },
-  {
-    id: 'win',
-    title: '胜利条件',
-    content: '基础胜利：GPA×10 + 探索值 ≥ 60。或者达成你已确认的培养计划条件。祝你游戏愉快！',
-    position: 'center',
-  },
-];
-
-interface TutorialSystemProps {
-  onComplete?: () => void;
+function saveCompletedSteps(steps: Set<string>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(steps)));
+  } catch {
+    // ignore
+  }
 }
 
-export const TutorialSystem: React.FC<TutorialSystemProps> = ({ onComplete }) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
-  const [hasSeenTutorial, setHasSeenTutorial] = useState(
-    localStorage.getItem('nannaricher_tutorial_seen') === 'true'
-  );
+// ============================================
+// Position Calculation
+// ============================================
 
-  const step = TUTORIAL_STEPS[currentStep];
-  const isLastStep = currentStep === TUTORIAL_STEPS.length - 1;
-  const isFirstStep = currentStep === 0;
+interface TooltipPosition {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  arrowSide: 'top' | 'bottom' | 'left' | 'right';
+}
 
-  const handleNext = useCallback(() => {
-    if (isLastStep) {
-      handleComplete();
-    } else {
-      setCurrentStep((prev) => prev + 1);
+function computePosition(
+  targetSelector: string,
+  preferredSide: 'top' | 'bottom' | 'left' | 'right'
+): TooltipPosition | null {
+  // Try each selector separated by commas
+  const selectors = targetSelector.split(',').map(s => s.trim());
+  let targetEl: Element | null = null;
+  for (const sel of selectors) {
+    targetEl = document.querySelector(sel);
+    if (targetEl) break;
+  }
+  if (!targetEl) return null;
+
+  const rect = targetEl.getBoundingClientRect();
+  const GAP = 12;
+  const TOOLTIP_WIDTH = 320;
+  const TOOLTIP_HEIGHT_ESTIMATE = 160;
+
+  // The arrow points AT the target, so arrowSide is opposite to tooltip placement
+  switch (preferredSide) {
+    case 'top':
+      return {
+        bottom: window.innerHeight - rect.top + GAP,
+        left: Math.max(8, Math.min(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, window.innerWidth - TOOLTIP_WIDTH - 8)),
+        arrowSide: 'bottom',
+      };
+    case 'bottom':
+      return {
+        top: rect.bottom + GAP,
+        left: Math.max(8, Math.min(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, window.innerWidth - TOOLTIP_WIDTH - 8)),
+        arrowSide: 'top',
+      };
+    case 'left':
+      return {
+        top: Math.max(8, Math.min(rect.top + rect.height / 2 - TOOLTIP_HEIGHT_ESTIMATE / 2, window.innerHeight - TOOLTIP_HEIGHT_ESTIMATE - 8)),
+        right: window.innerWidth - rect.left + GAP,
+        arrowSide: 'right',
+      };
+    case 'right':
+      return {
+        top: Math.max(8, Math.min(rect.top + rect.height / 2 - TOOLTIP_HEIGHT_ESTIMATE / 2, window.innerHeight - TOOLTIP_HEIGHT_ESTIMATE - 8)),
+        left: rect.right + GAP,
+        arrowSide: 'left',
+      };
+  }
+}
+
+// ============================================
+// Trigger Detection
+// ============================================
+
+function useActiveTrigger(): TutorialTrigger | null {
+  const gameState = useGameStore(s => s.gameState);
+  const drawnCard = useGameStore(s => s.drawnCard);
+
+  if (!gameState) return null;
+
+  // setup_plans phase
+  if (gameState.phase === 'setup_plans') {
+    return 'first_plan_select';
+  }
+
+  // Pending action for roll_dice
+  if (
+    gameState.pendingAction &&
+    gameState.pendingAction.type === 'roll_dice'
+  ) {
+    return 'first_dice';
+  }
+
+  // Pending action for draw_training_plan (plan confirm context)
+  if (
+    gameState.pendingAction &&
+    gameState.pendingAction.type === 'draw_training_plan'
+  ) {
+    return 'plan_confirm';
+  }
+
+  // Card drawn
+  if (drawnCard) {
+    return 'first_card_draw';
+  }
+
+  // Player in a branch line
+  const playerId = useGameStore.getState().playerId;
+  if (playerId && gameState.players) {
+    const player = gameState.players.find(p => p.id === playerId);
+    if (player && player.position.type === 'line') {
+      return 'first_branch';
     }
-  }, [isLastStep]);
+  }
 
-  const handlePrev = useCallback(() => {
-    if (!isFirstStep) {
-      setCurrentStep((prev) => prev - 1);
+  return null;
+}
+
+// ============================================
+// TutorialSystem Component
+// ============================================
+
+export function TutorialSystem() {
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(loadCompletedSteps);
+  const [activeStep, setActiveStep] = useState<TutorialStep | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [position, setPosition] = useState<TooltipPosition | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activeTrigger = useActiveTrigger();
+
+  // Check if all steps are completed
+  const allCompleted = completedSteps.size >= TUTORIAL_STEPS.length;
+
+  // Find matching step for current trigger
+  useEffect(() => {
+    if (allCompleted || !activeTrigger) {
+      // No trigger or all done
+      if (activeStep) {
+        setVisible(false);
+        const timer = setTimeout(() => setActiveStep(null), FADE_DURATION_MS);
+        return () => clearTimeout(timer);
+      }
+      return;
     }
-  }, [isFirstStep]);
 
-  const handleSkip = useCallback(() => {
-    handleComplete();
+    const matchingStep = TUTORIAL_STEPS.find(
+      s => s.trigger === activeTrigger && !completedSteps.has(s.id)
+    );
+
+    if (matchingStep && matchingStep.id !== activeStep?.id) {
+      setActiveStep(matchingStep);
+
+      // Small delay to ensure DOM elements are rendered
+      const timer = setTimeout(() => {
+        const pos = computePosition(matchingStep.targetSelector, matchingStep.position);
+        setPosition(pos);
+        setVisible(true);
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeTrigger, allCompleted, completedSteps, activeStep]);
+
+  // Dismiss current step
+  const dismissStep = useCallback(() => {
+    if (!activeStep) return;
+
+    setVisible(false);
+    const newCompleted = new Set(completedSteps);
+    newCompleted.add(activeStep.id);
+    setCompletedSteps(newCompleted);
+    saveCompletedSteps(newCompleted);
+
+    dismissTimerRef.current = setTimeout(() => {
+      setActiveStep(null);
+    }, FADE_DURATION_MS);
+  }, [activeStep, completedSteps]);
+
+  // Skip all steps
+  const skipAll = useCallback(() => {
+    setVisible(false);
+    const allIds = new Set(TUTORIAL_STEPS.map(s => s.id));
+    setCompletedSteps(allIds);
+    saveCompletedSteps(allIds);
+
+    setTimeout(() => {
+      setActiveStep(null);
+    }, FADE_DURATION_MS);
   }, []);
 
-  const handleComplete = useCallback(() => {
-    setIsVisible(false);
-    localStorage.setItem('nannaricher_tutorial_seen', 'true');
-    onComplete?.();
-  }, [onComplete]);
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
+  }, []);
 
-  if (hasSeenTutorial || !isVisible) {
+  // Don't render if nothing to show
+  if (!activeStep || allCompleted) {
     return null;
   }
 
+  const tooltipStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 10000,
+    maxWidth: 320,
+    width: 'max-content',
+    pointerEvents: 'auto',
+    opacity: visible ? 1 : 0,
+    transform: visible ? 'translateY(0)' : 'translateY(8px)',
+    transition: `opacity ${FADE_DURATION_MS}ms ease, transform ${FADE_DURATION_MS}ms ease`,
+    ...(position
+      ? {
+          top: position.top,
+          bottom: position.bottom,
+          left: position.left,
+          right: position.right,
+        }
+      : {
+          // Fallback center positioning
+          top: '50%',
+          left: '50%',
+          transform: visible ? 'translate(-50%, -50%)' : 'translate(-50%, calc(-50% + 8px))',
+        }),
+  };
+
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <motion.div
-          className="bg-white rounded-xl shadow-2xl max-w-md p-6 mx-4"
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+    <div
+      className="tutorial-overlay"
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}
+    >
+      <div style={tooltipStyle}>
+        {/* Arrow */}
+        {position && <Arrow side={position.arrowSide} />}
+
+        {/* Tooltip body */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #3D2566 0%, #5E3A8D 100%)',
+            borderRadius: 12,
+            padding: '16px 20px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 12px rgba(94,58,141,0.3)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: '#FFFFFF',
+            fontFamily: "'Noto Sans SC', system-ui, sans-serif",
+          }}
         >
-          {/* 进度指示 */}
-          <div className="flex gap-1 mb-4">
-            {TUTORIAL_STEPS.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1 flex-1 rounded-full ${
-                  index <= currentStep ? 'bg-purple-600' : 'bg-gray-200'
-                }`}
-              />
-            ))}
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              marginBottom: 8,
+              color: '#E0C55E',
+            }}
+          >
+            {activeStep.title}
           </div>
 
-          {/* 标题 */}
-          <h2 className="text-xl font-bold text-purple-800 mb-3">
-            {step.title}
-          </h2>
+          <div
+            style={{
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: '#E8E0F0',
+              marginBottom: 14,
+            }}
+          >
+            {activeStep.message}
+          </div>
 
-          {/* 内容 */}
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            {step.content}
-          </p>
-
-          {/* 按钮 */}
-          <div className="flex justify-between items-center">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={handleSkip}
-              className="text-gray-400 hover:text-gray-600 text-sm"
+              onClick={skipAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#B0B0B0',
+                fontSize: 12,
+                cursor: 'pointer',
+                padding: '4px 0',
+              }}
             >
-              跳过引导
+              {'\u8DF3\u8FC7\u5168\u90E8'}
             </button>
 
-            <div className="flex gap-2">
-              {!isFirstStep && (
-                <button
-                  onClick={handlePrev}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  上一步
-                </button>
-              )}
-              <button
-                onClick={handleNext}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                {isLastStep ? '开始游戏' : '下一步'}
-              </button>
-            </div>
+            <button
+              onClick={dismissStep}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 8,
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '6px 16px',
+                cursor: 'pointer',
+              }}
+            >
+              {'\u77E5\u9053\u4E86'}
+            </button>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </div>
+    </div>
   );
-};
+}
+
+// ============================================
+// Arrow sub-component
+// ============================================
+
+function Arrow({ side }: { side: 'top' | 'bottom' | 'left' | 'right' }) {
+  const size = 8;
+  const color = '#3D2566';
+
+  const baseStyle: React.CSSProperties = {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderStyle: 'solid',
+  };
+
+  switch (side) {
+    case 'top':
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            top: -size,
+            left: '50%',
+            marginLeft: -size,
+            borderWidth: `0 ${size}px ${size}px ${size}px`,
+            borderColor: `transparent transparent ${color} transparent`,
+          }}
+        />
+      );
+    case 'bottom':
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            bottom: -size,
+            left: '50%',
+            marginLeft: -size,
+            borderWidth: `${size}px ${size}px 0 ${size}px`,
+            borderColor: `${color} transparent transparent transparent`,
+          }}
+        />
+      );
+    case 'left':
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            left: -size,
+            top: '50%',
+            marginTop: -size,
+            borderWidth: `${size}px ${size}px ${size}px 0`,
+            borderColor: `transparent ${color} transparent transparent`,
+          }}
+        />
+      );
+    case 'right':
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            right: -size,
+            top: '50%',
+            marginTop: -size,
+            borderWidth: `${size}px 0 ${size}px ${size}px`,
+            borderColor: `transparent transparent transparent ${color}`,
+          }}
+        />
+      );
+  }
+}
+
+// ============================================
+// Exports
+// ============================================
+
+export default TutorialSystem;
