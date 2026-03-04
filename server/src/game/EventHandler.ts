@@ -38,6 +38,7 @@ export interface GameEngine {
 
   // Card handling
   drawCard(playerId: string, deckType: 'chance' | 'destiny'): import('@nannaricher/shared').Card | null;
+  drawAndProcessCard(playerId: string, deckType: 'chance' | 'destiny'): void;
   drawTrainingPlan(playerId: string): import('@nannaricher/shared').TrainingPlan | null;
   addCardToPlayer(playerId: string, card: import('@nannaricher/shared').Card): void;
   removeCardFromPlayer(playerId: string, cardId: string): void;
@@ -65,9 +66,13 @@ export interface GameEngine {
 
   // Utility
   rollDice(count?: number): number[];
+  rollDiceAndBroadcast(playerId: string, count?: number): number[];
   getPlayersByMoneyRank(): Player[]; // sorted richest to poorest
   getPlayersByGpaRank(): Player[]; // sorted highest to lowest
   getPlayersByExplorationRank(): Player[]; // sorted highest to lowest
+
+  // Win condition
+  declareWinner(playerId: string, condition: string): void;
 
   // Pending action creation
   createPendingAction(

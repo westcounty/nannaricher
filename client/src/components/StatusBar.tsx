@@ -1,5 +1,4 @@
 // client/src/components/StatusBar.tsx
-import React from 'react';
 import type { GamePhase } from '@nannaricher/shared';
 import { AudioControl } from './AudioControl';
 
@@ -16,6 +15,12 @@ const phaseLabels: Record<GamePhase, string> = {
   setup_plans: '选择培养计划',
   playing: '游戏中',
   finished: '已结束',
+  rolling_dice: '掷骰子',
+  moving: '移动中',
+  event_popup: '事件弹窗',
+  making_choice: '做选择',
+  waiting_others: '等待他人',
+  multi_interaction: '多人互动',
 };
 
 export function StatusBar({ roomId, turnNumber, roundNumber, currentPlayerName, phase }: StatusBarProps) {

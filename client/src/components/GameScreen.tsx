@@ -28,7 +28,6 @@ import { ActionPromptBar } from './ActionPromptBar';
 import { TurnOverlay } from './TurnOverlay';
 import { MissedEventsPanel } from './MissedEventsPanel';
 import { ZoomHint } from './ZoomHint';
-import { SettingsPanel } from './SettingsPanel';
 import { SettlementScreen } from './SettlementScreen';
 import { OpponentToast } from './OpponentToast';
 import { playSound } from '../audio/AudioManager';
@@ -61,7 +60,6 @@ export function GameScreen() {
   const confirmPlan = socketActions?.confirmPlan ?? (() => {});
   const useCard = socketActions?.useCard ?? (() => {});
   const rollDice = socketActions?.rollDice ?? (() => {});
-  const clearWinner = () => useGameStore.getState().setWinner(null);
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
 

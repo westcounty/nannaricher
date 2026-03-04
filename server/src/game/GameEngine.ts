@@ -42,6 +42,14 @@ export class GameEngine implements IGameEngine {
   private chainSystem: ChainActionSystem;
   /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
   private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
+  private diceResultCallback: ((playerId: string, values: number[], total: number) => void) | null = null;
+  private resourceChangeCallback: ((data: {
+    playerId: string;
+    playerName: string;
+    stat: 'money' | 'gpa' | 'exploration';
+    delta: number;
+    current: number;
+  }) => void) | null = null;
 
   constructor(roomId: string) {
     this.state = this.createInitialState(roomId);
@@ -205,17 +213,34 @@ export class GameEngine implements IGameEngine {
       return;
     }
 
-    // Check plan abilities for money loss protection
+    // Check plan abilities for money loss protection (faxue lawyerShield)
     if (delta < 0) {
-      const abilityResult = this.planAbilities.applyPassiveAbility({
-        player,
-        state: this.state,
-        event: 'money_loss',
-      });
-
-      if (abilityResult.modified && abilityResult.effects?.customEffect === 'faxue_shield') {
+      const abilityResult = this.planAbilities.checkAbilities(player, this.state, 'on_money_loss');
+      if (abilityResult?.effects?.blockMoneyLoss) {
+        // Consume the shield after use
+        player.lawyerShield = false;
         this.log('法学院护盾：免除本次金钱损失', playerId);
-        return; // Cancel the money loss
+        return;
+      }
+
+      // Card effect: blockMoneyLoss (投石问路)
+      const blockIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.blockMoneyLoss
+      );
+      if (blockIdx >= 0) {
+        player.effects.splice(blockIdx, 1);
+        this.log('投石问路：抵消本次金钱损失', playerId);
+        return;
+      }
+
+      // Card effect: negateExpense (余额为负)
+      const negateIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.negateExpense
+      );
+      if (negateIdx >= 0) {
+        player.effects.splice(negateIdx, 1);
+        this.log('余额为负：抵消本次金钱扣除', playerId);
+        return;
       }
     }
 
@@ -231,6 +256,16 @@ export class GameEngine implements IGameEngine {
 
     this.log(`金钱 ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.money})`, playerId);
 
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'money',
+        delta,
+        current: player.money,
+      });
+    }
+
     // Check bankruptcy after modification
     if (player.money < 0) {
       this.checkBankruptcy(playerId);
@@ -240,6 +275,18 @@ export class GameEngine implements IGameEngine {
   modifyPlayerGpa(playerId: string, delta: number): void {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
+
+    // Card effect: blockGpaLoss (祖传试卷)
+    if (delta < 0) {
+      const blockIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.blockGpaLoss
+      );
+      if (blockIdx >= 0) {
+        player.effects.splice(blockIdx, 1);
+        this.log('祖传试卷：抵消本次GPA损失', playerId);
+        return;
+      }
+    }
 
     const oldGpa = player.gpa;
     let newGpa = player.gpa + delta;
@@ -252,14 +299,46 @@ export class GameEngine implements IGameEngine {
 
     player.gpa = parseFloat(Math.max(0, Math.min(5.0, newGpa)).toFixed(1));
     this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa})`, playerId);
+
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'gpa',
+        delta,
+        current: player.gpa,
+      });
+    }
   }
 
   modifyPlayerExploration(playerId: string, delta: number): void {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
 
+    // Card effect: blockExplorationLoss (校园传说)
+    if (delta < 0) {
+      const blockIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.blockExplorationLoss
+      );
+      if (blockIdx >= 0) {
+        player.effects.splice(blockIdx, 1);
+        this.log('校园传说：抵消本次探索值损失', playerId);
+        return;
+      }
+    }
+
     player.exploration = Math.max(0, player.exploration + delta);
     this.log(`探索值 ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.exploration})`, playerId);
+
+    if (this.resourceChangeCallback) {
+      this.resourceChangeCallback({
+        playerId,
+        playerName: player.name,
+        stat: 'exploration',
+        delta,
+        current: player.exploration,
+      });
+    }
   }
 
   // ============================================
@@ -278,6 +357,15 @@ export class GameEngine implements IGameEngine {
       if (position.index < oldPosition.index) {
         // Passed start
         this.eventHandler.execute('corner_start_pass', playerId);
+      }
+    }
+
+    // --- PlanAbilities: on_move (teleport/direct moves) ---
+    const moveResult = this.planAbilities.checkAbilities(player, this.state, 'on_move');
+    if (moveResult?.effects) {
+      if (moveResult.message) this.log(moveResult.message, playerId);
+      if (moveResult.effects.exploration) {
+        this.modifyPlayerExploration(playerId, moveResult.effects.exploration);
       }
     }
 
@@ -397,13 +485,21 @@ export class GameEngine implements IGameEngine {
     const line = boardData.lines[lineId];
     if (!line) return false;
 
-    // Pay entry fee if required
+    // Pay entry fee if required (with plan ability discounts)
     if (payFee && line.entryFee > 0) {
-      if (player.money < line.entryFee) {
-        this.log(`金钱不足，无法进入 ${line.name}`, playerId);
-        return false;
+      const actualFee = this.planAbilities.calculateEntryFee(player, this.state, lineId, line.entryFee);
+      if (actualFee > 0) {
+        if (player.money < actualFee) {
+          this.log(`金钱不足，无法进入 ${line.name}`, playerId);
+          return false;
+        }
+        this.modifyPlayerMoney(playerId, -actualFee);
+        if (actualFee < line.entryFee) {
+          this.log(`培养计划能力：入场费从 ${line.entryFee} 减少到 ${actualFee}`, playerId);
+        }
+      } else {
+        this.log(`培养计划能力：免入场费进入 ${line.name}`, playerId);
       }
-      this.modifyPlayerMoney(playerId, -line.entryFee);
     }
 
     // Track line visit
@@ -500,7 +596,15 @@ export class GameEngine implements IGameEngine {
 
     // Give experience card at end of line
     if (line?.experienceCard && moveToMainBoard) {
-      this.eventHandler.execute(line.experienceCard.handlerId, playerId);
+      // 艺术学院能力：浦口线经验卡双倍奖励（在执行经验卡前额外给一份奖励）
+      if (lineId === 'pukou' && player.confirmedPlans.includes('plan_yishu')) {
+        this.modifyPlayerMoney(playerId, 400);
+        this.log('艺术学院能力：浦口线双倍经验卡，额外金钱 +400', playerId);
+      }
+      const expCardAction = this.eventHandler.execute(line.experienceCard.handlerId, playerId);
+      if (expCardAction) {
+        this.state.pendingAction = expCardAction;
+      }
     }
 
     if (moveToMainBoard) {
@@ -537,6 +641,20 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return null;
 
+    // 消息闭塞/虚晃一枪：检查是否有其他玩家的阻挡效果
+    const blockEffectKey = deckType === 'chance' ? 'blockChanceCard' : 'blockDestinyCard';
+    for (const p of this.state.players) {
+      if (p.id === playerId) continue;
+      const blockIdx = p.effects.findIndex(
+        e => e.type === 'custom' && e.data?.[blockEffectKey]
+      );
+      if (blockIdx >= 0) {
+        p.effects.splice(blockIdx, 1);
+        this.log(`${p.name} 的${deckType === 'chance' ? '消息闭塞' : '虚晃一枪'}生效：阻止抽卡`, playerId);
+        return null;
+      }
+    }
+
     let deck = this.state.cardDecks[deckType];
     let discardPile = this.state.discardPiles[deckType];
 
@@ -572,6 +690,27 @@ export class GameEngine implements IGameEngine {
     // to avoid duplicate log entries. Only console log here for debugging.
 
     return card;
+  }
+
+  /**
+   * Draw a card and automatically process it:
+   * - Holdable cards → added to player's hand
+   * - Auto-execute cards → card handler executed immediately
+   * Use this from event/line handlers instead of drawCard() directly.
+   */
+  drawAndProcessCard(playerId: string, deckType: 'chance' | 'destiny'): void {
+    const card = this.drawCard(playerId, deckType);
+    if (!card) return;
+    const player = this.getPlayer(playerId);
+    if (!player) return;
+
+    if (card.holdable) {
+      this.addCardToPlayer(playerId, card);
+      this.log(`抽到${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}（已加入手牌）`, playerId);
+    } else {
+      this.log(`抽到${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}`, playerId);
+      this.eventHandler.execute(`card_${card.id}`, playerId);
+    }
   }
 
   drawTrainingPlan(playerId: string): TrainingPlan | null {
@@ -690,6 +829,19 @@ export class GameEngine implements IGameEngine {
     if (!player) return;
 
     player.skipNextTurn = true;
+
+    // Support multi-turn skips via effect stacking
+    const existingSkip = player.effects.find(e => e.type === 'skip_turn');
+    if (existingSkip) {
+      existingSkip.turnsRemaining = Math.max(existingSkip.turnsRemaining, turns);
+    } else if (turns > 1) {
+      player.effects.push({
+        id: `skip_${Date.now()}`,
+        type: 'skip_turn',
+        turnsRemaining: turns,
+      });
+    }
+
     this.log(`暂停 ${turns} 回合`, playerId);
   }
 
@@ -890,8 +1042,7 @@ export class GameEngine implements IGameEngine {
       }
     }
 
-    // Check win conditions after cell event
-    this.checkWinConditions(playerId);
+    // Win conditions are checked by GameCoordinator.checkAndEmitWin() after action processing
   }
 
   private executeCornerEvent(playerId: string, cornerType?: string): void {
@@ -922,15 +1073,20 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return false;
 
+    const disabled = player.disabledWinConditions ?? [];
+
     // Base win condition: GPA*10 + exploration >= 60
-    const baseScore = player.gpa * 10 + player.exploration;
-    if (baseScore >= BASE_WIN_THRESHOLD) {
-      this.declareWinner(playerId, `GPA*10+探索值达到 ${baseScore.toFixed(1)} >= ${BASE_WIN_THRESHOLD}`);
-      return true;
+    if (!disabled.includes('base')) {
+      const baseScore = player.gpa * 10 + player.exploration;
+      if (baseScore >= BASE_WIN_THRESHOLD) {
+        this.declareWinner(playerId, `GPA*10+探索值达到 ${baseScore.toFixed(1)} >= ${BASE_WIN_THRESHOLD}`);
+        return true;
+      }
     }
 
     // Check training plan win conditions
     for (const plan of player.confirmedPlans) {
+      if (disabled.includes(plan)) continue;
       if (this.checkTrainingPlanWin(playerId, plan)) {
         return true;
       }
@@ -982,16 +1138,18 @@ export class GameEngine implements IGameEngine {
         }
         break;
 
-      case 'plan_rengong':
-        // 人工智能学院：GPA比最低玩家高2.0
+      case 'plan_rengong': {
+        // 人工智能学院：GPA比最低玩家高 threshold（默认2.0，可降至1.5）
+        const rengongThreshold = player.modifiedWinThresholds?.['plan_rengong'] ?? 2.0;
         const otherPlayers = this.state.players.filter(p => p.id !== playerId);
         if (otherPlayers.length > 0) {
           const lowestGpa = Math.min(...otherPlayers.map(p => p.gpa));
-          if (player.gpa >= lowestGpa + 2.0) {
-            this.declareWinner(playerId, '人工智能学院：GPA比最低玩家高2.0');
+          if (player.gpa >= lowestGpa + rengongThreshold) {
+            this.declareWinner(playerId, `人工智能学院：GPA比最低玩家高${rengongThreshold}`);
             return true;
           }
         }
+      }
         break;
 
       case 'plan_jisuanji':
@@ -1006,7 +1164,7 @@ export class GameEngine implements IGameEngine {
         break;
 
       case 'plan_wuli':
-        // 物理学院：任选两项达到60 (探索值=GPA*10=金钱/100)
+        // 物理学院：任选两项之和>=90 (探索值, GPA*10, 金钱/100)
         const scores = [
           player.exploration,
           player.gpa * 10,
@@ -1015,13 +1173,13 @@ export class GameEngine implements IGameEngine {
         let validPair = false;
         for (let i = 0; i < scores.length && !validPair; i++) {
           for (let j = i + 1; j < scores.length && !validPair; j++) {
-            if (scores[i] >= 60 && scores[j] >= 60) {
+            if (scores[i] + scores[j] >= 90) {
               validPair = true;
             }
           }
         }
         if (validPair) {
-          this.declareWinner(playerId, '物理学院：两项属性达到60');
+          this.declareWinner(playerId, '物理学院：两项属性之和达到90');
           return true;
         }
         break;
@@ -1052,16 +1210,18 @@ export class GameEngine implements IGameEngine {
         }
         break;
 
-      case 'plan_shehuixue':
-        // 社会学院：探索值比最低玩家高20
+      case 'plan_shehuixue': {
+        // 社会学院：探索值比最低玩家高 threshold（默认20，可降至15）
+        const shehuiThreshold = player.modifiedWinThresholds?.['plan_shehuixue'] ?? 20;
         const othersForSocial = this.state.players.filter(p => p.id !== playerId);
         if (othersForSocial.length > 0) {
           const lowestExp = Math.min(...othersForSocial.map(p => p.exploration));
-          if (player.exploration >= lowestExp + 20) {
-            this.declareWinner(playerId, '社会学院：探索值比最低玩家高20');
+          if (player.exploration >= lowestExp + shehuiThreshold) {
+            this.declareWinner(playerId, `社会学院：探索值比最低玩家高${shehuiThreshold}`);
             return true;
           }
         }
+      }
         break;
 
       case 'plan_zhengguan':
@@ -1103,7 +1263,7 @@ export class GameEngine implements IGameEngine {
     return false;
   }
 
-  private declareWinner(playerId: string, condition: string): void {
+  declareWinner(playerId: string, condition: string): void {
     const player = this.getPlayer(playerId);
     if (!player) return;
 
@@ -1144,8 +1304,11 @@ export class GameEngine implements IGameEngine {
       // Check if this triggers other players' win conditions (e.g., Law School plan)
       for (const p of this.state.players) {
         if (p.id !== playerId && p.confirmedPlans.includes('plan_faxue')) {
-          this.declareWinner(p.id, '场上出现破产玩家（法学院）');
-          return;
+          const faxueDisabled = (p.disabledWinConditions ?? []).includes('plan_faxue');
+          if (!faxueDisabled) {
+            this.declareWinner(p.id, '场上出现破产玩家（法学院）');
+            return;
+          }
         }
       }
     }
@@ -1184,6 +1347,23 @@ export class GameEngine implements IGameEngine {
     this.log(`投骰子: [${results.join(', ')}] = ${total}`);
 
     return results;
+  }
+
+  setDiceResultCallback(cb: (playerId: string, values: number[], total: number) => void): void {
+    this.diceResultCallback = cb;
+  }
+
+  setResourceChangeCallback(cb: typeof this.resourceChangeCallback): void {
+    this.resourceChangeCallback = cb;
+  }
+
+  rollDiceAndBroadcast(playerId: string, count?: number): number[] {
+    const values = this.rollDice(count);
+    const total = values.reduce((a, b) => a + b, 0);
+    if (this.diceResultCallback) {
+      this.diceResultCallback(playerId, values, total);
+    }
+    return values;
   }
 
   getPlayersByMoneyRank(): Player[] {

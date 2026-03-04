@@ -8,45 +8,47 @@ import type { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
 import { GameStage } from './GameStage';
-import { BackgroundLayer } from './layers/BackgroundLayer';
-import { BoardLayer } from './layers/BoardLayer';
-import { LineLayer } from './layers/LineLayer';
+import { MetroBackgroundLayer } from './layers/MetroBackgroundLayer';
+import { TrackLayer } from './layers/TrackLayer';
+import { StationLayer, type CellHoverInfo } from './layers/StationLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
+import { animateDiceResult } from './animations/DiceRollAnim';
 import { showFloatingText } from './animations/FloatingText';
-import { playSound } from '../audio/AudioManager';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
+import { MAIN_BOARD_SIZE, LINE_CONFIGS } from '@nannaricher/shared';
 
 interface GameCanvasProps {
   gameState: GameState;
   currentPlayerId: string | null;
+  diceResult?: { playerId: string; values: number[]; total: number } | null;
   onCellClick?: (cellId: string, position: Position) => void;
+  onCellHover?: (info: CellHoverInfo | null) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   gameState,
   currentPlayerId,
+  diceResult,
   onCellClick,
+  onCellHover,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const stageRef = useRef<GameStage | null>(null);
   const playerLayerRef = useRef<PlayerLayer | null>(null);
   const tweenRef = useRef<TweenEngine | null>(null);
-  const effectLayerRef = useRef<Container | null>(null);
+  const worldEffectLayerRef = useRef<Container | null>(null);
+  const screenEffectLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<ViewportController | null>(null);
+  const stationLayerRef = useRef<StationLayer | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
-
-  // Keep a ref to the latest onCellClick so the PixiJS layer always calls the current callback
-  const onCellClickRef = useRef(onCellClick);
-  onCellClickRef.current = onCellClick;
 
   // Initialize PixiJS Application + layered stage
   useEffect(() => {
     const container = containerRef.current;
     if (!container || appRef.current) return;
-
-    let cancelled = false;
 
     const rect = container.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -61,7 +63,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     }).then(() => {
-      if (cancelled) { app.destroy(true); return; }
       container.appendChild(app.canvas);
       appRef.current = app;
 
@@ -77,9 +78,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Build the layered stage
       const stage = new GameStage();
-      stage.addLayer(new BackgroundLayer());
-      stage.addLayer(new LineLayer());
-      stage.addLayer(new BoardLayer({ onCellClick: (cellId, pos) => onCellClickRef.current?.(cellId, pos) }));
+      stage.addLayer(new MetroBackgroundLayer());
+      stage.addLayer(new TrackLayer());
+      const stationLayer = new StationLayer({ onCellClick, onCellHover });
+      stage.addLayer(stationLayer);
+      stationLayerRef.current = stationLayer;
+      stationLayer.setTweenEngine(tweenEngine);
 
       // Create PlayerLayer with animation support
       const playerLayer = new PlayerLayer();
@@ -88,19 +92,36 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       stage.init(app, w, h);
 
-      // Create effect layer ON TOP of everything (after stage.init so it's above all layers)
-      const effectContainer = new Container();
-      app.stage.addChild(effectContainer);
-      effectLayerRef.current = effectContainer;
+      // Create world-space effect layer inside mainContainer (for floating text, ripples)
+      const worldEffectLayer = new Container();
+      worldEffectLayer.x = METRO_BOARD_WIDTH / 2;
+      worldEffectLayer.y = METRO_BOARD_HEIGHT / 2;
+      stage.getMainContainer().addChild(worldEffectLayer);
+      worldEffectLayerRef.current = worldEffectLayer;
+
+      // Create screen-space effect layer on app.stage (for dice animation)
+      const screenEffectLayer = new Container();
+      app.stage.addChild(screenEffectLayer);
+      screenEffectLayerRef.current = screenEffectLayer;
 
       // Inject animation dependencies into PlayerLayer
-      playerLayer.setAnimationDeps(tweenEngine, effectContainer);
+      playerLayer.setAnimationDeps(tweenEngine, worldEffectLayer, app.ticker);
 
       stageRef.current = stage;
 
       // Create ViewportController for zoom/pan
       const mainContainer = stage.getMainContainer();
       const vc = new ViewportController(mainContainer, app.canvas as HTMLCanvasElement);
+      vc.onFocusRequest = () => {
+        // Focus on current player when Home key is pressed
+        if (playerLayerRef.current && gameState) {
+          const cp = gameState.players[gameState.currentPlayerIndex];
+          if (cp) {
+            const pos = playerLayerRef.current.getPlayerPosition(cp.id);
+            if (pos) vc.focusOnPlayer(pos.x, pos.y);
+          }
+        }
+      };
       viewportRef.current = vc;
 
       // Deferred resize: wait for next frame so CSS layout fully settles after
@@ -121,7 +142,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     });
 
     return () => {
-      cancelled = true;
       // Destroy ViewportController
       viewportRef.current?.destroy();
       viewportRef.current = null;
@@ -130,13 +150,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       tweenRef.current?.destroy();
       tweenRef.current = null;
 
-      // Destroy effect layer
-      if (effectLayerRef.current) {
-        if (effectLayerRef.current.parent) {
-          effectLayerRef.current.parent.removeChild(effectLayerRef.current);
+      // Destroy effect layers
+      if (worldEffectLayerRef.current) {
+        if (worldEffectLayerRef.current.parent) {
+          worldEffectLayerRef.current.parent.removeChild(worldEffectLayerRef.current);
         }
-        effectLayerRef.current.destroy({ children: true });
-        effectLayerRef.current = null;
+        worldEffectLayerRef.current.destroy({ children: true });
+        worldEffectLayerRef.current = null;
+      }
+      if (screenEffectLayerRef.current) {
+        if (screenEffectLayerRef.current.parent) {
+          screenEffectLayerRef.current.parent.removeChild(screenEffectLayerRef.current);
+        }
+        screenEffectLayerRef.current.destroy({ children: true });
+        screenEffectLayerRef.current = null;
       }
 
       playerLayerRef.current = null;
@@ -153,7 +180,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   // Push state updates to the stage, with floating text for stat changes
   useEffect(() => {
     // Detect stat changes and show floating text
-    if (prevStateRef.current && effectLayerRef.current && playerLayerRef.current) {
+    if (prevStateRef.current && worldEffectLayerRef.current && playerLayerRef.current) {
       const prevPlayers = prevStateRef.current.players;
       for (const player of gameState.players) {
         const prevPlayer = prevPlayers.find(p => p.id === player.id);
@@ -167,10 +194,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.money - prevPlayer.money;
           const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
           const color = delta > 0 ? '#4ade80' : '#ef4444';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current || undefined);
-          if (player.id === currentPlayerId) {
-            playSound(delta > 0 ? 'coin_gain' : 'coin_loss');
-          }
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current ?? undefined);
         }
 
         // GPA change
@@ -178,10 +202,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.gpa - prevPlayer.gpa;
           const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
           const color = '#60a5fa';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current || undefined);
-          if (player.id === currentPlayerId) {
-            playSound(delta > 0 ? 'gpa_up' : 'gpa_down');
-          }
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current ?? undefined);
         }
 
         // Exploration change
@@ -189,17 +210,89 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.exploration - prevPlayer.exploration;
           const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
           const color = '#fbbf24';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current || undefined);
-          if (player.id === currentPlayerId) {
-            playSound('explore_up');
-          }
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current ?? undefined);
         }
       }
     }
+    // Auto-focus on current player when turn changes
+    if (prevStateRef.current &&
+        prevStateRef.current.currentPlayerIndex !== gameState.currentPlayerIndex &&
+        playerLayerRef.current && viewportRef.current) {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+      if (currentPlayer) {
+        const pos = playerLayerRef.current.getPlayerPosition(currentPlayer.id);
+        if (pos) viewportRef.current.focusOnPlayer(pos.x, pos.y);
+      }
+    }
+
     prevStateRef.current = gameState;
+
+    // Clear destination highlights when state updates (player has moved)
+    stationLayerRef.current?.clearHighlights();
 
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
+
+  // Animate dice result on the effect layer + highlight destination
+  useEffect(() => {
+    if (!diceResult || !screenEffectLayerRef.current || !tweenRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    let centerX = rect.width / 2;
+    let centerY = rect.height / 2;
+
+    // Position dice animation near the rolling player's piece
+    if (playerLayerRef.current && stageRef.current) {
+      const playerPos = playerLayerRef.current.getPlayerPosition(diceResult.playerId);
+      if (playerPos) {
+        // Convert world coords to screen coords via mainContainer transform
+        const mc = stageRef.current.getMainContainer();
+        const screenX = mc.x + (METRO_BOARD_WIDTH / 2 + playerPos.x) * mc.scale.x;
+        const screenY = mc.y + (METRO_BOARD_HEIGHT / 2 + playerPos.y) * mc.scale.y;
+        // Clamp to stay within canvas bounds with margin
+        const margin = 50;
+        centerX = Math.max(margin, Math.min(rect.width - margin, screenX));
+        centerY = Math.max(margin, Math.min(rect.height - margin, screenY - 60));
+      }
+    }
+
+    animateDiceResult(
+      screenEffectLayerRef.current,
+      diceResult.values,
+      diceResult.total,
+      tweenRef.current,
+      centerX,
+      centerY,
+    );
+
+    // Highlight destination cell
+    if (stationLayerRef.current && gameState) {
+      const roller = gameState.players.find(p => p.id === diceResult.playerId);
+      if (roller) {
+        const destKeys: string[] = [];
+        if (roller.position.type === 'main') {
+          const destIndex = (roller.position.index + diceResult.total) % MAIN_BOARD_SIZE;
+          destKeys.push(`main:${destIndex}`);
+        } else if (roller.position.type === 'line') {
+          // On branch line: advance within the line
+          const linePos = roller.position;
+          const line = LINE_CONFIGS.find(l => l.id === linePos.lineId);
+          if (line) {
+            const destIndex = linePos.index + diceResult.total;
+            if (destIndex < line.cellCount) {
+              destKeys.push(`line:${linePos.lineId}:${destIndex}`);
+            }
+          }
+        }
+        if (destKeys.length > 0) {
+          stationLayerRef.current.highlightCells(destKeys);
+        }
+      }
+    }
+  }, [diceResult]);
 
   // Handle viewport resize using ResizeObserver for accurate container tracking
   useEffect(() => {
@@ -216,15 +309,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       stageRef.current?.resize(rect.width, rect.height);
     };
 
-    // Use ResizeObserver to detect container size changes (CSS layout settling, flex recalc, etc.)
+    // Use ResizeObserver with debounce to detect container size changes
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const ro = new ResizeObserver(() => {
-      handleResize();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleResize, 100);
     });
     ro.observe(container);
 
     // Also handle window resize as fallback
     window.addEventListener('resize', handleResize);
     return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
       ro.disconnect();
       window.removeEventListener('resize', handleResize);
     };
@@ -243,3 +339,5 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     />
   );
 };
+
+export default GameCanvas;

@@ -1,5 +1,5 @@
 // client/src/components/CurrentPlayerPanel.tsx
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Player } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
@@ -46,7 +46,6 @@ export function CurrentPlayerPanel({
   const isSetupPhase = gameState?.phase === 'setup_plans';
   const canConfirmPlan = isSetupPhase ||
     (gameState && gameState.turnNumber % PLAN_CONFIRM_INTERVAL === 0 && gameState.turnNumber > 0);
-  const hasUnconfirmedPlans = player.trainingPlans.some(plan => !plan.confirmed);
   const hasReachedMaxPlans = player.confirmedPlans.length >= MAX_TRAINING_PLANS;
   // In setup phase, all players can confirm; in playing phase, only current player can confirm
   const canPlayerConfirm = isSetupPhase ? true : isMyTurn;

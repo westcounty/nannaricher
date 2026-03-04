@@ -34,6 +34,8 @@ function createMockPlayer(overrides: Partial<Player> & { id: string; name: strin
     chanceCardsUsedOnPlayers: {},
     gulou_endpoint_count: 0,
     modifiedWinThresholds: {},
+    maxWinConditionSlots: 3,
+    disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
     ...overrides,

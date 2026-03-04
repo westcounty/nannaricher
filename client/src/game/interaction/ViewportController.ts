@@ -2,6 +2,7 @@
 // Controls PixiJS canvas viewport: zoom, pan, pinch-to-zoom, double-click reset, auto-focus.
 
 import { Container } from 'pixi.js';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
 
 // ============================================
 // Constants
@@ -14,6 +15,7 @@ const ZOOM_STEP = 0.1;
 const PAN_ANIMATE_DURATION = 400; // ms
 const DOUBLE_CLICK_THRESHOLD = 300; // ms
 const PINCH_MIN_DISTANCE = 10; // minimum distance between two pointers to register
+const DRAG_THRESHOLD = 5; // pixels of movement before drag activates (prevents click swallowing)
 
 // ============================================
 // Types
@@ -72,6 +74,10 @@ export class ViewportController {
   private onPointerMoveBound: (e: PointerEvent) => void;
   private onPointerUpBound: (e: PointerEvent) => void;
   private onWheelBound: (e: WheelEvent) => void;
+  private onKeyDownBound: (e: KeyboardEvent) => void;
+
+  // Optional callback for Home key (focus on current player)
+  public onFocusRequest?: () => void;
 
   constructor(container: Container, canvas: HTMLCanvasElement) {
     this.container = container;
@@ -87,6 +93,7 @@ export class ViewportController {
     this.onPointerMoveBound = this.onPointerMove.bind(this);
     this.onPointerUpBound = this.onPointerUp.bind(this);
     this.onWheelBound = this.onWheel.bind(this);
+    this.onKeyDownBound = this.onKeyDown.bind(this);
 
     this.attachEvents();
   }
@@ -186,9 +193,9 @@ export class ViewportController {
     const canvasCenterX = rect.width / 2;
     const canvasCenterY = rect.height / 2;
 
-    // Calculate the screen position of the world point at current base scale
-    const screenX = this.baseContainerX + worldX * this.baseContainerScale;
-    const screenY = this.baseContainerY + worldY * this.baseContainerScale;
+    // Calculate the screen position of the world point accounting for current zoom
+    const screenX = this.baseContainerX * this.scale + worldX * this.baseContainerScale * this.scale;
+    const screenY = this.baseContainerY * this.scale + worldY * this.baseContainerScale * this.scale;
 
     // Pan needed to center that point
     const targetPanX = canvasCenterX - screenX;
@@ -248,14 +255,12 @@ export class ViewportController {
       this.lastClickX = e.clientX;
       this.lastClickY = e.clientY;
 
-      this.isDragging = true;
+      this.isDragging = false; // Don't activate drag until threshold exceeded
       this.dragStartX = e.clientX;
       this.dragStartY = e.clientY;
       this.dragStartPanX = this.panX;
       this.dragStartPanY = this.panY;
       this.cancelAnimation();
-
-      this.canvas.style.cursor = 'grabbing';
     } else if (this.activePointers.size === 2) {
       // Two pointers: start pinch-to-zoom
       this.isDragging = false;
@@ -292,14 +297,25 @@ export class ViewportController {
 
         this.setZoom(newScale, centerX, centerY);
       }
-    } else if (this.isDragging && this.activePointers.size === 1) {
-      // Single-pointer drag = pan
+    } else if (this.activePointers.size === 1) {
       const dx = e.clientX - this.dragStartX;
       const dy = e.clientY - this.dragStartY;
 
-      this.panX = this.dragStartPanX + dx;
-      this.panY = this.dragStartPanY + dy;
-      this.applyTransform();
+      if (!this.isDragging) {
+        // Check if movement exceeds drag threshold
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist >= DRAG_THRESHOLD) {
+          this.isDragging = true;
+          this.canvas.style.cursor = 'grabbing';
+        }
+      }
+
+      if (this.isDragging) {
+        // Single-pointer drag = pan
+        this.panX = this.dragStartPanX + dx;
+        this.panY = this.dragStartPanY + dy;
+        this.applyTransform();
+      }
     }
   }
 
@@ -334,12 +350,59 @@ export class ViewportController {
     this.setZoom(newScale, cursorX, cursorY);
   }
 
+  private onKeyDown(e: KeyboardEvent): void {
+    if (!this.enabled) return;
+
+    const PAN_STEP = 50;
+    switch (e.key) {
+      case '+':
+      case '=':
+        e.preventDefault();
+        this.setZoom(this.scale + ZOOM_STEP);
+        break;
+      case '-':
+        e.preventDefault();
+        this.setZoom(this.scale - ZOOM_STEP);
+        break;
+      case '0':
+        e.preventDefault();
+        this.resetZoom();
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        this.panTo(this.panX + PAN_STEP, this.panY);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        this.panTo(this.panX - PAN_STEP, this.panY);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        this.panTo(this.panX, this.panY + PAN_STEP);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        this.panTo(this.panX, this.panY - PAN_STEP);
+        break;
+      case 'Home':
+        e.preventDefault();
+        this.onFocusRequest?.();
+        break;
+    }
+  }
+
   // ============================================
   // Internal Helpers
   // ============================================
 
   /** Apply current scale and pan offset to the PixiJS container. */
   private applyTransform(): void {
+    // Soft pan limits: prevent dragging the board entirely out of view
+    const maxPanX = (METRO_BOARD_WIDTH * this.baseContainerScale * this.scale) / 2;
+    const maxPanY = (METRO_BOARD_HEIGHT * this.baseContainerScale * this.scale) / 2;
+    this.panX = clamp(this.panX, -maxPanX, maxPanX);
+    this.panY = clamp(this.panY, -maxPanY, maxPanY);
+
     const effectiveScale = this.baseContainerScale * this.scale;
     this.container.scale.set(effectiveScale);
     this.container.x = this.baseContainerX * this.scale + this.panX;
@@ -362,6 +425,11 @@ export class ViewportController {
     this.canvas.addEventListener('pointercancel', this.onPointerUpBound);
     this.canvas.addEventListener('pointerleave', this.onPointerUpBound);
     this.canvas.addEventListener('wheel', this.onWheelBound, { passive: false });
+    // Keyboard navigation (canvas must be focusable)
+    if (!this.canvas.hasAttribute('tabindex')) {
+      this.canvas.setAttribute('tabindex', '0');
+    }
+    this.canvas.addEventListener('keydown', this.onKeyDownBound);
 
     this.canvas.style.touchAction = 'none';
     this.canvas.style.cursor = 'grab';
@@ -375,6 +443,7 @@ export class ViewportController {
     this.canvas.removeEventListener('pointercancel', this.onPointerUpBound);
     this.canvas.removeEventListener('pointerleave', this.onPointerUpBound);
     this.canvas.removeEventListener('wheel', this.onWheelBound);
+    this.canvas.removeEventListener('keydown', this.onKeyDownBound);
   }
 }
 

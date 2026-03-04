@@ -35,14 +35,11 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
     ? Object.prototype.hasOwnProperty.call(pendingAction.responses, playerId)
     : false;
 
-  // Tally votes from responses
-  const voteTally = computeVoteTally(pendingAction);
-  const totalVotes = Object.values(voteTally).reduce((sum, count) => sum + count, 0);
-
-  // Determine which players have voted
+  // Determine which players have voted (responses are masked with '__voted__')
   const votedPlayerIds = new Set(
     pendingAction.responses ? Object.keys(pendingAction.responses) : []
   );
+  const totalVotes = votedPlayerIds.size;
 
   // Countdown timer
   useEffect(() => {
@@ -101,9 +98,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
         {/* Vote options */}
         <div className="vote-panel__options">
           {(pendingAction.options || []).map((option) => {
-            const count = voteTally[option.value] || 0;
             const isSelected = selectedOption === option.value;
-            const barWidth = totalVotes > 0 ? (count / players.length) * 100 : 0;
 
             const btnClass = [
               'vote-panel__option-btn',
@@ -122,14 +117,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
               >
                 <div className="vote-panel__option-content">
                   <span className="vote-panel__option-label">{option.label}</span>
-                  <span className="vote-panel__option-count">{count}</span>
-                </div>
-                {/* Tally bar */}
-                <div className="vote-panel__tally-bar-track">
-                  <div
-                    className="vote-panel__tally-bar-fill"
-                    style={{ width: `${barWidth}%` }}
-                  />
+                  {isSelected && <span className="vote-panel__option-count">✓</span>}
                 </div>
               </button>
             );
@@ -178,14 +166,6 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
 // Helpers
 // ============================================
 
-function computeVoteTally(action: PendingAction): Record<string, number> {
-  const tally: Record<string, number> = {};
-  if (action.responses) {
-    for (const choice of Object.values(action.responses)) {
-      tally[choice] = (tally[choice] || 0) + 1;
-    }
-  }
-  return tally;
-}
+// Vote tally computation removed — responses are masked for privacy during voting
 
 export default VotePanel;

@@ -31,6 +31,7 @@ export function EventModal({
   showCloseButton = false,
 }: EventModalProps) {
   const currentEvent = useGameStore((s) => s.currentEvent);
+  const playerId = useGameStore((s) => s.playerId);
   const socketActions = useGameStore((s) => s.socketActions);
   const chooseAction = socketActions?.chooseAction ?? (() => {});
   const clearEvent = () => useGameStore.getState().setCurrentEvent(null);
@@ -43,6 +44,11 @@ export function EventModal({
   const title = propTitle || currentEvent?.title || '事件';
   const description = propDescription || currentEvent?.description || '';
   const pendingAction = currentEvent?.pendingAction;
+
+  // Determine if this is read-only (event is for another player)
+  const isReadOnly = pendingAction
+    ? pendingAction.playerId !== playerId && pendingAction.playerId !== 'all'
+    : false;
 
   useEffect(() => {
     fadeIn();
@@ -57,6 +63,19 @@ export function EventModal({
       timerRefs.current = [];
     };
   }, []);
+
+  // Auto-dismiss read-only events after 4 seconds
+  useEffect(() => {
+    if (isReadOnly && !isClosing) {
+      const timer = setTimeout(() => {
+        setIsClosing(true);
+        timerRefs.current.push(setTimeout(() => {
+          clearEvent();
+        }, 150));
+      }, 4000);
+      timerRefs.current.push(timer);
+    }
+  }, [isReadOnly, isClosing, clearEvent]);
 
   const handleOptionSelect = useCallback((value: string) => {
     if (isClosing) return;
@@ -123,23 +142,26 @@ export function EventModal({
     effects.status
   );
 
-  const hasOptions = pendingAction?.options && pendingAction.options.length > 0;
+  const hasOptions = !isReadOnly && pendingAction?.options && pendingAction.options.length > 0;
 
   if (!isVisible && !isClosing) return null;
 
   return (
     <div
-      className={`event-modal-overlay ${isClosing ? 'closing' : ''}`}
+      className={`event-modal-overlay ${isClosing ? 'closing' : ''} ${isReadOnly ? 'read-only' : ''}`}
       style={{ opacity: isClosing ? 0 : opacity }}
-      onClick={hasOptions ? undefined : handleClose}
+      onClick={isReadOnly ? undefined : (hasOptions ? undefined : handleClose)}
     >
       <div
-        className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''}`}
+        className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''} ${isReadOnly ? 'read-only' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
           <h2 className="modal-title">{title}</h2>
-          {showCloseButton && (
+          {isReadOnly && (
+            <span className="read-only-badge">观战中</span>
+          )}
+          {showCloseButton && !isReadOnly && (
             <button className="modal-close" onClick={handleClose}>
               &times;
             </button>
@@ -205,7 +227,7 @@ export function EventModal({
           )}
         </div>
 
-        {!hasOptions && (
+        {!hasOptions && !isReadOnly && (
           <div className="modal-footer">
             <button
               className="confirm-button"

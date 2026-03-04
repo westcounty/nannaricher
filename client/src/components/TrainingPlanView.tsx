@@ -80,8 +80,7 @@ export function TrainingPlanView({
     // Pattern: 进入过N次医院
     const hospitalMatch = text.match(/进入过(\d+)次医院/);
     if (hospitalMatch) {
-      const target = parseInt(hospitalMatch[1], 10);
-      // We don't have hospital visit count, so skip
+      // We don't have hospital visit count exposed to client
       return null;
     }
 

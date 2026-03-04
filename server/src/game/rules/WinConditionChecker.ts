@@ -12,12 +12,17 @@ export class WinConditionChecker {
    * 检查玩家的所有已确认培养计划是否达成胜利条件
    */
   checkWinConditions(player: Player, state: GameState, history: PlayerHistory): WinResult {
-    // 先检查基础胜利条件
-    const baseResult = this.checkBaseWinCondition(player);
-    if (baseResult.won) return baseResult;
+    const disabled = player.disabledWinConditions ?? [];
 
-    // 检查每个已确认的培养计划
+    // 先检查基础胜利条件（如果未被禁用）
+    if (!disabled.includes('base')) {
+      const baseResult = this.checkBaseWinCondition(player);
+      if (baseResult.won) return baseResult;
+    }
+
+    // 检查每个已确认的培养计划（如果未被禁用）
     for (const planId of player.confirmedPlans) {
+      if (disabled.includes(planId)) continue;
       const result = this.checkPlanWinCondition(player, planId, state, history);
       if (result.won) return result;
     }

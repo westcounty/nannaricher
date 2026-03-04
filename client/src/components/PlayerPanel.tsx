@@ -1,7 +1,5 @@
 // client/src/components/PlayerPanel.tsx
-import React from 'react';
 import type { Player } from '@nannaricher/shared';
-import { PLAYER_COLORS } from '@nannaricher/shared';
 import { boardData } from '../data/board';
 
 interface PlayerPanelProps {
