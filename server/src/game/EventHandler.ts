@@ -1,9 +1,9 @@
 // server/src/game/EventHandler.ts
 import { PendingAction, ACTION_TIMEOUT_MS, Player } from '@nannaricher/shared';
-import { registerCornerHandlers } from './handlers/corner-handlers';
-import { registerEventHandlers } from './handlers/event-handlers';
-import { registerLineHandlers } from './handlers/line-handlers';
-import { registerCardHandlers } from './handlers/card-handlers';
+import { registerCornerHandlers } from './handlers/corner-handlers.js';
+import { registerEventHandlers } from './handlers/event-handlers.js';
+import { registerLineHandlers } from './handlers/line-handlers.js';
+import { registerCardHandlers } from './handlers/card-handlers.js';
 
 export type HandlerFn = (
   engine: GameEngine,

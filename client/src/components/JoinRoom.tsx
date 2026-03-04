@@ -23,17 +23,17 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
     e.preventDefault();
 
     if (!socket) {
-      setError('Not connected to server');
+      setError('未连接到服务器');
       return;
     }
 
     if (!roomCode || roomCode.length !== 6) {
-      setError('Please enter a valid 6-character room code');
+      setError('请输入有效的6位房间码');
       return;
     }
 
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('请输入你的名字');
       return;
     }
 
@@ -67,20 +67,20 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
   return (
     <div className="join-room">
       <button className="back-button" onClick={onBack}>
-        &larr; Back
+        &larr; 返回
       </button>
 
-      <h2>Join Room</h2>
+      <h2>加入房间</h2>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="roomCode">Room Code</label>
+          <label htmlFor="roomCode">房间码</label>
           <input
             id="roomCode"
             type="text"
             value={roomCode}
             onChange={handleRoomCodeChange}
-            placeholder="Enter 6-character code"
+            placeholder="请输入6位房间码"
             maxLength={6}
             className="room-code-input"
             disabled={isLoading}
@@ -88,20 +88,20 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="playerName">Your Name</label>
+          <label htmlFor="playerName">你的名字</label>
           <input
             id="playerName"
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter your name"
+            placeholder="请输入你的名字"
             maxLength={20}
             disabled={isLoading}
           />
         </div>
 
         <div className="form-group">
-          <label>Dice Option</label>
+          <label>骰子选项</label>
           <div className="dice-options">
             <button
               type="button"
@@ -110,8 +110,8 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
               disabled={isLoading}
             >
               <span className="dice-icon">⚀</span>
-              <span className="dice-label">1 Die</span>
-              <span className="dice-hint">Start with $3000</span>
+              <span className="dice-label">1个骰子</span>
+              <span className="dice-hint">初始资金 $3000</span>
             </button>
             <button
               type="button"
@@ -120,8 +120,8 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
               disabled={isLoading}
             >
               <span className="dice-icon">⚁⚂</span>
-              <span className="dice-label">2 Dice</span>
-              <span className="dice-hint">Start with $2000</span>
+              <span className="dice-label">2个骰子</span>
+              <span className="dice-hint">初始资金 $2000</span>
             </button>
           </div>
         </div>
@@ -133,7 +133,7 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
           className="submit-button"
           disabled={isLoading || !playerName.trim() || roomCode.length !== 6}
         >
-          {isLoading ? 'Joining...' : 'Join Room'}
+          {isLoading ? '加入中...' : '加入房间'}
         </button>
       </form>
     </div>

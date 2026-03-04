@@ -709,11 +709,6 @@ export class GameCoordinator {
       player.confirmedPlans.push(plan.id);
     }
 
-    // Remove unconfirmed plans
-    player.trainingPlans = player.trainingPlans.filter(p =>
-      p.confirmed || p.id === planId
-    );
-
     this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
 
     // Check if all players have confirmed plans in setup phase
@@ -723,6 +718,11 @@ export class GameCoordinator {
       );
 
       if (allPlayersHavePlans) {
+        // Remove unconfirmed plans for all players after setup phase ends
+        state.players.forEach(p => {
+          p.trainingPlans = p.trainingPlans.filter(tp => tp.confirmed);
+        });
+
         state.phase = 'playing';
         state.pendingAction = {
           id: `roll_dice_${Date.now()}`,
@@ -737,6 +737,12 @@ export class GameCoordinator {
           type: 'success',
         });
       }
+    } else {
+      // In playing phase, remove unconfirmed plans immediately after confirming one
+      // (this is for the every-6-turns plan confirmation during gameplay)
+      player.trainingPlans = player.trainingPlans.filter(p =>
+        p.confirmed || p.id === planId
+      );
     }
 
     this.broadcastState();

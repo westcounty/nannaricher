@@ -239,3 +239,192 @@ export function LineChoiceDialog({
 }
 
 export default ChoiceDialog;
+
+// Multi-select dialog for training plan selection
+interface MultiSelectOption {
+  label: string;
+  value: string;
+  description?: string;
+  selected?: boolean;
+}
+
+interface MultiSelectDialogProps {
+  title: string;
+  prompt: string;
+  options: MultiSelectOption[];
+  minSelections: number;
+  maxSelections: number;
+  onConfirm: (selectedValues: string[]) => void;
+  onCancel?: () => void;
+  timeout?: number;
+  timeoutMessage?: string;
+}
+
+export function MultiSelectDialog({
+  title,
+  prompt,
+  options,
+  minSelections,
+  maxSelections,
+  onConfirm,
+  onCancel,
+  timeout,
+  timeoutMessage = '选择超时',
+}: MultiSelectDialogProps) {
+  const { isVisible, opacity, fadeIn } = useFadeAnimation(300);
+  const [isClosing, setIsClosing] = useState(false);
+  const [selectedValues, setSelectedValues] = useState<Set<string>>(
+    new Set(options.filter(o => o.selected).map(o => o.value))
+  );
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(
+    timeout ? timeout / 1000 : null
+  );
+  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
+
+  useEffect(() => {
+    fadeIn();
+  }, [fadeIn]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (timeRemaining === null || timeRemaining <= 0 || isClosing) return;
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeRemaining, isClosing]);
+
+  // Handle timeout
+  useEffect(() => {
+    if (timeRemaining === 0) {
+      // Auto-confirm current selection on timeout
+      handleConfirm();
+    }
+  }, [timeRemaining]);
+
+  const toggleOption = useCallback((value: string) => {
+    setSelectedValues(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(value)) {
+        newSet.delete(value);
+      } else if (newSet.size < maxSelections) {
+        newSet.add(value);
+      }
+      return newSet;
+    });
+  }, [maxSelections]);
+
+  const handleConfirm = useCallback(() => {
+    if (isClosing) return;
+    if (selectedValues.size < minSelections) return;
+
+    setIsClosing(true);
+    setTimeout(() => {
+      onConfirm(Array.from(selectedValues));
+    }, 200);
+  }, [isClosing, selectedValues, minSelections, onConfirm]);
+
+  const handleCancel = useCallback(() => {
+    if (onCancel && !isClosing) {
+      setIsClosing(true);
+      setTimeout(() => {
+        onCancel();
+      }, 150);
+    }
+  }, [onCancel, isClosing]);
+
+  if (!isVisible && !isClosing) return null;
+
+  const canConfirm = selectedValues.size >= minSelections && selectedValues.size <= maxSelections;
+
+  return (
+    <div
+      className={`choice-dialog-overlay ${isClosing ? 'closing' : ''}`}
+      style={{ opacity: isClosing ? 0 : opacity }}
+    >
+      <div
+        className={`choice-dialog multi-select ${isClosing ? 'closing' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dialog-header">
+          <h2 className="dialog-title">{title}</h2>
+          {timeRemaining !== null && timeRemaining > 0 && (
+            <div className={`timeout-badge ${timeRemaining <= 5 ? 'urgent' : ''}`}>
+              {timeRemaining}s
+            </div>
+          )}
+        </div>
+
+        <div className="dialog-body">
+          <p className="dialog-prompt">{prompt}</p>
+          <p className="selection-hint">
+            已选择 {selectedValues.size}/{maxSelections} 项
+            {selectedValues.size < minSelections && ` (最少选择 ${minSelections} 项)`}
+          </p>
+
+          {timeRemaining === 0 && (
+            <div className="timeout-message">
+              {timeoutMessage}
+            </div>
+          )}
+
+          <div className="options-list">
+            {options.map((option, index) => {
+              const isSelected = selectedValues.has(option.value);
+              const canSelectMore = selectedValues.size < maxSelections || isSelected;
+
+              return (
+                <button
+                  key={option.value}
+                  className={`option-button ${isSelected ? 'selected' : ''} ${!canSelectMore ? 'disabled' : ''} ${
+                    hoveredOption === option.value ? 'hovered' : ''
+                  }`}
+                  onClick={() => canSelectMore && toggleOption(option.value)}
+                  onMouseEnter={() => setHoveredOption(option.value)}
+                  onMouseLeave={() => setHoveredOption(null)}
+                  disabled={!canSelectMore && !isSelected}
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div className="option-content">
+                    <span className="option-checkbox">{isSelected ? '☑' : '☐'}</span>
+                    <span className="option-label">{option.label}</span>
+                    {option.description && (
+                      <span className="option-description">{option.description}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="dialog-footer">
+          {onCancel && (
+            <button
+              className="cancel-button"
+              onClick={handleCancel}
+              disabled={isClosing}
+            >
+              取消
+            </button>
+          )}
+          <button
+            className="confirm-button"
+            onClick={handleConfirm}
+            disabled={!canConfirm || isClosing}
+          >
+            确认选择
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -148,22 +148,42 @@ export function GameScreen() {
 
       {/* Main Content Area */}
       <div className="game-main">
-        {/* Board Area */}
-        <div className="board-area">
-          <div className="board-canvas-container">
-            <GameCanvas
-              gameState={gameState}
-              currentPlayerId={currentPlayer?.id || null}
-              onCellClick={(cellId, position) => {
-                console.log('Cell clicked:', cellId, position);
-              }}
-            />
+        {/* Desktop: Left column (board + log) */}
+        {layout === 'desktop' ? (
+          <div className="left-column">
+            <div className="board-area">
+              <div className="board-canvas-container">
+                <GameCanvas
+                  gameState={gameState}
+                  currentPlayerId={currentPlayer?.id || null}
+                  onCellClick={(cellId, position) => {
+                    console.log('Cell clicked:', cellId, position);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="desktop-log-area">
+              <GameLog entries={gameState.log} players={gameState.players} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="board-area">
+            <div className="board-canvas-container">
+              <GameCanvas
+                gameState={gameState}
+                currentPlayerId={currentPlayer?.id || null}
+                onCellClick={(cellId, position) => {
+                  console.log('Cell clicked:', cellId, position);
+                }}
+              />
+            </div>
+          </div>
+        )}
 
-        {/* Desktop: Side Panel (always visible) */}
+        {/* Desktop: Side Panel (players + hand + chat) */}
         {layout === 'desktop' && (
           <div className="side-panel">
+            <CurrentPlayerPanel player={myPlayer} isMyTurn={isMyTurn} />
             <div className="other-players">
               {otherPlayers.map((player) => (
                 <PlayerPanel
@@ -173,7 +193,19 @@ export function GameScreen() {
                 />
               ))}
             </div>
-            <CurrentPlayerPanel player={myPlayer} isMyTurn={isMyTurn} />
+            <div className="side-panel-section">
+              <span className="section-title">手牌</span>
+              <div className="hand-cards">
+                {myPlayer?.heldCards?.map((card) => (
+                  <div key={card.id} className="hand-card" title={card.description}>
+                    {card.name}
+                  </div>
+                )) || <span className="empty-hand">无手牌</span>}
+              </div>
+            </div>
+            <div className="side-panel-section">
+              <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+            </div>
           </div>
         )}
 
@@ -199,30 +231,6 @@ export function GameScreen() {
           </>
         )}
       </div>
-
-      {/* Desktop: Bottom Bar */}
-      {layout === 'desktop' && (
-        <div className="bottom-bar">
-          <div className="bottom-section hand-section">
-            <span className="section-title">手牌</span>
-            <div className="hand-cards">
-              {myPlayer?.heldCards?.map((card) => (
-                <div key={card.id} className="hand-card" title={card.description}>
-                  {card.name}
-                </div>
-              )) || <span className="empty-hand">无手牌</span>}
-            </div>
-          </div>
-
-          <div className="bottom-section chat-section">
-            <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
-          </div>
-
-          <div className="bottom-section log-section">
-            <GameLog entries={gameState.log} players={gameState.players} />
-          </div>
-        </div>
-      )}
 
       {/* Tablet: Tab Bar + Sheet Panels */}
       {layout === 'tablet' && (

@@ -1,6 +1,6 @@
 // server/src/rooms/__tests__/RoomManager.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RoomManager } from '../RoomManager';
+import { RoomManager } from '../RoomManager.js';
 
 describe('RoomManager', () => {
   let rm: RoomManager;
@@ -19,12 +19,14 @@ describe('RoomManager', () => {
     expect(room.players).toHaveLength(2);
   });
 
-  it('rejects join if room is full (4 players)', () => {
+  it('rejects join if room is full (6 players)', () => {
     const { roomId } = rm.createRoom('A', 's1', 1);
     rm.joinRoom(roomId, 'B', 's2', 1);
     rm.joinRoom(roomId, 'C', 's3', 1);
     rm.joinRoom(roomId, 'D', 's4', 1);
-    expect(() => rm.joinRoom(roomId, 'E', 's5', 1)).toThrow('full');
+    rm.joinRoom(roomId, 'E', 's5', 1);
+    rm.joinRoom(roomId, 'F', 's6', 1);
+    expect(() => rm.joinRoom(roomId, 'G', 's7', 1)).toThrow('full');
   });
 
   it('rejects join for nonexistent room', () => {

@@ -112,8 +112,8 @@ export function Lobby() {
   return (
     <div className="lobby">
       <div className="lobby-header">
-        <h1>Caigen Life</h1>
-        <p className="subtitle">NanDa Monopoly</p>
+        <h1>菜根人生</h1>
+        <p className="subtitle">南大版大富翁</p>
       </div>
 
       {state.mode === 'select' && (
@@ -121,11 +121,11 @@ export function Lobby() {
           <div className="lobby-buttons">
             <button className="lobby-button create" onClick={handleCreateRoom}>
               <span className="button-icon">+</span>
-              <span className="button-text">Create Room</span>
+              <span className="button-text">创建房间</span>
             </button>
             <button className="lobby-button join" onClick={handleJoinRoom}>
               <span className="button-icon">&#916;</span>
-              <span className="button-text">Join Room</span>
+              <span className="button-text">加入房间</span>
             </button>
           </div>
         </div>

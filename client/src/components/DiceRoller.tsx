@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAnimation, useShakeAnimation } from '../hooks/useAnimation';
+import { useGameState } from '../context/GameContext';
 import './DiceRoller.css';
 
 interface DiceRollerProps {
   count: 1 | 2;
-  onComplete: (values: number[]) => void;
   autoRoll?: boolean;
   rollDuration?: number;
+  onComplete?: (values: number[]) => void;
 }
 
 // Dice face SVG patterns
@@ -40,15 +41,16 @@ const DiceFace: React.FC<{ value: number; rolling: boolean }> = ({ value, rollin
 
 export function DiceRoller({
   count,
+  autoRoll = false,
+  rollDuration = 800,
   onComplete,
-  autoRoll = true,
-  rollDuration = 800
 }: DiceRollerProps) {
-  const [rolling, setRolling] = useState(autoRoll);
-  const [values, setValues] = useState<number[]>([]);
+  const { diceResult, isRolling, rollDice, clearDiceResult, isMyTurn, playerId } = useGameState();
+  const [rolling, setRolling] = useState(false);
   const [displayValues, setDisplayValues] = useState<number[]>(() =>
     Array.from({ length: count }, () => 1)
   );
+  const [finalValues, setFinalValues] = useState<number[]>([]);
   const { isAnimating, progress, animate } = useAnimation(rollDuration);
   const { startShake, transform } = useShakeAnimation(3);
 
@@ -64,36 +66,45 @@ export function DiceRoller({
     }
   }, [isAnimating, count]);
 
-  // Start rolling animation
+  // Handle server dice result
   useEffect(() => {
-    if (autoRoll) {
+    if (diceResult && diceResult.playerId === playerId) {
+      setFinalValues(diceResult.values);
+      setDisplayValues(diceResult.values);
+      setRolling(false);
+
+      if (onComplete) {
+        onComplete(diceResult.values);
+      }
+    }
+  }, [diceResult, playerId, onComplete]);
+
+  // Start rolling animation when isRolling becomes true
+  useEffect(() => {
+    if (isRolling && !rolling) {
+      setRolling(true);
+      setFinalValues([]);
       startShake(rollDuration);
       animate();
     }
-  }, [autoRoll, rollDuration, animate, startShake]);
+  }, [isRolling, rolling, rollDuration, startShake, animate]);
 
-  // Handle animation completion
+  // Handle animation completion (fallback if server doesn't respond)
   useEffect(() => {
-    if (!isAnimating && progress === 1 && rolling) {
-      const finalValues = Array.from({ length: count }, () =>
-        Math.floor(Math.random() * 6) + 1
-      );
-      setValues(finalValues);
-      setDisplayValues(finalValues);
-      setRolling(false);
-      onComplete(finalValues);
+    if (!isAnimating && progress === 1 && rolling && finalValues.length === 0) {
+      // Wait for server response - don't generate local values
+      // Server is authoritative
     }
-  }, [isAnimating, progress, rolling, count, onComplete]);
+  }, [isAnimating, progress, rolling, finalValues.length]);
 
   const handleManualRoll = useCallback(() => {
-    if (!rolling && !isAnimating) {
-      setRolling(true);
-      startShake(rollDuration);
-      animate();
+    if (!rolling && !isAnimating && isMyTurn && !isRolling) {
+      clearDiceResult();
+      rollDice();
     }
-  }, [rolling, isAnimating, rollDuration, startShake, animate]);
+  }, [rolling, isAnimating, isMyTurn, isRolling, clearDiceResult, rollDice]);
 
-  const total = values.reduce((sum, v) => sum + v, 0);
+  const total = finalValues.reduce((sum, v) => sum + v, 0);
 
   return (
     <div className="dice-roller-container">
@@ -114,16 +125,20 @@ export function DiceRoller({
         ))}
       </div>
 
-      {!autoRoll && !rolling && !isAnimating && values.length === 0 && (
-        <button className="roll-button" onClick={handleManualRoll}>
-          掷骰子
+      {!autoRoll && !rolling && !isAnimating && finalValues.length === 0 && (
+        <button
+          className="roll-button"
+          onClick={handleManualRoll}
+          disabled={!isMyTurn || isRolling}
+        >
+          {isRolling ? '掷骰子中...' : '掷骰子'}
         </button>
       )}
 
-      {!isAnimating && values.length > 0 && (
+      {!isAnimating && finalValues.length > 0 && (
         <div className="dice-result">
           <div className="dice-values">
-            {values.map((v, i) => (
+            {finalValues.map((v, i) => (
               <span key={i} className="dice-value">{v}</span>
             ))}
           </div>

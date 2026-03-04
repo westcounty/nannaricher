@@ -1,0 +1,355 @@
+/* Guide Tooltip Styles */
+
+/* Overlay */
+.guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Target Highlight */
+.guide-highlight {
+  border: 2px solid var(--color-secondary, #3498db);
+  border-radius: 8px;
+  box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.3), 0 0 20px rgba(52, 152, 219, 0.5);
+  z-index: 9999;
+  animation: pulseHighlight 2s infinite;
+}
+
+@keyframes pulseHighlight {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.3), 0 0 20px rgba(52, 152, 219, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(52, 152, 219, 0.2), 0 0 30px rgba(52, 152, 219, 0.6);
+  }
+}
+
+/* Tooltip Container */
+.guide-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius, 8px);
+  box-shadow: var(--shadow, 0 2px 8px rgba(0, 0, 0, 0.1)), 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  max-width: 380px;
+  min-width: 280px;
+  animation: tooltipIn 0.3s ease;
+  color: #e0e0e0;
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Position-specific animations */
+.guide-tooltip--top {
+  animation-name: tooltipInTop;
+}
+
+@keyframes tooltipInTop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.guide-tooltip--bottom {
+  animation-name: tooltipInBottom;
+}
+
+@keyframes tooltipInBottom {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.guide-tooltip--left {
+  animation-name: tooltipInLeft;
+}
+
+@keyframes tooltipInLeft {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+.guide-tooltip--right {
+  animation-name: tooltipInRight;
+}
+
+@keyframes tooltipInRight {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* Tooltip Header */
+.guide-tooltip__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.guide-tooltip__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  flex: 1;
+}
+
+.guide-tooltip__close {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.guide-tooltip__close:hover {
+  color: #fff;
+}
+
+/* Tooltip Content */
+.guide-tooltip__content {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 16px;
+}
+
+/* Tooltip Footer */
+.guide-tooltip__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.guide-tooltip__progress {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.guide-tooltip__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons */
+.guide-tooltip__btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.guide-tooltip__btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+.guide-tooltip__btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.guide-tooltip__btn--primary {
+  background: var(--color-secondary, #3498db);
+  color: #fff;
+}
+
+.guide-tooltip__btn--primary:hover {
+  background: #2980b9;
+}
+
+/* Progress Dots */
+.guide-tooltip__dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.guide-tooltip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.guide-tooltip__dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.guide-tooltip__dot--active {
+  background: var(--color-secondary, #3498db);
+  transform: scale(1.2);
+}
+
+.guide-tooltip__dot--completed {
+  background: var(--color-success, #27ae60);
+}
+
+/* Arrow for directional tooltips */
+.guide-tooltip::before {
+  content: '';
+  position: absolute;
+  border: 8px solid transparent;
+}
+
+.guide-tooltip--top::before {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.guide-tooltip--bottom::before {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.guide-tooltip--left::before {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.guide-tooltip--right::before {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+.guide-tooltip--center::before {
+  display: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .guide-tooltip {
+    max-width: calc(100vw - 40px);
+    min-width: auto;
+    left: 20px !important;
+    right: 20px !important;
+    transform: none !important;
+    top: 50% !important;
+    translate: 0 -50%;
+  }
+
+  .guide-tooltip--top,
+  .guide-tooltip--bottom,
+  .guide-tooltip--left,
+  .guide-tooltip--right {
+    animation-name: tooltipInCenter;
+  }
+
+  @keyframes tooltipInCenter {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .guide-tooltip::before {
+    display: none;
+  }
+
+  .guide-tooltip__footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .guide-tooltip__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .guide-tooltip__btn {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .guide-tooltip {
+    padding: 16px;
+    left: 10px !important;
+    right: 10px !important;
+  }
+
+  .guide-tooltip__title {
+    font-size: 1rem;
+  }
+
+  .guide-tooltip__content {
+    font-size: 0.9rem;
+  }
+
+  .guide-tooltip__btn {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

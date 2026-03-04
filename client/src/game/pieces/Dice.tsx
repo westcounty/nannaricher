@@ -1,7 +1,10 @@
 // client/src/game/pieces/Dice.tsx
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { Container, Graphics, Text } from '@pixi/react';
-import { Graphics as PixiGraphics, TextStyle } from 'pixi.js';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { extend } from '@pixi/react';
+import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+
+// 注册 PixiJS 组件
+extend({ Container, Graphics, Text });
 
 interface DiceProps {
   values: number[];
@@ -54,7 +57,7 @@ export const Dice: React.FC<DiceProps> = ({
   }, [isRolling, values, onRollComplete]);
 
   return (
-    <Container x={x} y={y} rotation={rotation * Math.PI / 180}>
+    <pixiContainer x={x} y={y} rotation={rotation * Math.PI / 180}>
       {displayValues.map((value, index) => (
         <DiceFace
           key={index}
@@ -63,7 +66,7 @@ export const Dice: React.FC<DiceProps> = ({
           y={0}
         />
       ))}
-    </Container>
+    </pixiContainer>
   );
 };
 
@@ -72,35 +75,6 @@ interface DiceFaceProps {
   x: number;
   y: number;
 }
-
-const DiceFace: React.FC<DiceFaceProps> = ({ value, x, y }) => {
-  const drawFace = useCallback((g: PixiGraphics) => {
-    g.clear();
-
-    // 骰子背景
-    g.beginFill(0xffffff);
-    g.drawRoundedRect(-25, -25, 50, 50, 8);
-    g.endFill();
-
-    // 边框
-    g.lineStyle(2, 0x333333);
-    g.drawRoundedRect(-25, -25, 50, 50, 8);
-
-    // 点数
-    g.beginFill(0x333333);
-    const dotPositions = getDotPositions(value);
-    for (const pos of dotPositions) {
-      g.drawCircle(pos.x, pos.y, 5);
-    }
-    g.endFill();
-  }, [value]);
-
-  return (
-    <Container x={x} y={y}>
-      <Graphics draw={drawFace} />
-    </Container>
-  );
-};
 
 // 获取骰子点数位置
 function getDotPositions(value: number): { x: number; y: number }[] {
@@ -145,3 +119,34 @@ function getDotPositions(value: number): { x: number; y: number }[] {
 
   return positions;
 }
+
+// 绘制骰子面
+function drawDiceFace(g: Graphics, value: number) {
+  g.clear();
+
+  // 骰子背景
+  g.setFillStyle({ color: 0xffffff });
+  g.roundRect(-25, -25, 50, 50, 8);
+  g.fill();
+
+  // 边框
+  g.setStrokeStyle({ width: 2, color: 0x333333 });
+  g.roundRect(-25, -25, 50, 50, 8);
+  g.stroke();
+
+  // 点数
+  g.setFillStyle({ color: 0x333333 });
+  const dotPositions = getDotPositions(value);
+  for (const pos of dotPositions) {
+    g.circle(pos.x, pos.y, 5);
+    g.fill();
+  }
+}
+
+const DiceFace: React.FC<DiceFaceProps> = ({ value, x, y }) => {
+  return (
+    <pixiContainer x={x} y={y}>
+      <pixiGraphics draw={(g: Graphics) => drawDiceFace(g, value)} />
+    </pixiContainer>
+  );
+};

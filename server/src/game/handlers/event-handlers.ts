@@ -1,5 +1,5 @@
 // server/src/game/handlers/event-handlers.ts
-import type { EventHandler } from '../EventHandler';
+import type { EventHandler } from '../EventHandler.js';
 
 export function registerEventHandlers(eventHandler: EventHandler): void {
   // Tuition payment event
@@ -26,14 +26,14 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     );
   });
 
-  eventHandler.registerHandler('event_jiang_gong_pay', (engine, playerId) => {
+  eventHandler.registerHandler('pay_gain', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -300);
     engine.modifyPlayerExploration(playerId, 3);
     engine.log(`支付300金钱获得3探索值`, playerId);
     return null;
   });
 
-  eventHandler.registerHandler('event_jiang_gong_lose', (engine, playerId) => {
+  eventHandler.registerHandler('lose_gain', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -2);
     engine.modifyPlayerMoney(playerId, 200);
     engine.log(`损失2探索值获得200金钱`, playerId);
@@ -59,7 +59,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     );
   });
 
-  eventHandler.registerHandler('event_retake_roll', (engine, playerId) => {
+  eventHandler.registerHandler('retake', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
     const dice = engine.rollDice(1)[0];
     if (dice % 2 === 0) {
@@ -71,21 +71,21 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // Club event (社团)
-  eventHandler.registerHandler('event_club', (engine, playerId) => {
+  // Club event (社团) - also registered as event_society for compatibility
+  eventHandler.registerHandler('event_society', (engine, playerId) => {
     return engine.createPendingAction(
       playerId,
       'choose_option',
       '是否参加社团活动？',
       [
-        { label: '失去200金钱获得骰子*1探索值', value: 'money' },
-        { label: '失去0.2 GPA获得骰子*1探索值', value: 'gpa' },
+        { label: '失去200金钱获得骰子*1探索值', value: 'society_money' },
+        { label: '失去0.2 GPA获得骰子*1探索值', value: 'society_gpa' },
         { label: '不参加', value: 'skip' },
       ]
     );
   });
 
-  eventHandler.registerHandler('event_club_money', (engine, playerId) => {
+  eventHandler.registerHandler('society_money', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -200);
     const dice = engine.rollDice(1)[0];
     engine.modifyPlayerExploration(playerId, dice);
@@ -93,7 +93,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  eventHandler.registerHandler('event_club_gpa', (engine, playerId) => {
+  eventHandler.registerHandler('society_gpa', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.2);
     const dice = engine.rollDice(1)[0];
     engine.modifyPlayerExploration(playerId, dice);
@@ -114,8 +114,20 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     );
   });
 
-  // NanDa gift shop (南哪诚品)
-  eventHandler.registerHandler('event_nanda_gift', (engine, playerId) => {
+  eventHandler.registerHandler('draw_plan', (engine, playerId) => {
+    engine.modifyPlayerMoney(playerId, -100);
+    engine.drawTrainingPlan(playerId);
+    return null;
+  });
+
+  eventHandler.registerHandler('draw_card', (engine, playerId) => {
+    const deckType = Math.random() > 0.5 ? 'chance' : 'destiny';
+    engine.drawCard(playerId, deckType);
+    return null;
+  });
+
+  // NanDa gift shop (南哪诚品) - registered with both names for compatibility
+  eventHandler.registerHandler('event_nanna_cp', (engine, playerId) => {
     const players = engine.getAllPlayers();
     let totalPaid = 0;
     players.forEach(p => {
@@ -129,20 +141,35 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // Innovation competition (科创赛事)
-  eventHandler.registerHandler('event_innovation', (engine, playerId) => {
+  // Alias
+  eventHandler.registerHandler('event_nanda_cp', (engine, playerId) => {
+    const players = engine.getAllPlayers();
+    let totalPaid = 0;
+    players.forEach(p => {
+      if (p.id !== playerId) {
+        engine.modifyPlayerMoney(p.id, -50);
+        totalPaid += 50;
+      }
+    });
+    engine.modifyPlayerMoney(playerId, totalPaid);
+    engine.log(`南哪诚品，其他玩家各支付50金钱，共获得 ${totalPaid}`, playerId);
+    return null;
+  });
+
+  // Innovation competition (科创赛事) - also registered as event_kechuang
+  eventHandler.registerHandler('event_kechuang', (engine, playerId) => {
     return engine.createPendingAction(
       playerId,
       'choose_option',
       '是否参加科创赛事？（失去0.3 GPA投骰子获得0.1*点数GPA）',
       [
-        { label: '参加科创赛事', value: 'join' },
+        { label: '参加科创赛事', value: 'kechuang_join' },
         { label: '不参加', value: 'skip' },
       ]
     );
   });
 
-  eventHandler.registerHandler('event_innovation_join', (engine, playerId) => {
+  eventHandler.registerHandler('kechuang_join', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.3);
     const dice = engine.rollDice(1)[0];
     const gpaGain = dice * 0.1;
@@ -179,7 +206,24 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // Work-study event (勤工助学)
+  // Work-study event (勤工助学) - registered with both names for compatibility
+  eventHandler.registerHandler('event_qingong', (engine, playerId) => {
+    const players = engine.getAllPlayers();
+    const minMoney = Math.min(...players.map(p => p.money));
+    const player = engine.getPlayer(playerId);
+
+    let bonus = 0;
+    if (player && player.money === minMoney) {
+      bonus = 240;
+    }
+
+    engine.modifyPlayerMoney(playerId, 240 + bonus);
+    engine.skipPlayerTurn(playerId, 1);
+    engine.log(`勤工助学获得240金钱${bonus > 0 ? '（额外240）' : ''}，暂停一回合`, playerId);
+    return null;
+  });
+
+  // Alias for qingong
   eventHandler.registerHandler('event_work_study', (engine, playerId) => {
     const players = engine.getAllPlayers();
     const minMoney = Math.min(...players.map(p => p.money));

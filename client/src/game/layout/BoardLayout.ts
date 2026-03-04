@@ -30,12 +30,14 @@ export const LINE_PLAYER_SPACING = 40;
 /**
  * Calculate the (x, y) position of a main board cell.
  * Coordinates are relative to board center (0, 0).
+ * Layer containers are positioned at (BOARD_SIZE/2, BOARD_SIZE/2),
+ * so these center-relative coords map directly to screen space.
  *
- * Layout:
- *   Bottom side (0-6):  right to left
- *   Left side (7-13):   bottom to top
- *   Top side (14-20):   left to right
- *   Right side (21-27): top to bottom
+ * Layout (square ring):
+ *   Bottom side (0-6):  right to left   y = +halfExtent
+ *   Left side (7-13):   bottom to top   x = -halfExtent
+ *   Top side (14-20):   left to right   y = -halfExtent
+ *   Right side (21-27): top to bottom   x = +halfExtent
  */
 export function getCellPosition(
   index: number,
@@ -43,33 +45,41 @@ export function getCellPosition(
   cellWidth = CELL_SIZE,
   cornerSize = CORNER_SIZE,
 ): { x: number; y: number } {
-  const boardCenter = boardSize / 2;
   const side = Math.floor(index / CELLS_PER_SIDE);
   const posInSide = index % CELLS_PER_SIDE;
 
-  let x = 0;
-  let y = 0;
+  // Distance from center to each corner cell center
+  const halfExtent = (boardSize - cornerSize) / 2;
 
-  switch (side) {
-    case 0: // Bottom (right to left)
-      x = boardCenter + cornerSize / 2 + (CELLS_PER_SIDE - 1 - posInSide) * cellWidth;
-      y = boardCenter + cornerSize / 2;
-      break;
-    case 1: // Left (bottom to top)
-      x = boardCenter - cornerSize / 2;
-      y = boardCenter + cornerSize / 2 - (posInSide + 1) * cellWidth;
-      break;
-    case 2: // Top (left to right)
-      x = boardCenter - cornerSize / 2 - (CELLS_PER_SIDE - 1 - posInSide) * cellWidth;
-      y = boardCenter - cornerSize / 2;
-      break;
-    case 3: // Right (top to bottom)
-      x = boardCenter + cornerSize / 2;
-      y = boardCenter - cornerSize / 2 + (posInSide + 1) * cellWidth;
-      break;
+  // Corner cells (posInSide === 0) sit at the 4 corners of the square ring
+  if (posInSide === 0) {
+    switch (side) {
+      case 0: return { x: +halfExtent, y: +halfExtent }; // bottom-right (start)
+      case 1: return { x: -halfExtent, y: +halfExtent }; // bottom-left (hospital)
+      case 2: return { x: -halfExtent, y: -halfExtent }; // top-left (ding)
+      case 3: return { x: +halfExtent, y: -halfExtent }; // top-right (waiting_room)
+    }
   }
 
-  return { x, y };
+  // Regular cells: 6 cells per side, centered between adjacent corners
+  // Center-to-center span of 6 cells = (6-1) * cellWidth = 5 * 70 = 350
+  const halfSpan = ((CELLS_PER_SIDE - 2) * cellWidth) / 2;
+  // posInSide 1 → offset = +halfSpan (near the side's first corner)
+  // posInSide 6 → offset = -halfSpan (near the next corner)
+  const cellOffset = halfSpan - (posInSide - 1) * cellWidth;
+
+  switch (side) {
+    case 0: // Bottom (right to left): x decreases, y fixed at +halfExtent
+      return { x: cellOffset, y: +halfExtent };
+    case 1: // Left (bottom to top): y decreases, x fixed at -halfExtent
+      return { x: -halfExtent, y: cellOffset };
+    case 2: // Top (left to right): x increases (negate offset), y fixed at -halfExtent
+      return { x: -cellOffset, y: -halfExtent };
+    case 3: // Right (top to bottom): y increases (negate offset), x fixed at +halfExtent
+      return { x: +halfExtent, y: -cellOffset };
+  }
+
+  return { x: 0, y: 0 };
 }
 
 // ============================================
@@ -127,7 +137,7 @@ export function getLineCellPosition(
   cornerSize = CORNER_SIZE,
 ): { x: number; y: number } {
   const line = LINE_CONFIGS.find(l => l.id === lineId);
-  if (!line) return { x: boardSize / 2, y: boardSize / 2 };
+  if (!line) return { x: 0, y: 0 };
 
   const entryPos = getCellPosition(line.entryIndex, boardSize, cellSize, cornerSize);
   const spacing = LINE_PLAYER_SPACING;

@@ -29,3 +29,28 @@ coverage/
 
 # Claude
 .claude/
+
+# Production
+.env.production
+.env.development
+
+# PM2
+logs/
+.pm2/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Temporary files
+tmp/
+temp/
+
+# Archives
+*.tar.gz
+
+# Screenshots/images
+*.png
+*.jpg
+*.jpeg

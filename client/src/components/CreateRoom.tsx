@@ -17,12 +17,12 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
     e.preventDefault();
 
     if (!socket) {
-      setError('Not connected to server');
+      setError('未连接到服务器');
       return;
     }
 
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('请输入你的名字');
       return;
     }
 
@@ -55,27 +55,27 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
   return (
     <div className="create-room">
       <button className="back-button" onClick={onBack}>
-        &larr; Back
+        &larr; 返回
       </button>
 
-      <h2>Create Room</h2>
+      <h2>创建房间</h2>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="playerName">Your Name</label>
+          <label htmlFor="playerName">你的名字</label>
           <input
             id="playerName"
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter your name"
+            placeholder="请输入你的名字"
             maxLength={20}
             disabled={isLoading}
           />
         </div>
 
         <div className="form-group">
-          <label>Dice Option</label>
+          <label>骰子选项</label>
           <div className="dice-options">
             <button
               type="button"
@@ -84,8 +84,8 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
               disabled={isLoading}
             >
               <span className="dice-icon">⚀</span>
-              <span className="dice-label">1 Die</span>
-              <span className="dice-hint">Start with $3000</span>
+              <span className="dice-label">1个骰子</span>
+              <span className="dice-hint">初始资金 $3000</span>
             </button>
             <button
               type="button"
@@ -94,8 +94,8 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
               disabled={isLoading}
             >
               <span className="dice-icon">⚁⚂</span>
-              <span className="dice-label">2 Dice</span>
-              <span className="dice-hint">Start with $2000</span>
+              <span className="dice-label">2个骰子</span>
+              <span className="dice-hint">初始资金 $2000</span>
             </button>
           </div>
         </div>
@@ -107,7 +107,7 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
           className="submit-button"
           disabled={isLoading || !playerName.trim()}
         >
-          {isLoading ? 'Creating...' : 'Create Room'}
+          {isLoading ? '创建中...' : '创建房间'}
         </button>
       </form>
     </div>

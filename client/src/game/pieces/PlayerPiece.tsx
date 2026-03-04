@@ -1,9 +1,8 @@
 // client/src/game/pieces/PlayerPiece.tsx
-import React, { useCallback, useEffect, useState } from 'react';
-import { Container, Graphics, Text } from '@pixi/react';
-import { Graphics as PixiGraphics, TextStyle } from 'pixi.js';
+import React, { useEffect, useState, useCallback } from 'react';
+import type { Graphics } from 'pixi.js';
+import { TextStyle } from 'pixi.js';
 import { Player, Position } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../../styles/tokens';
 
 interface PlayerPieceProps {
   player: Player;
@@ -27,64 +26,55 @@ export const PlayerPiece: React.FC<PlayerPieceProps> = ({
   getCellPosition,
 }) => {
   const [displayPosition, setDisplayPosition] = useState({ x: 350, y: 350 });
-  const [isAnimating, setIsAnimating] = useState(false);
 
-  // 计算实际位置
   useEffect(() => {
     if (getCellPosition) {
       const targetPos = getCellPosition(player.position);
-      if (!isAnimating) {
-        // 简单的位置更新，可以添加动画效果
-        setDisplayPosition(targetPos);
-      }
+      setDisplayPosition(targetPos);
     }
-  }, [player.position, isAnimating, getCellPosition]);
+  }, [player.position, getCellPosition]);
 
-  // 绘制棋子
-  const drawPiece = useCallback((g: PixiGraphics) => {
+  const playerIndex = parseInt(player.color) || 0;
+  const color = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+
+  const drawPiece = useCallback((g: Graphics) => {
     g.clear();
 
-    // 获取玩家颜色
-    const playerIndex = parseInt(player.color) || 0;
-    const color = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
-
-    // 棋子底座（阴影效果）
-    g.beginFill(0x333333, 0.3);
-    g.drawEllipse(0, 12, 15, 8);
-    g.endFill();
+    // 棋子底座阴影
+    g.ellipse(0, 12, 15, 8);
+    g.fill({ color: 0x333333, alpha: 0.3 });
 
     // 棋子主体
-    g.beginFill(color);
-    g.drawCircle(0, 0, 12);
-    g.endFill();
+    g.circle(0, 0, 12);
+    g.fill({ color });
 
-    // 高光效果
-    g.beginFill(0xffffff, 0.4);
-    g.drawCircle(-4, -4, 4);
-    g.endFill();
+    // 高光
+    g.circle(-4, -4, 4);
+    g.fill({ color: 0xffffff, alpha: 0.4 });
 
-    // 当前玩家标记（金色边框）
+    // 当前玩家金色边框
     if (isCurrentPlayer) {
-      g.lineStyle(3, 0xC9A227); // 南大金色
-      g.drawCircle(0, 0, 16);
+      g.circle(0, 0, 16);
+      g.stroke({ width: 3, color: 0xC9A227 });
     }
-  }, [player.color, isCurrentPlayer]);
+  }, [color, isCurrentPlayer]);
+
+  const textStyle = new TextStyle({
+    fontSize: 10,
+    fill: 0xffffff,
+    fontWeight: 'bold',
+    fontFamily: 'sans-serif',
+  });
 
   return (
-    <Container x={displayPosition.x} y={displayPosition.y}>
-      <Graphics draw={drawPiece} />
-      {/* 玩家名称标签 */}
-      <Text
+    <pixiContainer x={displayPosition.x} y={displayPosition.y}>
+      <pixiGraphics draw={drawPiece} />
+      <pixiText
         text={player.name.slice(0, 2)}
-        style={new TextStyle({
-          fontSize: 10,
-          fill: 0xffffff,
-          fontWeight: 'bold',
-          fontFamily: 'sans-serif',
-        })}
+        style={textStyle}
         anchor={0.5}
         y={-20}
       />
-    </Container>
+    </pixiContainer>
   );
 };

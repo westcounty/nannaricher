@@ -1,5 +1,5 @@
 // server/src/game/handlers/corner-handlers.ts
-import type { EventHandler } from '../EventHandler';
+import type { EventHandler } from '../EventHandler.js';
 import { SALARY_PASS, SALARY_STOP, HOSPITAL_FEE, HOSPITAL_DICE_TARGET, WAITING_ROOM_FEE } from '@nannaricher/shared';
 
 export function registerCornerHandlers(eventHandler: EventHandler): void {

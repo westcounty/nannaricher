@@ -42,7 +42,7 @@ export function WaitingRoom({
     if (!socket) return;
 
     if (players.length < MIN_PLAYERS) {
-      setError(`Need at least ${MIN_PLAYERS} players to start`);
+      setError(`至少需要 ${MIN_PLAYERS} 名玩家才能开始`);
       return;
     }
 
@@ -71,26 +71,26 @@ export function WaitingRoom({
 
   return (
     <div className="waiting-room">
-      <h2>Waiting Room</h2>
+      <h2>等待室</h2>
 
       <div className="room-code-section">
-        <p className="room-code-label">Room Code</p>
+        <p className="room-code-label">房间码</p>
         <div className="room-code-display">
           <span className="room-code">{roomId}</span>
           <button
             className="copy-button"
             onClick={handleCopyCode}
-            title="Copy room code"
+            title="复制房间码"
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? '已复制!' : '复制'}
           </button>
         </div>
-        <p className="share-hint">Share this code with friends to join</p>
+        <p className="share-hint">分享此房间码给好友加入</p>
       </div>
 
       <div className="players-section">
         <h3>
-          Players ({players.length}/4)
+          玩家 ({players.length}/4)
         </h3>
         <ul className="player-list">
           {players.map((player, index) => (
@@ -103,8 +103,8 @@ export function WaitingRoom({
                 style={{ backgroundColor: player.color }}
               />
               <span className="player-name">{player.name}</span>
-              {player.id === playerId && <span className="you-badge">You</span>}
-              {index === 0 && <span className="host-badge">Host</span>}
+              {player.id === playerId && <span className="you-badge">你</span>}
+              {index === 0 && <span className="host-badge">房主</span>}
             </li>
           ))}
         </ul>
@@ -112,7 +112,7 @@ export function WaitingRoom({
 
       {players.length < MIN_PLAYERS && (
         <p className="waiting-message">
-          Waiting for {MIN_PLAYERS - players.length} more player(s)...
+          等待 {MIN_PLAYERS - players.length} 名玩家加入...
         </p>
       )}
 
@@ -124,11 +124,11 @@ export function WaitingRoom({
           onClick={handleStartGame}
           disabled={isStarting || players.length < MIN_PLAYERS}
         >
-          {isStarting ? 'Starting...' : 'Start Game'}
+          {isStarting ? '开始中...' : '开始游戏'}
         </button>
       ) : (
         <p className="waiting-for-host">
-          Waiting for host to start the game...
+          等待房主开始游戏...
         </p>
       )}
     </div>

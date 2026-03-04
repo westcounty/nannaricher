@@ -261,3 +261,55 @@
     font-size: 0.8rem;
   }
 }
+
+/* Multi-select dialog specific styles */
+.multi-select .dialog-footer {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.confirm-button {
+  padding: 10px 32px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirm-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.confirm-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.selection-hint {
+  font-size: 0.9rem;
+  color: #888;
+  margin: -12px 0 16px 0;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.option-checkbox {
+  font-size: 1.2rem;
+  margin-right: 12px;
+  width: 20px;
+  text-align: center;
+}
+
+.multi-select .option-content {
+  flex-direction: row;
+  align-items: center;
+}

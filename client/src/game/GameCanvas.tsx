@@ -47,7 +47,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     app.init({
       width: rect.width,
       height: rect.height,
-      backgroundColor: 0xf0f0f0,
+      backgroundColor: 0x0F0A1A,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
@@ -149,7 +149,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         width: '100%',
         height: '100%',
         minHeight: '400px',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#0F0A1A',
         borderRadius: DESIGN_TOKENS.radius.lg,
         overflow: 'hidden',
       }}

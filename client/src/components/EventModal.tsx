@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
+import { useGameState } from '../context/GameContext';
+import type { PendingAction } from '@nannaricher/shared';
 import './EventModal.css';
 
 interface EffectPreview {
@@ -11,47 +13,78 @@ interface EffectPreview {
 }
 
 interface EventModalProps {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   effects?: EffectPreview;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   onClose?: () => void;
   confirmText?: string;
   showCloseButton?: boolean;
 }
 
 export function EventModal({
-  title,
-  description,
+  title: propTitle,
+  description: propDescription,
   effects,
   onConfirm,
   onClose,
   confirmText = '确定',
   showCloseButton = false,
 }: EventModalProps) {
+  const { currentEvent, chooseAction, clearEvent } = useGameState();
   const { isVisible, opacity, fadeIn } = useFadeAnimation(300);
   const [isClosing, setIsClosing] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+
+  // Use props or game context data
+  const title = propTitle || currentEvent?.title || '事件';
+  const description = propDescription || currentEvent?.description || '';
+  const pendingAction = currentEvent?.pendingAction;
 
   useEffect(() => {
     fadeIn();
   }, [fadeIn]);
 
-  const handleConfirm = () => {
+  const handleOptionSelect = useCallback((value: string) => {
+    if (isClosing) return;
+    setSelectedOption(value);
     setIsClosing(true);
-    // Small delay for visual feedback
-    setTimeout(() => {
-      onConfirm();
-    }, 150);
-  };
 
-  const handleClose = () => {
+    // If there's a pending action, send the choice to server
+    if (pendingAction) {
+      chooseAction(pendingAction.id, value);
+    }
+
+    setTimeout(() => {
+      if (onConfirm) {
+        onConfirm();
+      }
+      clearEvent();
+    }, 200);
+  }, [isClosing, pendingAction, chooseAction, onConfirm, clearEvent]);
+
+  const handleConfirm = useCallback(() => {
+    if (!pendingAction) {
+      // No pending action, just confirm and close
+      setIsClosing(true);
+      setTimeout(() => {
+        if (onConfirm) {
+          onConfirm();
+        }
+        clearEvent();
+      }, 150);
+    }
+  }, [pendingAction, onConfirm, clearEvent]);
+
+  const handleClose = useCallback(() => {
     if (onClose) {
       setIsClosing(true);
       setTimeout(() => {
         onClose();
+        clearEvent();
       }, 150);
     }
-  };
+  }, [onClose, clearEvent]);
 
   const formatEffect = (value: number | undefined, label: string, icon: string) => {
     if (value === undefined || value === 0) return null;
@@ -77,6 +110,8 @@ export function EventModal({
     effects.status
   );
 
+  const hasOptions = pendingAction?.options && pendingAction.options.length > 0;
+
   if (!isVisible && !isClosing) return null;
 
   return (
@@ -86,7 +121,7 @@ export function EventModal({
       onClick={handleClose}
     >
       <div
-        className={`event-modal ${isClosing ? 'closing' : ''}`}
+        className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -100,6 +135,25 @@ export function EventModal({
 
         <div className="modal-body">
           <p className="modal-description">{description}</p>
+
+          {hasOptions && (
+            <div className="options-container">
+              {pendingAction!.options!.map((option, index) => (
+                <button
+                  key={option.value}
+                  className={`option-button ${selectedOption === option.value ? 'selected' : ''}`}
+                  onClick={() => handleOptionSelect(option.value)}
+                  disabled={isClosing}
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <span className="option-label">{option.label}</span>
+                  {selectedOption === option.value && (
+                    <span className="option-checkmark">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           {hasEffects && (
             <div className="effects-preview">
@@ -131,15 +185,17 @@ export function EventModal({
           )}
         </div>
 
-        <div className="modal-footer">
-          <button
-            className="confirm-button"
-            onClick={handleConfirm}
-            disabled={isClosing}
-          >
-            {confirmText}
-          </button>
-        </div>
+        {!hasOptions && (
+          <div className="modal-footer">
+            <button
+              className="confirm-button"
+              onClick={handleConfirm}
+              disabled={isClosing}
+            >
+              {confirmText}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -162,6 +218,23 @@ export function createEffectPreview(
     cards: eventData.cards,
     status: eventData.statusEffect,
   };
+}
+
+// Container component that automatically shows events from game context
+export function GameEventModal() {
+  const { currentEvent, clearEvent } = useGameState();
+
+  if (!currentEvent) return null;
+
+  return (
+    <EventModal
+      title={currentEvent.title}
+      description={currentEvent.description}
+      effects={currentEvent.effects}
+      onConfirm={clearEvent}
+      showCloseButton={false}
+    />
+  );
 }
 
 export default EventModal;

@@ -41,7 +41,7 @@ export class BackgroundLayer implements RenderLayer {
   private drawOuterFrame(): void {
     const bg = new Graphics();
 
-    // Outer white frame
+    // Dark board frame (design token: bg.board #16102A)
     bg.roundRect(
       -BOARD_SIZE / 2 - 20,
       -BOARD_SIZE / 2 - 20,
@@ -49,8 +49,8 @@ export class BackgroundLayer implements RenderLayer {
       BOARD_SIZE + 40,
       16,
     );
-    bg.fill({ color: 0xffffff });
-    bg.stroke({ width: 2, color: 0xe0e0e0 });
+    bg.fill({ color: 0x16102A });
+    bg.stroke({ width: 2, color: 0x5E3A8D, alpha: 0.4 });
 
     this.container!.addChild(bg);
   }
@@ -59,14 +59,15 @@ export class BackgroundLayer implements RenderLayer {
     const inner = new Graphics();
     const innerSize = BOARD_SIZE - CORNER_SIZE * 2;
 
+    // Dark inner area (design token: bg.surface #1A1230)
     inner.roundRect(-innerSize / 2, -innerSize / 2, innerSize, innerSize, 12);
-    inner.fill({ color: 0xfafafa });
+    inner.fill({ color: 0x1A1230 });
 
     this.container!.addChild(inner);
   }
 
   private drawCenterInfo(): void {
-    // Center area background
+    // Center area background with subtle purple glow
     const centerGfx = new Graphics();
     centerGfx.roundRect(
       -CENTER_AREA_SIZE / 2,
@@ -75,16 +76,16 @@ export class BackgroundLayer implements RenderLayer {
       CENTER_AREA_SIZE,
       12,
     );
-    centerGfx.fill({ color: 0x5E3A8D, alpha: 0.1 });
-    centerGfx.stroke({ width: 2, color: 0x5E3A8D, alpha: 0.3 });
+    centerGfx.fill({ color: 0x5E3A8D, alpha: 0.15 });
+    centerGfx.stroke({ width: 2, color: 0x5E3A8D, alpha: 0.5 });
     this.container!.addChild(centerGfx);
 
-    // Title
+    // Title — gold accent on dark background
     const titleText = new Text({
       text: '菜根人生',
       style: new TextStyle({
-        fontSize: 18,
-        fill: 0x5E3A8D,
+        fontSize: 20,
+        fill: 0xE0C55E,
         fontWeight: 'bold',
       }),
     });
@@ -93,14 +94,14 @@ export class BackgroundLayer implements RenderLayer {
 
     // Subtitle
     const subtitleText = new Text({
-      text: '搞得人心黄黄',
+      text: '南哪大富翁',
       style: new TextStyle({
         fontSize: 12,
-        fill: 0x666666,
+        fill: 0xB0B0B0,
       }),
     });
     subtitleText.anchor.set(0.5);
-    subtitleText.y = 20;
+    subtitleText.y = 22;
     this.container!.addChild(subtitleText);
   }
 }

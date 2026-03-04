@@ -5,6 +5,7 @@ import type { GamePhase } from '@nannaricher/shared';
 interface StatusBarProps {
   roomId: string;
   turnNumber: number;
+  roundNumber: number;
   currentPlayerName: string | undefined;
   phase: GamePhase;
 }
@@ -16,7 +17,7 @@ const phaseLabels: Record<GamePhase, string> = {
   finished: '已结束',
 };
 
-export function StatusBar({ roomId, turnNumber, currentPlayerName, phase }: StatusBarProps) {
+export function StatusBar({ roomId, turnNumber, roundNumber, currentPlayerName, phase }: StatusBarProps) {
   return (
     <div className="status-bar">
       <div className="status-item">
@@ -25,7 +26,7 @@ export function StatusBar({ roomId, turnNumber, currentPlayerName, phase }: Stat
       </div>
       <div className="status-item">
         <span className="status-label">回合</span>
-        <span className="status-value">{turnNumber}</span>
+        <span className="status-value">{turnNumber} <span className="round-info">· 第{roundNumber}轮</span></span>
       </div>
       <div className="status-item">
         <span className="status-label">当前玩家</span>

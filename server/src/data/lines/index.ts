@@ -1,13 +1,13 @@
 // server/src/data/lines/index.ts
 import { BoardLine } from '@nannaricher/shared';
-import { pukouLine } from './pukou';
-import { studyLine } from './study';
-import { moneyLine } from './money';
-import { suzhouLine } from './suzhou';
-import { exploreLine } from './explore';
-import { gulouLine } from './gulou';
-import { xianlinLine } from './xianlin';
-import { foodLine } from './food';
+import { pukouLine } from './pukou.js';
+import { studyLine } from './study.js';
+import { moneyLine } from './money.js';
+import { suzhouLine } from './suzhou.js';
+import { exploreLine } from './explore.js';
+import { gulouLine } from './gulou.js';
+import { xianlinLine } from './xianlin.js';
+import { foodLine } from './food.js';
 
 export const allLines: Record<string, BoardLine> = {
   pukou: pukouLine,

@@ -269,7 +269,7 @@ describe('GameEngine — integration tests', () => {
 
       engine.nextTurn();
 
-      if (state.phase === 'finished') {
+      if ((state.phase as string) === 'finished') {
         // p1 score: 4.0*10 + 20 + 30 = 90
         // p2 score: 2.0*10 + 5 + 5 = 30
         expect(state.winner).toBe('p1');

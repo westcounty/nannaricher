@@ -61,18 +61,39 @@
   overflow: hidden;
 }
 
+/* Left Column (Desktop: board + log) */
+.left-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop Log Area (below board) */
+.desktop-log-area {
+  max-height: 180px;
+  overflow-y: auto;
+  border-top: 1px solid var(--game-border);
+  background: var(--color-bg-surface);
+  padding: 8px 12px;
+}
+
 /* Side Panel */
 .side-panel {
-  width: 280px;
+  width: 300px;
   background: var(--color-bg-surface);
-  border-right: 1px solid var(--game-border);
-  padding: 16px;
+  border-left: 1px solid var(--game-border);
+  padding: 12px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   box-shadow: var(--shadow-lg);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+.side-panel-section {
+  border-top: 1px solid var(--game-border);
+  padding-top: 10px;
 }
 
 /* Board Area */
@@ -81,7 +102,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 12px;
   position: relative;
   touch-action: none;
   overflow: hidden;
@@ -869,6 +890,13 @@
   position: relative;
   background: radial-gradient(ellipse at center, #1A1230 0%, #0F0A1A 100%);
   border-radius: var(--radius-lg);
+}
+
+/* In desktop left-column, keep canvas square to match the board */
+.left-column .board-canvas-container {
+  aspect-ratio: 1;
+  max-height: 100%;
+  margin: 0 auto;
   overflow: hidden;
   border: 1px solid var(--game-border);
 }

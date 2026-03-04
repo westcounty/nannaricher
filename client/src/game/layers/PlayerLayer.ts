@@ -160,12 +160,12 @@ export class PlayerLayer implements RenderLayer {
 
     group.addChild(piece);
 
-    // Name label
+    // Name label (white for dark background)
     const nameText = new Text({
       text: player.name.slice(0, 2),
       style: new TextStyle({
         fontSize: 9,
-        fill: 0x333333,
+        fill: 0xffffff,
         fontWeight: 'bold',
       }),
     });

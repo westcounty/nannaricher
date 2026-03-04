@@ -228,3 +228,60 @@
     padding: 8px 12px;
   }
 }
+
+/* Options Container */
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.option-button:hover:not(:disabled) {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.option-button.selected {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.option-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.option-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.option-checkmark {
+  color: #667eea;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Modal with options styling */
+.event-modal.has-options {
+  max-width: 500px;
+}
+
+.event-modal.has-options .modal-body {
+  padding: 20px 24px;
+}
