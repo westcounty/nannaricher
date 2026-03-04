@@ -6,10 +6,66 @@
 import React, { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useGameStore } from '../stores/gameStore';
-import type { ClientToServerEvents, ServerToClientEvents } from '@nannaricher/shared';
+import type { ClientToServerEvents, ServerToClientEvents, GameState } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
 
 type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+/**
+ * Compare previous and new game state and play appropriate sounds.
+ * Called on every `game:state-update` BEFORE the store is updated.
+ */
+function diffAndPlaySounds(
+  prev: GameState | null,
+  next: GameState,
+  localPlayerId: string | null,
+): void {
+  if (!prev) return;
+
+  // Round changed
+  if (next.roundNumber > prev.roundNumber) {
+    playSound('round_start');
+  }
+
+  // Current player changed — turn start / end
+  if (next.currentPlayerIndex !== prev.currentPlayerIndex && localPlayerId) {
+    const prevPlayer = prev.players[prev.currentPlayerIndex];
+    const nextPlayer = next.players[next.currentPlayerIndex];
+
+    if (prevPlayer?.id === localPlayerId) {
+      playSound('turn_end');
+    }
+    if (nextPlayer?.id === localPlayerId) {
+      playSound('turn_start');
+    }
+  }
+
+  // Vote start / end
+  const prevActionType = prev.pendingAction?.type ?? null;
+  const nextActionType = next.pendingAction?.type ?? null;
+
+  if (prevActionType !== 'multi_vote' && nextActionType === 'multi_vote') {
+    playSound('vote_start');
+  }
+  if (prevActionType === 'multi_vote' && nextActionType !== 'multi_vote') {
+    playSound('vote_end');
+  }
+
+  // Local-player status changes
+  if (localPlayerId) {
+    const prevLocal = prev.players.find((p) => p.id === localPlayerId);
+    const nextLocal = next.players.find((p) => p.id === localPlayerId);
+
+    if (prevLocal && nextLocal) {
+      if (!prevLocal.isInHospital && nextLocal.isInHospital) {
+        playSound('hospital_enter');
+      }
+      if (!prevLocal.isBankrupt && nextLocal.isBankrupt) {
+        playSound('bankrupt');
+      }
+    }
+  }
+}
 
 /**
  * SocketProvider — wraps children with a Socket.IO connection.
@@ -23,6 +79,7 @@ type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
  */
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<GameSocket | null>(null);
+  const prevStateRef = useRef<GameState | null>(null);
   const store = useGameStore;
 
   useEffect(() => {
@@ -84,7 +141,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     // ------ Game event listeners -> store updates ------
     socket.on('game:state-update', (state) => {
+      const localPlayerId = store.getState().playerId;
+      diffAndPlaySounds(prevStateRef.current, state, localPlayerId);
+      prevStateRef.current = state;
       store.getState().setGameState(state);
+    });
+
+    socket.on('game:card-drawn', (data) => {
+      playSound('card_draw');
+      store.getState().setDrawnCard(data);
     });
 
     socket.on('room:created', ({ roomId, playerId }) => {
