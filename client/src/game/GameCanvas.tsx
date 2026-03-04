@@ -8,9 +8,9 @@ import type { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
 import { GameStage } from './GameStage';
-import { BackgroundLayer } from './layers/BackgroundLayer';
-import { BoardLayer } from './layers/BoardLayer';
-import { LineLayer } from './layers/LineLayer';
+import { MetroBackgroundLayer } from './layers/MetroBackgroundLayer';
+import { TrackLayer } from './layers/TrackLayer';
+import { StationLayer } from './layers/StationLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
@@ -72,9 +72,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Build the layered stage
       const stage = new GameStage();
-      stage.addLayer(new BackgroundLayer());
-      stage.addLayer(new LineLayer());
-      stage.addLayer(new BoardLayer({ onCellClick }));
+      stage.addLayer(new MetroBackgroundLayer());
+      stage.addLayer(new TrackLayer());
+      stage.addLayer(new StationLayer({ onCellClick }));
 
       // Create PlayerLayer with animation support
       const playerLayer = new PlayerLayer();
