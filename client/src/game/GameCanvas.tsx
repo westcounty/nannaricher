@@ -16,6 +16,7 @@ import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { animateDiceResult } from './animations/DiceRollAnim';
 import { showFloatingText } from './animations/FloatingText';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -35,7 +36,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const stageRef = useRef<GameStage | null>(null);
   const playerLayerRef = useRef<PlayerLayer | null>(null);
   const tweenRef = useRef<TweenEngine | null>(null);
-  const effectLayerRef = useRef<Container | null>(null);
+  const worldEffectLayerRef = useRef<Container | null>(null);
+  const screenEffectLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<ViewportController | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
 
@@ -83,13 +85,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       stage.init(app, w, h);
 
-      // Create effect layer ON TOP of everything (after stage.init so it's above all layers)
-      const effectContainer = new Container();
-      app.stage.addChild(effectContainer);
-      effectLayerRef.current = effectContainer;
+      // Create world-space effect layer inside mainContainer (for floating text, ripples)
+      const worldEffectLayer = new Container();
+      worldEffectLayer.x = METRO_BOARD_WIDTH / 2;
+      worldEffectLayer.y = METRO_BOARD_HEIGHT / 2;
+      stage.getMainContainer().addChild(worldEffectLayer);
+      worldEffectLayerRef.current = worldEffectLayer;
+
+      // Create screen-space effect layer on app.stage (for dice animation)
+      const screenEffectLayer = new Container();
+      app.stage.addChild(screenEffectLayer);
+      screenEffectLayerRef.current = screenEffectLayer;
 
       // Inject animation dependencies into PlayerLayer
-      playerLayer.setAnimationDeps(tweenEngine, effectContainer);
+      playerLayer.setAnimationDeps(tweenEngine, worldEffectLayer, app.ticker);
 
       stageRef.current = stage;
 
@@ -124,13 +133,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       tweenRef.current?.destroy();
       tweenRef.current = null;
 
-      // Destroy effect layer
-      if (effectLayerRef.current) {
-        if (effectLayerRef.current.parent) {
-          effectLayerRef.current.parent.removeChild(effectLayerRef.current);
+      // Destroy effect layers
+      if (worldEffectLayerRef.current) {
+        if (worldEffectLayerRef.current.parent) {
+          worldEffectLayerRef.current.parent.removeChild(worldEffectLayerRef.current);
         }
-        effectLayerRef.current.destroy({ children: true });
-        effectLayerRef.current = null;
+        worldEffectLayerRef.current.destroy({ children: true });
+        worldEffectLayerRef.current = null;
+      }
+      if (screenEffectLayerRef.current) {
+        if (screenEffectLayerRef.current.parent) {
+          screenEffectLayerRef.current.parent.removeChild(screenEffectLayerRef.current);
+        }
+        screenEffectLayerRef.current.destroy({ children: true });
+        screenEffectLayerRef.current = null;
       }
 
       playerLayerRef.current = null;
@@ -147,7 +163,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   // Push state updates to the stage, with floating text for stat changes
   useEffect(() => {
     // Detect stat changes and show floating text
-    if (prevStateRef.current && effectLayerRef.current && playerLayerRef.current) {
+    if (prevStateRef.current && worldEffectLayerRef.current && playerLayerRef.current) {
       const prevPlayers = prevStateRef.current.players;
       for (const player of gameState.players) {
         const prevPlayer = prevPlayers.find(p => p.id === player.id);
@@ -161,7 +177,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.money - prevPlayer.money;
           const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
           const color = delta > 0 ? '#4ade80' : '#ef4444';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color);
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current ?? undefined);
         }
 
         // GPA change
@@ -169,7 +185,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.gpa - prevPlayer.gpa;
           const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
           const color = '#60a5fa';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color);
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current ?? undefined);
         }
 
         // Exploration change
@@ -177,10 +193,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.exploration - prevPlayer.exploration;
           const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
           const color = '#fbbf24';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color);
+          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current ?? undefined);
         }
       }
     }
+    // Auto-focus on current player when turn changes
+    if (prevStateRef.current &&
+        prevStateRef.current.currentPlayerIndex !== gameState.currentPlayerIndex &&
+        playerLayerRef.current && viewportRef.current) {
+      const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+      if (currentPlayer) {
+        const pos = playerLayerRef.current.getPlayerPosition(currentPlayer.id);
+        if (pos) viewportRef.current.focusOnPlayer(pos.x, pos.y);
+      }
+    }
+
     prevStateRef.current = gameState;
 
     stageRef.current?.updateState(gameState, currentPlayerId);
@@ -188,7 +215,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Animate dice result on the effect layer
   useEffect(() => {
-    if (!diceResult || !effectLayerRef.current || !tweenRef.current) return;
+    if (!diceResult || !screenEffectLayerRef.current || !tweenRef.current) return;
 
     const container = containerRef.current;
     if (!container) return;
@@ -198,7 +225,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const centerY = rect.height / 2;
 
     animateDiceResult(
-      effectLayerRef.current,
+      screenEffectLayerRef.current,
       diceResult.values,
       diceResult.total,
       tweenRef.current,
@@ -222,15 +249,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       stageRef.current?.resize(rect.width, rect.height);
     };
 
-    // Use ResizeObserver to detect container size changes (CSS layout settling, flex recalc, etc.)
+    // Use ResizeObserver with debounce to detect container size changes
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const ro = new ResizeObserver(() => {
-      handleResize();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleResize, 100);
     });
     ro.observe(container);
 
     // Also handle window resize as fallback
     window.addEventListener('resize', handleResize);
     return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
       ro.disconnect();
       window.removeEventListener('resize', handleResize);
     };

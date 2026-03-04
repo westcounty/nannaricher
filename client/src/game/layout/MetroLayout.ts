@@ -8,6 +8,7 @@ import {
   LINE_CONFIGS,
   LINE_EXIT_MAP,
   MAIN_BOARD_CELLS,
+  MAIN_BOARD_SIZE,
 } from '@nannaricher/shared';
 import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
@@ -347,6 +348,80 @@ export function getLineBezierConfig(lineId: string): BezierConfig | undefined {
 }
 
 // ============================================
+// Smooth Path for Branch Tracks
+// ============================================
+
+export interface PathSegment {
+  type: 'line' | 'quadratic';
+  x: number;
+  y: number;
+  cpx?: number; // control point for quadratic
+  cpy?: number;
+}
+
+/**
+ * Check if the path makes a sharp turn (> 120 degrees) at the middle point.
+ * Used to detect fold/reversal points in the snake layout.
+ */
+function isDirectionReversal(prev: Point, curr: Point, next: Point): boolean {
+  const dx1 = curr.x - prev.x;
+  const dy1 = curr.y - prev.y;
+  const dx2 = next.x - curr.x;
+  const dy2 = next.y - curr.y;
+  // Dot product of direction vectors
+  const dot = dx1 * dx2 + dy1 * dy2;
+  const mag1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+  const mag2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+  if (mag1 === 0 || mag2 === 0) return false;
+  const cosAngle = dot / (mag1 * mag2);
+  // Direction reversal if angle > ~120 degrees (cos < -0.5)
+  return cosAngle < -0.5;
+}
+
+/**
+ * Generate a smooth path for branch track rendering.
+ * At fold points (where the snake reverses direction), uses quadratic curves
+ * to create smooth U-turns instead of sharp V-shaped zigzags.
+ * Returns an array of PathSegments starting with the first point.
+ */
+export function getLineSmoothPath(lineId: string): PathSegment[] {
+  const trackPath = getLineTrackPath(lineId);
+  if (trackPath.length < 3) return trackPath.map(p => ({ type: 'line' as const, x: p.x, y: p.y }));
+
+  const segments: PathSegment[] = [{ type: 'line', x: trackPath[0].x, y: trackPath[0].y }];
+
+  for (let i = 1; i < trackPath.length - 1; i++) {
+    const prev = trackPath[i - 1];
+    const curr = trackPath[i];
+    const next = trackPath[i + 1];
+
+    if (isDirectionReversal(prev, curr, next)) {
+      // At fold point: use quadratic curve to create smooth U-turn
+      // Skip the current point as vertex, use it as control point
+      segments.push({
+        type: 'quadratic',
+        x: next.x,  // curve to next point
+        y: next.y,
+        cpx: curr.x, // using the fold vertex as control point
+        cpy: curr.y,
+      });
+      i++; // skip next point since we already included it
+    } else {
+      segments.push({ type: 'line', x: curr.x, y: curr.y });
+    }
+  }
+
+  // Add last point if not already included
+  const last = trackPath[trackPath.length - 1];
+  const lastSeg = segments[segments.length - 1];
+  if (lastSeg.x !== last.x || lastSeg.y !== last.y) {
+    segments.push({ type: 'line', x: last.x, y: last.y });
+  }
+
+  return segments;
+}
+
+// ============================================
 // Color Helpers
 // ============================================
 
@@ -438,6 +513,26 @@ export function getLineThemeColorDark(lineId: string): number {
     return hexToPixi(ct[key][0]);
   }
   return hexToPixi(ct.pukou[0]);
+}
+
+// ============================================
+// Main Ring Step-by-Step Path
+// ============================================
+
+/**
+ * Get all station positions from 'from' to 'to' walking clockwise around the main ring.
+ * Includes the destination but NOT the starting position.
+ * Used for step-by-step movement animation.
+ */
+export function getMainRingPath(from: number, to: number): Point[] {
+  const path: Point[] = [];
+  let current = from;
+  let safety = MAIN_BOARD_SIZE;
+  while (current !== to && safety-- > 0) {
+    current = (current + 1) % MAIN_BOARD_SIZE;
+    path.push(getMainStationPosition(current));
+  }
+  return path;
 }
 
 // ============================================

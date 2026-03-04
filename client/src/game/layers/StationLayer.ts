@@ -77,6 +77,33 @@ const EMOJI_BY_TYPE: Record<string, string> = {
 
 const DEFAULT_EMOJI = '\u{1F4CD}'; // 📍
 
+/**
+ * Smooth scale animation for card hover using RAF.
+ * Duration: 150ms, easeOut cubic. Cancels previous animation on same card.
+ */
+const scaleAnimMap = new WeakMap<Container, number>();
+function animateScale(card: Container, target: number, duration = 150): void {
+  const start = card.scale.x;
+  const diff = target - start;
+  if (Math.abs(diff) < 0.001) return;
+  // Cancel any previous animation on this card
+  const prevId = scaleAnimMap.get(card);
+  if (prevId) cancelAnimationFrame(prevId);
+  const startTime = performance.now();
+  const step = (now: number) => {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // easeOut cubic
+    card.scale.set(start + diff * eased);
+    if (progress < 1) {
+      scaleAnimMap.set(card, requestAnimationFrame(step));
+    } else {
+      scaleAnimMap.delete(card);
+    }
+  };
+  scaleAnimMap.set(card, requestAnimationFrame(step));
+}
+
 // ============================================
 // StationLayer
 // ============================================
@@ -84,6 +111,10 @@ const DEFAULT_EMOJI = '\u{1F4CD}'; // 📍
 export class StationLayer implements RenderLayer {
   private container: Container | null = null;
   private options: StationLayerOptions;
+  // Card references keyed by position string (e.g., "main:0", "line:pukou:3")
+  private stationCards: Map<string, Container> = new Map();
+  // Badge references for player count
+  private badges: Map<string, Container> = new Map();
 
   constructor(options: StationLayerOptions = {}) {
     this.options = options;
@@ -99,12 +130,73 @@ export class StationLayer implements RenderLayer {
     this.drawBranchLineStations();
   }
 
-  // Static layer — no per-frame update needed
-  update(_state: GameState, _currentPlayerId: string | null): void {
-    // no-op
+  update(state: GameState, _currentPlayerId: string | null): void {
+    // Count players per cell
+    const cellCounts = new Map<string, number>();
+    for (const player of state.players) {
+      const key = player.position.type === 'main'
+        ? `main:${player.position.index}`
+        : `line:${player.position.lineId}:${player.position.index}`;
+      cellCounts.set(key, (cellCounts.get(key) || 0) + 1);
+    }
+
+    // Remove badges for cells that no longer have players
+    for (const [key, badge] of this.badges) {
+      if (!cellCounts.has(key) || cellCounts.get(key)! <= 0) {
+        if (badge.parent) badge.parent.removeChild(badge);
+        badge.destroy({ children: true });
+        this.badges.delete(key);
+      }
+    }
+
+    // Add or update badges for cells with players
+    for (const [key, count] of cellCounts) {
+      if (count <= 0) continue;
+      const card = this.stationCards.get(key);
+      if (!card) continue;
+
+      const existing = this.badges.get(key);
+      if (existing) {
+        // Update text if count changed
+        const textChild = existing.getChildAt(1) as Text;
+        if (textChild && textChild.text !== `${count}`) {
+          textChild.text = `${count}`;
+        }
+      } else {
+        // Create new badge - use known card dimensions to avoid expensive getLocalBounds()
+        const badge = new Container();
+        const isMain = key.startsWith('main:');
+        const isCorner = isMain && CORNER_INDICES.includes(parseInt(key.split(':')[1]));
+        const badgeCardW = isCorner ? CORNER_STATION_SIZE : isMain ? MAIN_STATION_SIZE : LINE_STATION_SIZE;
+        const badgeCardH = isCorner ? CORNER_STATION_HEIGHT : isMain ? MAIN_STATION_HEIGHT : LINE_STATION_HEIGHT;
+        badge.x = badgeCardW / 2 - 6;
+        badge.y = -badgeCardH / 2 - 2;
+
+        const bg = new Graphics();
+        bg.circle(0, 0, 8);
+        bg.fill({ color: 0xE53935 });
+        badge.addChild(bg);
+
+        const text = new Text({
+          text: `${count}`,
+          style: new TextStyle({
+            fontSize: 9,
+            fill: 0xFFFFFF,
+            fontWeight: 'bold',
+          }),
+        });
+        text.anchor.set(0.5);
+        badge.addChild(text);
+
+        card.addChild(badge);
+        this.badges.set(key, badge);
+      }
+    }
   }
 
   destroy(): void {
+    this.stationCards.clear();
+    this.badges.clear();
     if (this.container) {
       if (this.container.parent) {
         this.container.parent.removeChild(this.container);
@@ -246,14 +338,15 @@ export class StationLayer implements RenderLayer {
         this.options.onCellClick?.(cell.id, { type: 'main', index });
       });
       card.on('pointerover', () => {
-        card.scale.set(1.08);
+        animateScale(card, 1.08);
       });
       card.on('pointerout', () => {
-        card.scale.set(1);
+        animateScale(card, 1.0);
         card.alpha = 0.95;
       });
 
       this.container!.addChild(card);
+      this.stationCards.set(`main:${index}`, card);
     });
   }
 
@@ -298,6 +391,11 @@ export class StationLayer implements RenderLayer {
           bg.circle(0, -cardH / 2 + 14, 9);
           bg.fill({ color: 0xE0C55E, alpha: 0.5 });
         }
+
+        // Line color indicator bar (left edge)
+        const barColor = isExperience ? 0xE0C55E : colorLight;
+        bg.roundRect(-cardW / 2, -cardH / 2 + 4, 4, cardH - 8, 2);
+        bg.fill({ color: barColor, alpha: 0.8 });
 
         card.addChild(bg);
 
@@ -349,14 +447,15 @@ export class StationLayer implements RenderLayer {
           this.options.onCellClick?.(`${line.id}_${i}`, { type: 'line', lineId: line.id, index: i });
         });
         card.on('pointerover', () => {
-          card.scale.set(1.08);
+          animateScale(card, 1.08);
         });
         card.on('pointerout', () => {
-          card.scale.set(1);
+          animateScale(card, 1.0);
           card.alpha = 0.95;
         });
 
         this.container!.addChild(card);
+        this.stationCards.set(`line:${line.id}:${i}`, card);
       }
 
       // --- Line name label near arc midpoint ---

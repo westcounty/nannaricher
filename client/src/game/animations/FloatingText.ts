@@ -2,6 +2,7 @@
 // Shows floating text that drifts upward and fades out (e.g. "+300 gold").
 
 import { Container, Text, TextStyle } from 'pixi.js';
+import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
 
 export function showFloatingText(
@@ -10,6 +11,7 @@ export function showFloatingText(
   y: number,
   text: string,
   color: string = '#FFD700',
+  tweenEngine?: TweenEngine,
 ): void {
   const duration = AnimationConfig.scaleDuration(1500);
   if (duration <= 0) return;
@@ -28,20 +30,34 @@ export function showFloatingText(
   textObj.y = y;
   layer.addChild(textObj);
 
-  const startY = y;
-  let elapsed = 0;
-
-  const animate = () => {
-    elapsed += 16.67; // ~60fps step
-    const progress = Math.min(elapsed / duration, 1);
-    textObj.y = startY - 40 * progress;
-    textObj.alpha = 1 - progress;
-    if (progress >= 1) {
-      layer.removeChild(textObj);
+  if (tweenEngine) {
+    // Use TweenEngine: drift up by 40px and fade alpha to 0
+    Promise.all([
+      tweenEngine.to(textObj, { y: y - 40 }, duration, EASINGS.easeOut),
+      tweenEngine.to(textObj, { alpha: 0 }, duration, EASINGS.easeOut),
+    ]).then(() => {
+      if (textObj.parent) {
+        textObj.parent.removeChild(textObj);
+      }
       textObj.destroy();
-    } else {
-      requestAnimationFrame(animate);
-    }
-  };
-  requestAnimationFrame(animate);
+    });
+  } else {
+    // Fallback: RAF-based animation (for backward compatibility)
+    let elapsed = 0;
+    const animate = () => {
+      elapsed += 16.67;
+      const progress = Math.min(elapsed / duration, 1);
+      textObj.y = y - 40 * progress;
+      textObj.alpha = 1 - progress;
+      if (progress >= 1) {
+        if (textObj.parent) {
+          textObj.parent.removeChild(textObj);
+        }
+        textObj.destroy();
+      } else {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+  }
 }

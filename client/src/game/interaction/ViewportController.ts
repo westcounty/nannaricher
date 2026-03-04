@@ -2,6 +2,7 @@
 // Controls PixiJS canvas viewport: zoom, pan, pinch-to-zoom, double-click reset, auto-focus.
 
 import { Container } from 'pixi.js';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
 
 // ============================================
 // Constants
@@ -186,9 +187,9 @@ export class ViewportController {
     const canvasCenterX = rect.width / 2;
     const canvasCenterY = rect.height / 2;
 
-    // Calculate the screen position of the world point at current base scale
-    const screenX = this.baseContainerX + worldX * this.baseContainerScale;
-    const screenY = this.baseContainerY + worldY * this.baseContainerScale;
+    // Calculate the screen position of the world point accounting for current zoom
+    const screenX = this.baseContainerX * this.scale + worldX * this.baseContainerScale * this.scale;
+    const screenY = this.baseContainerY * this.scale + worldY * this.baseContainerScale * this.scale;
 
     // Pan needed to center that point
     const targetPanX = canvasCenterX - screenX;
@@ -340,6 +341,12 @@ export class ViewportController {
 
   /** Apply current scale and pan offset to the PixiJS container. */
   private applyTransform(): void {
+    // Soft pan limits: prevent dragging the board entirely out of view
+    const maxPanX = (METRO_BOARD_WIDTH * this.baseContainerScale * this.scale) / 2;
+    const maxPanY = (METRO_BOARD_HEIGHT * this.baseContainerScale * this.scale) / 2;
+    this.panX = clamp(this.panX, -maxPanX, maxPanX);
+    this.panY = clamp(this.panY, -maxPanY, maxPanY);
+
     const effectiveScale = this.baseContainerScale * this.scale;
     this.container.scale.set(effectiveScale);
     this.container.x = this.baseContainerX * this.scale + this.panX;

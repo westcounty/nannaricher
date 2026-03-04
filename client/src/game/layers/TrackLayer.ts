@@ -9,15 +9,13 @@ import type { RenderLayer } from '../GameStage';
 import {
   METRO_BOARD_WIDTH,
   METRO_BOARD_HEIGHT,
-  getMainStationPosition,
-  getLineTrackPath,
+  getRingPath,
+  getLineSmoothPath,
   getLineThemeColor,
   getLineThemeColorDark,
   MAIN_TRACK_WIDTH,
   LINE_TRACK_WIDTH,
 } from '../layout/MetroLayout';
-
-const MAIN_STATION_COUNT = 28;
 
 export class TrackLayer implements RenderLayer {
   private container: Container | null = null;
@@ -50,11 +48,8 @@ export class TrackLayer implements RenderLayer {
   // ------ Private Drawing Methods ------
 
   private drawMainRing(): void {
-    // Pre-compute all 28 station positions
-    const stations = [];
-    for (let i = 0; i < MAIN_STATION_COUNT; i++) {
-      stations.push(getMainStationPosition(i));
-    }
+    // Use smooth rounded-corner ring path instead of straight lines between stations
+    const ringPath = getRingPath(12);
 
     // 4-layer neon tube effect
     const layers: { width: number; color: number; alpha: number }[] = [
@@ -66,12 +61,10 @@ export class TrackLayer implements RenderLayer {
 
     for (const layer of layers) {
       const gfx = new Graphics();
-      gfx.moveTo(stations[0].x, stations[0].y);
-      for (let i = 1; i < MAIN_STATION_COUNT; i++) {
-        gfx.lineTo(stations[i].x, stations[i].y);
+      gfx.moveTo(ringPath[0].x, ringPath[0].y);
+      for (let i = 1; i < ringPath.length; i++) {
+        gfx.lineTo(ringPath[i].x, ringPath[i].y);
       }
-      // Close back to station[0]
-      gfx.lineTo(stations[0].x, stations[0].y);
       gfx.stroke({ width: layer.width, color: layer.color, alpha: layer.alpha });
       this.container!.addChild(gfx);
     }
@@ -79,13 +72,13 @@ export class TrackLayer implements RenderLayer {
 
   private drawBranchTracks(): void {
     for (const line of LINE_CONFIGS) {
-      const path = getLineTrackPath(line.id);
-      if (path.length < 2) continue;
+      const smoothPath = getLineSmoothPath(line.id);
+      if (smoothPath.length < 2) continue;
 
       const lineColor = getLineThemeColor(line.id);
       const lineColorDark = getLineThemeColorDark(line.id);
 
-      // 3-layer neon tube per branch (polyline through snake path)
+      // 3-layer neon tube per branch (smooth path with U-turn curves)
       const layers: { width: number; color: number; alpha: number }[] = [
         { width: LINE_TRACK_WIDTH + 6, color: lineColor, alpha: 0.12 },
         { width: LINE_TRACK_WIDTH + 2, color: lineColorDark, alpha: 0.8 },
@@ -94,9 +87,14 @@ export class TrackLayer implements RenderLayer {
 
       for (const layer of layers) {
         const gfx = new Graphics();
-        gfx.moveTo(path[0].x, path[0].y);
-        for (let i = 1; i < path.length; i++) {
-          gfx.lineTo(path[i].x, path[i].y);
+        gfx.moveTo(smoothPath[0].x, smoothPath[0].y);
+        for (let i = 1; i < smoothPath.length; i++) {
+          const seg = smoothPath[i];
+          if (seg.type === 'quadratic' && seg.cpx !== undefined && seg.cpy !== undefined) {
+            gfx.quadraticCurveTo(seg.cpx, seg.cpy, seg.x, seg.y);
+          } else {
+            gfx.lineTo(seg.x, seg.y);
+          }
         }
         gfx.stroke({ width: layer.width, color: layer.color, alpha: layer.alpha });
         this.container!.addChild(gfx);

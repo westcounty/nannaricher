@@ -12,6 +12,8 @@ export class MetroBackgroundLayer implements RenderLayer {
   private container: Container | null = null;
   private roundText: Text | null = null;
   private currentPlayerText: Text | null = null;
+  private lastRound = '';
+  private lastCurrentPlayerText = '';
 
   init(stage: Container): void {
     this.container = new Container();
@@ -28,12 +30,20 @@ export class MetroBackgroundLayer implements RenderLayer {
   update(state: GameState, _currentPlayerId: string | null): void {
     if (this.roundText) {
       const totalRounds = (state as GameState & { totalRounds?: number }).totalRounds || 20;
-      this.roundText.text = `第 ${state.roundNumber}/${totalRounds} 回合`;
+      const roundStr = `第 ${state.roundNumber}/${totalRounds} 回合`;
+      if (roundStr !== this.lastRound) {
+        this.roundText.text = roundStr;
+        this.lastRound = roundStr;
+      }
     }
     if (this.currentPlayerText && state.players.length > 0) {
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (currentPlayer) {
-        this.currentPlayerText.text = `🎲 ${currentPlayer.name}`;
+        const playerText = `🎲 ${currentPlayer.name}`;
+        if (playerText !== this.lastCurrentPlayerText) {
+          this.currentPlayerText.text = playerText;
+          this.lastCurrentPlayerText = playerText;
+        }
       }
     }
   }

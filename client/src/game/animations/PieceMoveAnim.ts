@@ -36,11 +36,12 @@ export async function animatePieceMove(
     );
 
     // Landing ripple at each step
-    createRipple(effectLayer, target.x, target.y);
+    createRipple(effectLayer, target.x, target.y, tweenEngine);
   }
 }
 
-function createRipple(layer: Container, x: number, y: number): void {
+function createRipple(layer: Container, x: number, y: number, tweenEngine: TweenEngine): void {
+  const duration = AnimationConfig.scaleDuration(333); // ~20 frames at 60fps
   const ripple = new Graphics();
   ripple.circle(0, 0, 5);
   ripple.fill({ color: 0xffffff, alpha: 0.5 });
@@ -48,19 +49,21 @@ function createRipple(layer: Container, x: number, y: number): void {
   ripple.y = y;
   layer.addChild(ripple);
 
-  // Expand and fade out over ~20 frames
-  let frame = 0;
-  const animate = () => {
-    frame++;
-    const progress = frame / 20;
-    ripple.scale.set(1 + progress * 2);
-    ripple.alpha = 0.5 * (1 - progress);
-    if (progress >= 1) {
-      layer.removeChild(ripple);
-      ripple.destroy();
-    } else {
-      requestAnimationFrame(animate);
+  if (duration <= 0) {
+    // Reduced-motion: just remove immediately
+    layer.removeChild(ripple);
+    ripple.destroy();
+    return;
+  }
+
+  // Expand scale from 1 to 3 and fade alpha from 0.5 to 0 using TweenEngine
+  Promise.all([
+    tweenEngine.to(ripple.scale, { x: 3, y: 3 }, duration, EASINGS.easeOut),
+    tweenEngine.to(ripple, { alpha: 0 }, duration, EASINGS.easeOut),
+  ]).then(() => {
+    if (ripple.parent) {
+      ripple.parent.removeChild(ripple);
     }
-  };
-  requestAnimationFrame(animate);
+    ripple.destroy();
+  });
 }
