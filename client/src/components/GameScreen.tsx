@@ -19,6 +19,7 @@ import { DiceRoller } from './DiceRoller';
 import { CardHand } from './CardHand';
 import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
+import { LoadingScreen } from './LoadingScreen';
 import type { Player } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 import { playSound } from '../audio/AudioManager';
@@ -136,7 +137,7 @@ export function GameScreen() {
 
   // Loading state
   if (!gameState) {
-    return <div className="game-screen loading">Loading game...</div>;
+    return <LoadingScreen type="waiting" />;
   }
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
