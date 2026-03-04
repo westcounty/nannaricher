@@ -42,6 +42,7 @@ export class GameEngine implements IGameEngine {
   private chainSystem: ChainActionSystem;
   /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
   private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
+  private diceResultCallback: ((playerId: string, values: number[], total: number) => void) | null = null;
 
   constructor(roomId: string) {
     this.state = this.createInitialState(roomId);
@@ -205,17 +206,14 @@ export class GameEngine implements IGameEngine {
       return;
     }
 
-    // Check plan abilities for money loss protection
+    // Check plan abilities for money loss protection (faxue lawyerShield)
     if (delta < 0) {
-      const abilityResult = this.planAbilities.applyPassiveAbility({
-        player,
-        state: this.state,
-        event: 'money_loss',
-      });
-
-      if (abilityResult.modified && abilityResult.effects?.customEffect === 'faxue_shield') {
+      const abilityResult = this.planAbilities.checkAbilities(player, this.state, 'on_money_loss');
+      if (abilityResult?.effects?.blockMoneyLoss) {
+        // Consume the shield after use
+        player.lawyerShield = false;
         this.log('法学院护盾：免除本次金钱损失', playerId);
-        return; // Cancel the money loss
+        return;
       }
     }
 
@@ -278,6 +276,15 @@ export class GameEngine implements IGameEngine {
       if (position.index < oldPosition.index) {
         // Passed start
         this.eventHandler.execute('corner_start_pass', playerId);
+      }
+    }
+
+    // --- PlanAbilities: on_move (teleport/direct moves) ---
+    const moveResult = this.planAbilities.checkAbilities(player, this.state, 'on_move');
+    if (moveResult?.effects) {
+      if (moveResult.message) this.log(moveResult.message, playerId);
+      if (moveResult.effects.exploration) {
+        this.modifyPlayerExploration(playerId, moveResult.effects.exploration);
       }
     }
 
@@ -397,13 +404,21 @@ export class GameEngine implements IGameEngine {
     const line = boardData.lines[lineId];
     if (!line) return false;
 
-    // Pay entry fee if required
+    // Pay entry fee if required (with plan ability discounts)
     if (payFee && line.entryFee > 0) {
-      if (player.money < line.entryFee) {
-        this.log(`金钱不足，无法进入 ${line.name}`, playerId);
-        return false;
+      const actualFee = this.planAbilities.calculateEntryFee(player, this.state, lineId, line.entryFee);
+      if (actualFee > 0) {
+        if (player.money < actualFee) {
+          this.log(`金钱不足，无法进入 ${line.name}`, playerId);
+          return false;
+        }
+        this.modifyPlayerMoney(playerId, -actualFee);
+        if (actualFee < line.entryFee) {
+          this.log(`培养计划能力：入场费从 ${line.entryFee} 减少到 ${actualFee}`, playerId);
+        }
+      } else {
+        this.log(`培养计划能力：免入场费进入 ${line.name}`, playerId);
       }
-      this.modifyPlayerMoney(playerId, -line.entryFee);
     }
 
     // Track line visit
@@ -690,6 +705,19 @@ export class GameEngine implements IGameEngine {
     if (!player) return;
 
     player.skipNextTurn = true;
+
+    // Support multi-turn skips via effect stacking
+    const existingSkip = player.effects.find(e => e.type === 'skip_turn');
+    if (existingSkip) {
+      existingSkip.turnsRemaining = Math.max(existingSkip.turnsRemaining, turns);
+    } else if (turns > 1) {
+      player.effects.push({
+        id: `skip_${Date.now()}`,
+        type: 'skip_turn',
+        turnsRemaining: turns,
+      });
+    }
+
     this.log(`暂停 ${turns} 回合`, playerId);
   }
 
@@ -1184,6 +1212,19 @@ export class GameEngine implements IGameEngine {
     this.log(`投骰子: [${results.join(', ')}] = ${total}`);
 
     return results;
+  }
+
+  setDiceResultCallback(cb: (playerId: string, values: number[], total: number) => void): void {
+    this.diceResultCallback = cb;
+  }
+
+  rollDiceAndBroadcast(playerId: string, count?: number): number[] {
+    const values = this.rollDice(count);
+    const total = values.reduce((a, b) => a + b, 0);
+    if (this.diceResultCallback) {
+      this.diceResultCallback(playerId, values, total);
+    }
+    return values;
   }
 
   getPlayersByMoneyRank(): Player[] {

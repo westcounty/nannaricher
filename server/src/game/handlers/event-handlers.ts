@@ -61,7 +61,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('retake', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
       engine.modifyPlayerGpa(playerId, 0.2);
       engine.log(`投出 ${dice}（偶数），获得0.2 GPA`, playerId);
@@ -87,7 +87,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('society_money', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -200);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
     engine.log(`参加社团活动，获得 ${dice} 探索值`, playerId);
     return null;
@@ -95,7 +95,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('society_gpa', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.2);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
     engine.log(`参加社团活动，获得 ${dice} 探索值`, playerId);
     return null;
@@ -167,7 +167,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('kechuang_join', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.3);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const gpaGain = dice * 0.1;
     engine.modifyPlayerGpa(playerId, gpaGain);
     engine.log(`参加科创赛事，获得 ${gpaGain.toFixed(1)} GPA`, playerId);

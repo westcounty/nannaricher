@@ -38,7 +38,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('pukou_shoushou', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
       engine.modifyPlayerExploration(playerId, 3);
       engine.log(`手手速报投出 ${dice}（偶数），探索值 +3`, playerId);
@@ -77,7 +77,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('pukou_delivery', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 1);
       engine.log(`快递寄到车大成贤投出 ${dice}（奇数），探索值 +1`, playerId);
@@ -131,7 +131,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   // === Study Line (学习线) ===
   eventHandler.registerHandler('study_exam', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerGpa(playerId, 0.2);
       engine.log(`期末考试通宵复习投出 ${dice}（奇数），GPA +0.2`, playerId);
@@ -222,7 +222,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('study_exp_card', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, 0.2);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice <= 2) {
       engine.enterLine(playerId, 'pukou', false);
       engine.log('保研成功，GPA +0.2，移动到浦口线', playerId);
@@ -262,7 +262,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('money_campus_card', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerMoney(playerId, -100);
       engine.log(`校园卡摊点投出 ${dice}（奇数），实名办卡，金钱 -100`, playerId);
@@ -280,7 +280,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('money_card_lost', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`校园卡丢失投出 ${dice}（奇数），找回了，探索值 +2`, playerId);
@@ -294,14 +294,14 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('money_recharge_bonus', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerMoney(playerId, dice * 100);
     engine.log(`校园卡充值优惠，金钱 +${dice * 100}`, playerId);
     return null;
   });
 
   eventHandler.registerHandler('money_startup', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice === 1 || dice === 6) {
       const player = engine.getPlayer(playerId);
       if (player) {
@@ -384,7 +384,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('suzhou_curriculum_box', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerGpa(playerId, -0.1);
       engine.log(`培养计划套娃盲盒投出 ${dice}（奇数），GPA -0.1`, playerId);
@@ -417,7 +417,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('suzhou_explorer', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
       engine.modifyPlayerExploration(playerId, 5);
       engine.log(`探索者投出 ${dice}（偶数），发布指南，探索值 +5`, playerId);
@@ -441,7 +441,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   // === Explore Line (探索线/乐在南哪) ===
   eventHandler.registerHandler('explore_singer', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice === 1 || dice === 3) {
       engine.modifyPlayerExploration(playerId, 1);
       engine.log(`十大歌星投出 ${dice}，过第一轮，探索值 +1`, playerId);
@@ -482,7 +482,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('explore_student_org', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 3);
       engine.log(`学生组织留任投出 ${dice}（奇数），完成目标，探索值 +3`, playerId);
@@ -519,7 +519,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('explore_anniversary', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (player) {
       engine.modifyPlayerMoney(playerId, 20 * dice);
       if (player.exploration >= 15) {
@@ -562,7 +562,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('gulou_heritage', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice <= 2) {
       engine.modifyPlayerExploration(playerId, 1);
       engine.log(`名胜古迹投出 ${dice}，历史文物宿舍，探索值 +1`, playerId);
@@ -577,7 +577,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('gulou_celebrity', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerGpa(playerId, 0.3);
       engine.log(`偶遇明星投出 ${dice}（奇数），去图书馆学习，GPA +0.3`, playerId);
@@ -640,7 +640,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   // === Xianlin Line (仙林线) ===
   eventHandler.registerHandler('xianlin_conference', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerMoney(playerId, 100);
       engine.modifyPlayerExploration(playerId, 2);
@@ -666,7 +666,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('xianlin_dorm', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     switch (dice) {
       case 1:
         engine.modifyPlayerMoney(playerId, -100);
@@ -696,7 +696,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('xianlin_bathroom', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`独立卫浴改造投出 ${dice}（奇数），成功，探索值 +2`, playerId);
@@ -715,7 +715,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('xianlin_tour', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
       engine.log(`带高中同学游览仙林投出 ${dice}（偶数），被评价为恢弘`, playerId);
       engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
@@ -742,7 +742,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('food_protein', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`吃出蛋白质投出 ${dice}（奇数），经理慰问，探索值 +2`, playerId);
@@ -755,7 +755,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('food_new_item', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerMoney(playerId, -dice * 50);
     engine.log(`尝试食堂新品，金钱 -${dice * 50}`, playerId);
     engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
@@ -769,7 +769,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('food_nine_canteen', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerMoney(playerId, -dice * 50);
     engine.modifyPlayerExploration(playerId, 3);
     engine.log(`九食堂招待朋友，金钱 -${dice * 50}，探索值 +3`, playerId);

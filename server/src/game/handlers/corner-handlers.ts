@@ -35,7 +35,7 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('corner_hospital_roll', (engine, playerId, choice) => {
-    const diceResult = engine.rollDice(1)[0];
+    const diceResult = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 

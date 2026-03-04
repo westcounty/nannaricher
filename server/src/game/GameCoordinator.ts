@@ -29,11 +29,17 @@ export class GameCoordinator {
   private engine: GameEngine;
   private io: GameServer;
   private roomId: string;
+  private processingAction = false;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
     this.io = io;
     this.roomId = roomId;
+
+    // Wire up dice broadcast so event handlers can emit dice results
+    this.engine.setDiceResultCallback((pid, vals, total) => {
+      this.io.to(this.roomId).emit('game:dice-result', { playerId: pid, values: vals, total });
+    });
   }
 
   // --------------------------------------------------
@@ -60,6 +66,19 @@ export class GameCoordinator {
       player.exploration = Math.round(player.exploration);
       player.money = Math.round(player.money);
     }
+
+    // Mask vote responses to preserve privacy during ongoing votes
+    if (state.pendingAction?.type === 'multi_vote' && state.pendingAction.responses) {
+      const maskedState = { ...state, pendingAction: { ...state.pendingAction } };
+      const maskedResponses: Record<string, string> = {};
+      for (const pid of Object.keys(state.pendingAction.responses)) {
+        maskedResponses[pid] = '__voted__';
+      }
+      maskedState.pendingAction!.responses = maskedResponses;
+      this.io.to(this.roomId).emit('game:state-update', maskedState);
+      return;
+    }
+
     this.io.to(this.roomId).emit('game:state-update', state);
   }
 
@@ -102,14 +121,19 @@ export class GameCoordinator {
       // Check if player should skip turn
       if (nextPlayer.skipNextTurn) {
         nextPlayer.skipNextTurn = false;
-        // Decrement effect turns
-        nextPlayer.effects = nextPlayer.effects.filter(e => {
-          if (e.type === 'skip_turn') {
-            e.turnsRemaining--;
-            return e.turnsRemaining > 0;
+
+        // Decrement skip_turn effect and check if more skips remain
+        const skipEffect = nextPlayer.effects.find(e => e.type === 'skip_turn');
+        if (skipEffect) {
+          skipEffect.turnsRemaining--;
+          if (skipEffect.turnsRemaining > 0) {
+            nextPlayer.skipNextTurn = true; // Still has more turns to skip
+          } else {
+            nextPlayer.effects = nextPlayer.effects.filter(e => e !== skipEffect);
           }
-          return true;
-        });
+        }
+
+        this.addLog(nextPlayer.id, `${nextPlayer.name} 暂停回合（跳过）`);
         continue;
       }
 
@@ -123,8 +147,128 @@ export class GameCoordinator {
       state.turnNumber++;
     }
 
+    // Check if this is a plan confirmation round (every 6 turns)
+    if (nextIndex === 0 && state.turnNumber > 0 && state.turnNumber % PLAN_CONFIRM_INTERVAL === 0) {
+      // Find players with unconfirmed training plans
+      const playersWithPlans = state.players.filter(p =>
+        !p.isBankrupt && !p.isDisconnected &&
+        p.trainingPlans.length > 0 &&
+        p.confirmedPlans.length < MAX_TRAINING_PLANS
+      );
+
+      if (playersWithPlans.length > 0) {
+        this.addLog('system', `第 ${Math.floor(state.turnNumber / PLAN_CONFIRM_INTERVAL)} 轮升学阶段！可以确认培养方案`);
+        this.io.to(this.roomId).emit('game:announcement', {
+          message: `升学阶段开始！第 ${Math.floor(state.turnNumber / PLAN_CONFIRM_INTERVAL)} 轮`,
+          type: 'info' as const,
+        });
+
+        // Create plan confirmation for first eligible player
+        const firstPlayer = playersWithPlans[0];
+        const unconfirmedPlans = firstPlayer.trainingPlans
+          .filter(p => !firstPlayer.confirmedPlans.includes(p.id));
+
+        if (unconfirmedPlans.length > 0) {
+          state.pendingAction = {
+            id: `plan_confirm_${Date.now()}`,
+            playerId: firstPlayer.id,
+            type: 'choose_option',
+            prompt: `升学阶段：是否确认一个培养方案？(已确认 ${firstPlayer.confirmedPlans.length}/${MAX_TRAINING_PLANS})`,
+            options: [
+              ...unconfirmedPlans.map(p => ({ label: `确认: ${p.name}`, value: `confirm_plan_${p.id}` })),
+              { label: '跳过', value: 'skip_plan_confirm' },
+            ],
+            callbackHandler: 'plan_confirmation_handler',
+            timeoutMs: 60000,
+          };
+
+          // Register the handler
+          if (!this.engine.getEventHandler().hasHandler('plan_confirmation_handler')) {
+            this.engine.getEventHandler().registerHandler('plan_confirmation_handler', (eng, pid, choice) => {
+              if (choice && choice.startsWith('confirm_plan_')) {
+                const planId = choice.replace('confirm_plan_', '');
+                const player = eng.getPlayer(pid);
+                if (player && !player.confirmedPlans.includes(planId)) {
+                  player.confirmedPlans.push(planId);
+                  const plan = player.trainingPlans.find(p => p.id === planId);
+                  eng.log(`确认培养方案: ${plan?.name || planId}`, pid);
+                }
+              }
+              return null;
+            });
+          }
+
+          this.broadcastState();
+          return; // Don't proceed to normal roll yet
+        }
+      }
+    }
+
     // Set pending action for next player
     const currentPlayer = state.players[state.currentPlayerIndex];
+
+    // --- PlanAbilities: on_turn_start check ---
+    const planAbilities = this.engine.getPlanAbilities();
+    const turnAbility = planAbilities.checkAbilities(currentPlayer, state, 'on_turn_start');
+    if (turnAbility?.effects?.customEffect) {
+      if (turnAbility.message) this.addLog(currentPlayer.id, turnAbility.message);
+      const ce = turnAbility.effects.customEffect;
+
+      if (ce === 'jisuanji_bonus') {
+        state.pendingAction = {
+          id: `jisuanji_${Date.now()}`,
+          playerId: currentPlayer.id,
+          type: 'choose_option',
+          prompt: '计算机系能力：选择回合奖励',
+          options: [
+            { label: '探索+1', value: 'jisuanji_explore' },
+            { label: '金钱+100', value: 'jisuanji_money' },
+          ],
+          callbackHandler: 'plan_jisuanji_choice',
+          timeoutMs: 15000,
+        };
+        if (!this.engine.getEventHandler().hasHandler('plan_jisuanji_choice')) {
+          this.engine.getEventHandler().registerHandler('plan_jisuanji_choice', (eng, pid, choice) => {
+            if (choice === 'jisuanji_explore') {
+              eng.modifyPlayerExploration(pid, 1);
+            } else {
+              eng.modifyPlayerMoney(pid, 100);
+            }
+            return null;
+          });
+        }
+        this.broadcastState();
+        return;
+      }
+      if (ce === 'kuangyaming_bonus') {
+        state.pendingAction = {
+          id: `kuangyaming_${Date.now()}`,
+          playerId: currentPlayer.id,
+          type: 'choose_option',
+          prompt: '匡亚明学院能力：选择回合奖励',
+          options: [
+            { label: 'GPA+0.1', value: 'kuangyaming_gpa' },
+            { label: '探索+1', value: 'kuangyaming_explore' },
+          ],
+          callbackHandler: 'plan_kuangyaming_choice',
+          timeoutMs: 15000,
+        };
+        if (!this.engine.getEventHandler().hasHandler('plan_kuangyaming_choice')) {
+          this.engine.getEventHandler().registerHandler('plan_kuangyaming_choice', (eng, pid, choice) => {
+            if (choice === 'kuangyaming_gpa') {
+              eng.modifyPlayerGpa(pid, 0.1);
+            } else {
+              eng.modifyPlayerExploration(pid, 1);
+            }
+            return null;
+          });
+        }
+        this.broadcastState();
+        return;
+      }
+      // wuli/huaxue: complex effects that require separate handling — log for now
+    }
+
     state.pendingAction = {
       id: `roll_dice_${Date.now()}`,
       playerId: currentPlayer.id,
@@ -718,10 +862,79 @@ export class GameCoordinator {
 
   handleCellLanding(playerId: string, position: Position): void {
     const state = this.engine.getState();
+    const planAbilities = this.engine.getPlanAbilities();
+    const player = this.engine.getPlayer(playerId);
 
     if (position.type === 'main') {
       const cell = boardData.mainBoard[position.index];
       if (!cell) return;
+
+      // --- PlanAbilities: on_cell_enter check ---
+      if (player) {
+        const cellAbility = planAbilities.checkAbilities(player, state, 'on_cell_enter', { cellId: cell.id });
+        if (cellAbility?.effects) {
+          const fx = cellAbility.effects;
+          if (cellAbility.message) this.addLog(playerId, cellAbility.message);
+
+          // Apply direct stat effects
+          if (fx.money) this.engine.modifyPlayerMoney(playerId, fx.money);
+          if (fx.gpa) this.engine.modifyPlayerGpa(playerId, fx.gpa);
+          if (fx.exploration) this.engine.modifyPlayerExploration(playerId, fx.exploration);
+
+          // skipEvent: skip the normal cell handler entirely
+          if (fx.skipEvent) {
+            this.broadcastState();
+            if (state.phase === 'playing') {
+              if (this.checkAndEmitWin()) return;
+              this.advanceTurn();
+            }
+            return;
+          }
+
+          // yixue: free hospital discharge
+          if (fx.customEffect === 'yixue_free_discharge') {
+            this.engine.setPlayerHospitalStatus(playerId, false);
+            this.addLog(playerId, '医学院能力：免费出院');
+            this.broadcastState();
+            if (state.phase === 'playing') {
+              if (this.checkAndEmitWin()) return;
+              this.advanceTurn();
+            }
+            return;
+          }
+
+          // wenxue: custom choice for jiang_gong cell
+          if (fx.customEffect === 'wenxue_jiang_gong') {
+            state.pendingAction = {
+              id: `wenxue_choice_${Date.now()}`,
+              playerId,
+              type: 'choose_option',
+              prompt: '文学院能力：蒋公的面子 — 选择效果',
+              options: [
+                { label: '+100金钱', value: 'wenxue_money' },
+                { label: '喊"不吃"+2探索', value: 'wenxue_explore' },
+              ],
+              callbackHandler: 'wenxue_jiang_gong_choice',
+              timeoutMs: 30000,
+            };
+            // Register inline handler for the choice
+            if (!this.engine.getEventHandler().hasHandler('wenxue_jiang_gong_choice')) {
+              this.engine.getEventHandler().registerHandler('wenxue_jiang_gong_choice', (eng, pid, choice) => {
+                if (choice === 'wenxue_money') {
+                  eng.modifyPlayerMoney(pid, 100);
+                  eng.log('文学院：蒋公的面子 +100金钱', pid);
+                } else {
+                  eng.modifyPlayerExploration(pid, 2);
+                  eng.log('文学院：喊"不吃" +2探索', pid);
+                }
+                return null;
+              });
+            }
+            this.broadcastState();
+            return;
+          }
+        }
+      }
 
       let handlerId: string | null = null;
 
@@ -741,6 +954,20 @@ export class GameCoordinator {
           handlerId = `event_${cell.id}`;
           break;
         case 'chance': {
+          // --- PlanAbilities: on_card_draw ---
+          if (player) {
+            const cardDrawAbility = planAbilities.checkAbilities(player, state, 'on_card_draw');
+            if (cardDrawAbility?.effects?.customEffect === 'daqi_draw_three') {
+              // 大气学院: draw 3 cards, pick 1 (simplified: draw extra card for player)
+              this.addLog(playerId, cardDrawAbility.message || '大气学院能力触发');
+              const bonus = this.engine.drawCard(playerId, 'chance');
+              if (bonus) {
+                this.engine.addCardToPlayer(playerId, bonus);
+                this.addLog(playerId, `大气学院：额外获得机会卡 ${bonus.name}`);
+              }
+            }
+          }
+
           // Draw one card: randomly chance or destiny
           const cardType = Math.random() < 0.5 ? 'chance' : 'destiny';
           const card = this.engine.drawCard(playerId, cardType);
@@ -778,18 +1005,28 @@ export class GameCoordinator {
           return;
         }
         case 'line_entry': {
-          // Ask player if they want to enter the line
+          // Calculate actual entry fee with plan discounts
+          const baseFee = cell.entryFee || 0;
+          const actualEntryFee = player
+            ? planAbilities.calculateEntryFee(player, state, cell.lineId || '', baseFee)
+            : baseFee;
+          const feeLabel = actualEntryFee < baseFee
+            ? `支付 ${actualEntryFee} (原价${baseFee}) 进入`
+            : `支付 ${baseFee} 进入`;
+
           state.pendingAction = {
             id: `line_entry_${Date.now()}`,
             playerId,
             type: 'choose_option',
             prompt: cell.forceEntry
               ? `必须进入 ${cell.name}`
-              : `是否支付 ${cell.entryFee} 金钱进入 ${cell.name}？`,
+              : actualEntryFee === 0
+                ? `培养计划能力：免费进入 ${cell.name}！`
+                : `是否支付 ${actualEntryFee} 金钱进入 ${cell.name}？`,
             options: cell.forceEntry
               ? [{ label: '进入', value: `enter_${cell.lineId}` }]
               : [
-                  { label: `支付 ${cell.entryFee} 进入`, value: `enter_${cell.lineId}` },
+                  { label: actualEntryFee === 0 ? '免费进入' : feeLabel, value: `enter_${cell.lineId}` },
                   { label: '不进入', value: 'skip' },
                 ],
             timeoutMs: 30000,
@@ -812,7 +1049,15 @@ export class GameCoordinator {
             pendingAction,
           });
         } else {
-          // Event completed automatically, advance turn
+          // Event completed automatically — notify current player only
+          const cell = boardData.mainBoard[position.index];
+          if (cell) {
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: cell.name || '事件',
+              description: `${this.engine.getPlayer(playerId)?.name || '玩家'} 触发了事件`,
+              playerId,
+            });
+          }
           this.broadcastState();
           if (state.phase === 'playing') {
             if (this.checkAndEmitWin()) return;
@@ -835,8 +1080,18 @@ export class GameCoordinator {
           if (pendingAction) {
             state.pendingAction = pendingAction;
             this.broadcastState();
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: cell.name || '线路事件',
+              description: pendingAction.prompt,
+              pendingAction,
+            });
           } else {
-            // Line event completed automatically, advance turn
+            // Line event completed automatically — notify current player only
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: cell.name || '线路事件',
+              description: `${this.engine.getPlayer(playerId)?.name || '玩家'} 触发了 ${cell.description || cell.name}`,
+              playerId,
+            });
             this.broadcastState();
             if (state.phase === 'playing') {
               if (this.checkAndEmitWin()) return;
@@ -864,6 +1119,12 @@ export class GameCoordinator {
     const currentPlayer = state.players[state.currentPlayerIndex];
     if (currentPlayer.id !== playerId) return;
 
+    // Guard against double-roll — only process if pending action is roll_dice
+    if (!state.pendingAction || state.pendingAction.type !== 'roll_dice') return;
+
+    // Clear pending action immediately to prevent double-clicks
+    state.pendingAction = null;
+
     // Handle hospital case — player needs to roll to leave
     if (currentPlayer.isInHospital) {
       const values = this.engine.rollDice(1);
@@ -878,14 +1139,23 @@ export class GameCoordinator {
       if (total >= 3) {
         this.engine.setPlayerHospitalStatus(playerId, false);
         this.addLog(playerId, `${currentPlayer.name} 投出 ${total}，成功出院！`);
+
+        // Set up normal dice roll for movement
+        state.pendingAction = {
+          id: `roll_dice_${Date.now()}`,
+          playerId: currentPlayer.id,
+          type: 'roll_dice',
+          prompt: '已出院，请投骰子移动',
+          timeoutMs: 60000,
+        };
+        this.broadcastState();
+        return;
       } else {
-        this.addLog(playerId, `${currentPlayer.name} 投出 ${total}，未能出院`);
+        this.addLog(playerId, `${currentPlayer.name} 投出 ${total}，未能出院，等待下一回合`);
+        this.broadcastState();
         this.advanceTurn();
         return;
       }
-
-      this.broadcastState();
-      return;
     }
 
     // Handle Ding case
@@ -911,7 +1181,15 @@ export class GameCoordinator {
     // Normal dice roll
     const diceCount = currentPlayer.diceCount;
     const values = this.engine.rollDice(diceCount);
-    const total = values.reduce((a, b) => a + b, 0);
+    let total = values.reduce((a, b) => a + b, 0);
+
+    // --- PlanAbilities: on_dice_roll ---
+    const planAbilities = this.engine.getPlanAbilities();
+    const diceAbility = planAbilities.checkAbilities(currentPlayer, state, 'on_dice_roll', { diceValues: values });
+    if (diceAbility?.effects?.customEffect === 'shuxue_set_dice') {
+      // 数学系: log the ability activation (actual dice override would need UI for choosing)
+      this.addLog(playerId, diceAbility.message || '数学系能力触发');
+    }
 
     this.io.to(this.roomId).emit('game:dice-result', {
       playerId,
@@ -932,10 +1210,32 @@ export class GameCoordinator {
     const state = this.engine.getState();
     if (!state.pendingAction) return;
 
-    // Verify it's this player's action
+    // Validate actionId matches current pendingAction to prevent stale/duplicate requests
+    if (actionId !== state.pendingAction.id) return;
+
+    // Prevent concurrent processing of the same action
+    if (this.processingAction) return;
+
+    // Verify it's this player's action (multi_vote allows 'all')
     if (state.pendingAction.playerId !== playerId && state.pendingAction.playerId !== 'all') {
       return;
     }
+
+    // For non-vote actions, set processing lock
+    if (state.pendingAction.type !== 'multi_vote' && state.pendingAction.type !== 'chain_action') {
+      this.processingAction = true;
+    }
+
+    try {
+      this._processAction(playerId, actionId, choice);
+    } finally {
+      this.processingAction = false;
+    }
+  }
+
+  private _processAction(playerId: string, actionId: string, choice: string): void {
+    const state = this.engine.getState();
+    if (!state.pendingAction) return;
 
     const pendingActionId = state.pendingAction.id;
 
@@ -965,11 +1265,37 @@ export class GameCoordinator {
         state.pendingAction = pendingAction;
         this.broadcastState();
       } else {
-        // Action completed, advance turn if in playing phase
+        // Check if this was a pre-turn plan bonus or plan confirmation — proceed to roll_dice instead of advancing
+        const isPlanConfirm = pendingActionId.startsWith('plan_confirm_');
+        const isPlanBonus = pendingActionId.startsWith('jisuanji_') || pendingActionId.startsWith('kuangyaming_');
         state.pendingAction = null;
         if (state.phase === 'playing') {
           if (this.checkAndEmitWin()) return;
-          this.advanceTurn();
+          if (isPlanConfirm) {
+            // Plan confirmation done, proceed to normal turn
+            const currentPlayer = state.players[state.currentPlayerIndex];
+            state.pendingAction = {
+              id: `roll_dice_${Date.now()}`,
+              playerId: currentPlayer.id,
+              type: 'roll_dice',
+              prompt: '请投骰子',
+              timeoutMs: 60000,
+            };
+            this.broadcastState();
+          } else if (isPlanBonus) {
+            // Plan bonus completed: set up roll_dice for the same player
+            const currentPlayer = state.players[state.currentPlayerIndex];
+            state.pendingAction = {
+              id: `roll_dice_${Date.now()}`,
+              playerId: currentPlayer.id,
+              type: 'roll_dice',
+              prompt: '请投骰子',
+              timeoutMs: 60000,
+            };
+            this.broadcastState();
+          } else {
+            this.advanceTurn();
+          }
         } else {
           this.broadcastState();
         }
@@ -1187,6 +1513,114 @@ export class GameCoordinator {
     }
 
     this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
+
+    // --- PlanAbilities: on_confirm trigger ---
+    const planAbilities = this.engine.getPlanAbilities();
+    const confirmResult = planAbilities.checkAbilities(player, state, 'on_confirm');
+    if (confirmResult?.effects) {
+      const fx = confirmResult.effects;
+      if (confirmResult.message) {
+        this.addLog(playerId, confirmResult.message);
+      }
+
+      // moveToLine: enter a specific line (免费)
+      if (fx.moveToLine) {
+        this.engine.enterLine(playerId, fx.moveToLine, !fx.skipEntryFee);
+      }
+      // moveToCell: teleport to a named corner/cell
+      if (fx.moveToCell) {
+        const cellIndex = boardData.mainBoard.findIndex(c => c.cornerType === fx.moveToCell || c.id === fx.moveToCell);
+        if (cellIndex >= 0) {
+          this.engine.movePlayerTo(playerId, { type: 'main', index: cellIndex });
+        }
+      }
+      // drawCard: draw a card immediately
+      if (fx.drawCard) {
+        const card = this.engine.drawCard(playerId, fx.drawCard);
+        if (card) {
+          if (card.holdable) {
+            this.engine.addCardToPlayer(playerId, card);
+            this.addLog(playerId, `${player.name} 获得${fx.drawCard === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
+          } else {
+            this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+          }
+        }
+      }
+      // money/gpa/exploration direct effects
+      if (fx.money) this.engine.modifyPlayerMoney(playerId, fx.money);
+      if (fx.gpa) this.engine.modifyPlayerGpa(playerId, fx.gpa);
+      if (fx.exploration) this.engine.modifyPlayerExploration(playerId, fx.exploration);
+
+      // customEffect handling for on_confirm plans
+      if (fx.customEffect === 'guoji_target_draw') {
+        // 国际关系学院: Let all other players draw a chance card
+        state.players.forEach(p => {
+          if (p.id !== playerId && !p.isBankrupt) {
+            const card = this.engine.drawCard(p.id, 'chance');
+            if (card) {
+              this.engine.addCardToPlayer(p.id, card);
+              this.addLog(p.id, `${p.name} 因国际关系学院能力获得机会卡: ${card.name}`);
+            }
+          }
+        });
+      }
+      if (fx.customEffect === 'xinxiguanli_redistribute') {
+        // 信息管理学院: Shuffle all active players' cards and redistribute evenly
+        const activePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
+        const allCards = activePlayers.flatMap(p => {
+          const cards = [...p.heldCards];
+          p.heldCards = [];
+          return cards;
+        });
+        // Shuffle
+        for (let i = allCards.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
+        }
+        // Distribute evenly
+        let idx = 0;
+        for (const card of allCards) {
+          activePlayers[idx % activePlayers.length].heldCards.push(card);
+          idx++;
+        }
+        this.addLog(playerId, '信息管理学院能力：所有玩家手牌已重新分配');
+      }
+      if (fx.customEffect === 'shengming_maimen') {
+        // 生命科学学院: Give player a special shield card
+        const shieldCard: Card = {
+          id: 'maimen_shield',
+          name: '麦门护盾',
+          description: '抵消下一次负面效果',
+          deckType: 'chance',
+          holdable: true,
+          singleUse: true,
+          returnToDeck: false,
+          effects: [],
+        };
+        this.engine.addCardToPlayer(playerId, shieldCard);
+        this.addLog(playerId, `${player.name} 获得麦门护盾卡`);
+      }
+      if (fx.customEffect === 'gongguan_negative_balance') {
+        // 工程管理学院: Give player a negative balance card
+        const negCard: Card = {
+          id: 'negative_balance',
+          name: '余额为负',
+          description: '使目标玩家金钱变为负数',
+          deckType: 'chance',
+          holdable: true,
+          singleUse: true,
+          returnToDeck: false,
+          effects: [],
+        };
+        this.engine.addCardToPlayer(playerId, negCard);
+        this.addLog(playerId, `${player.name} 获得余额为负卡`);
+      }
+      // faxue: set lawyerShield on confirm
+      if (plan.id === 'plan_faxue') {
+        player.lawyerShield = true;
+        this.addLog(playerId, '法学院能力：获得法律护盾（一次免除金钱损失）');
+      }
+    }
 
     // Check if all players have confirmed plans in setup phase
     if (state.phase === 'setup_plans') {

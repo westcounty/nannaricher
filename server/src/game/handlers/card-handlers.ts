@@ -10,7 +10,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const newExploration = Math.round(player.exploration * dice * 0.1 * 10) / 10;
     engine.modifyPlayerExploration(playerId, newExploration - player.exploration);
     engine.log(`BOSS直聘投出 ${dice}，探索值变为 ${newExploration}`, playerId);
@@ -45,7 +45,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 吞噬电梯
   eventHandler.registerHandler('card_destiny_swallowing_elevator', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice !== 6) {
       engine.skipPlayerTurn(playerId, 1);
       engine.modifyPlayerGpa(playerId, -0.1);
@@ -58,8 +58,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 七年之痒
   eventHandler.registerHandler('card_destiny_seven_year_itch', (engine, playerId) => {
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const total = dice1 + dice2;
 
     if (total === 7) {
@@ -423,8 +423,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 限量供应
   eventHandler.registerHandler('card_destiny_limited_supply', (engine, playerId) => {
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice2 > dice1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`限量供应：${dice1} -> ${dice2}，探索值 +2`, playerId);
@@ -714,8 +714,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerGpa(playerId, 0.2);
@@ -749,8 +749,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerExploration(playerId, 2);
@@ -784,8 +784,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerMoney(playerId, 200);
@@ -998,7 +998,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_chance_southbound_rose', (engine, playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
     for (const p of players) {
-      const dice = engine.rollDice(1)[0];
+      const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
       if (dice >= 4) {
         engine.modifyPlayerExploration(p.id, 1);
         engine.log(`南行玫瑰：${p.name}投出${dice}，探索值+1`, playerId);
@@ -1276,7 +1276,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 八卦秘闻 — 参与
   eventHandler.registerHandler('card_gossip_participate', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice > 1) {
       engine.modifyPlayerMoney(playerId, 200);
       engine.modifyPlayerGpa(playerId, 0.2);

@@ -65,6 +65,7 @@ export interface GameEngine {
 
   // Utility
   rollDice(count?: number): number[];
+  rollDiceAndBroadcast(playerId: string, count?: number): number[];
   getPlayersByMoneyRank(): Player[]; // sorted richest to poorest
   getPlayersByGpaRank(): Player[]; // sorted highest to lowest
   getPlayersByExplorationRank(): Player[]; // sorted highest to lowest
