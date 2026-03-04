@@ -42,6 +42,14 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
     if (diceResult >= HOSPITAL_DICE_TARGET) {
       engine.setPlayerHospitalStatus(playerId, false);
       engine.log(`投出 ${diceResult}，成功出院！`, playerId);
+      // Return a roll_dice action so the player gets to move after discharge
+      return {
+        id: `roll_dice_${Date.now()}`,
+        playerId,
+        type: 'roll_dice' as const,
+        prompt: '已出院，请投骰子移动',
+        timeoutMs: 60000,
+      };
     } else {
       engine.log(`投出 ${diceResult}，未能出院，下回合继续`, playerId);
     }

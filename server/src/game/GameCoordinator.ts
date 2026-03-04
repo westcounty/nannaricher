@@ -302,10 +302,11 @@ export class GameCoordinator {
       timeoutMs: 60000,
     };
 
-    // Decrement all effect turns (except skip_turn which is handled in skip logic above)
+    // Decrement all effect turns (except skip_turn handled above, and permanent custom effects)
     state.players.forEach(player => {
       player.effects = player.effects.filter(e => {
         if (e.type === 'skip_turn') return e.turnsRemaining > 0; // Already decremented in skip logic
+        if (e.type === 'custom' && e.turnsRemaining >= 999) return true; // Permanent custom effects
         e.turnsRemaining--;
         return e.turnsRemaining > 0;
       });
