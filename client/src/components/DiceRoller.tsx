@@ -1,13 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// client/src/components/DiceRoller.tsx
+// Dice rolling animation visible to ALL players.
+// Shows rolling animation then final result with player name.
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useAnimation, useShakeAnimation } from '../hooks/useAnimation';
-import { useGameStore } from '../stores/gameStore';
 import './DiceRoller.css';
 
 interface DiceRollerProps {
+  /** Number of dice */
   count: 1 | 2;
-  autoRoll?: boolean;
+  /** Final dice values from server (null = still rolling) */
+  values: number[] | null;
+  /** Name of the player who is rolling */
+  playerName?: string;
+  /** Rolling animation duration in ms */
   rollDuration?: number;
-  onComplete?: (values: number[]) => void;
 }
 
 // Dice face SVG patterns
@@ -41,31 +48,30 @@ const DiceFace: React.FC<{ value: number; rolling: boolean }> = ({ value, rollin
 
 export function DiceRoller({
   count,
-  autoRoll = false,
+  values,
+  playerName,
   rollDuration = 800,
-  onComplete,
 }: DiceRollerProps) {
-  const diceResult = useGameStore((s) => s.diceResult);
-  const isRolling = useGameStore((s) => s.isRolling);
-  const playerId = useGameStore((s) => s.playerId);
-  const isMyTurn = useGameStore((s) => {
-    if (!s.gameState || !s.playerId) return false;
-    return s.gameState.players[s.gameState.currentPlayerIndex]?.id === s.playerId;
-  });
-  const socketActions = useGameStore((s) => s.socketActions);
-  const rollDice = socketActions?.rollDice ?? (() => {});
-  const clearDiceResult = () => useGameStore.getState().setDiceResult(null);
-  const [rolling, setRolling] = useState(false);
   const [displayValues, setDisplayValues] = useState<number[]>(() =>
     Array.from({ length: count }, () => 1)
   );
-  const [finalValues, setFinalValues] = useState<number[]>([]);
-  const { isAnimating, progress, animate } = useAnimation(rollDuration);
+  const [settled, setSettled] = useState(false);
+  const { isAnimating, animate } = useAnimation(rollDuration);
   const { startShake, transform } = useShakeAnimation(3);
+  const startedRef = useRef(false);
 
-  // Randomize display values during roll
+  // Start rolling animation on mount
   useEffect(() => {
-    if (isAnimating) {
+    if (!startedRef.current) {
+      startedRef.current = true;
+      startShake(rollDuration);
+      animate();
+    }
+  }, [rollDuration, startShake, animate]);
+
+  // Randomize display values during rolling
+  useEffect(() => {
+    if (isAnimating && !values) {
       const interval = setInterval(() => {
         setDisplayValues(
           Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
@@ -73,93 +79,54 @@ export function DiceRoller({
       }, 50);
       return () => clearInterval(interval);
     }
-  }, [isAnimating, count]);
+  }, [isAnimating, count, values]);
 
-  // Handle server dice result
+  // When server result arrives, show final values
   useEffect(() => {
-    if (diceResult && diceResult.playerId === playerId) {
-      setFinalValues(diceResult.values);
-      setDisplayValues(diceResult.values);
-      setRolling(false);
-
-      if (onComplete) {
-        onComplete(diceResult.values);
-      }
+    if (values && values.length > 0) {
+      setDisplayValues(values);
+      setSettled(true);
     }
-  }, [diceResult, playerId, onComplete]);
+  }, [values]);
 
-  // Start rolling animation when isRolling becomes true
-  useEffect(() => {
-    if (isRolling && !rolling) {
-      setRolling(true);
-      setFinalValues([]);
-      startShake(rollDuration);
-      animate();
-    }
-  }, [isRolling, rolling, rollDuration, startShake, animate]);
-
-  // Handle animation completion (fallback if server doesn't respond)
-  useEffect(() => {
-    if (!isAnimating && progress === 1 && rolling && finalValues.length === 0) {
-      // Wait for server response - don't generate local values
-      // Server is authoritative
-    }
-  }, [isAnimating, progress, rolling, finalValues.length]);
-
-  const handleManualRoll = useCallback(() => {
-    if (!rolling && !isAnimating && isMyTurn && !isRolling) {
-      clearDiceResult();
-      rollDice();
-    }
-  }, [rolling, isAnimating, isMyTurn, isRolling, clearDiceResult, rollDice]);
-
-  const total = finalValues.reduce((sum, v) => sum + v, 0);
+  const isRolling = !settled;
+  const total = values ? values.reduce((sum, v) => sum + v, 0) : 0;
 
   return (
     <div className="dice-roller-container">
+      {/* Player name */}
+      {playerName && (
+        <div className="dice-roller-player">
+          {playerName} 掷骰子
+        </div>
+      )}
+
       <div
-        className={`dice-roller ${isAnimating ? 'animating' : ''}`}
-        style={{ transform }}
+        className={`dice-roller ${isRolling ? 'animating' : ''}`}
+        style={{ transform: isRolling ? transform : undefined }}
       >
         {Array.from({ length: count }, (_, i) => (
           <div
             key={i}
-            className={`dice-wrapper ${isAnimating ? 'tumbling' : ''}`}
-            style={{
-              animationDelay: `${i * 0.1}s`,
-            }}
+            className={`dice-wrapper ${isRolling ? 'tumbling' : 'settled'}`}
+            style={{ animationDelay: `${i * 0.1}s` }}
           >
-            <DiceFace value={displayValues[i]} rolling={isAnimating} />
+            <DiceFace value={displayValues[i]} rolling={isRolling} />
           </div>
         ))}
       </div>
 
-      {!autoRoll && !rolling && !isAnimating && finalValues.length === 0 && (
-        <button
-          className="roll-button"
-          onClick={handleManualRoll}
-          disabled={!isMyTurn || isRolling}
-        >
-          {isRolling ? '掷骰子中...' : '掷骰子'}
-        </button>
-      )}
-
-      {!isAnimating && finalValues.length > 0 && (
+      {/* Result display after settling */}
+      {settled && values && (
         <div className="dice-result">
-          <div className="dice-values">
-            {finalValues.map((v, i) => (
-              <span key={i} className="dice-value">{v}</span>
-            ))}
+          <div className="dice-total">
+            <span className="total-number">{total}</span>
           </div>
-          {count === 2 && (
-            <div className="dice-total">
-              总计: <span className="total-number">{total}</span>
-            </div>
-          )}
         </div>
       )}
 
-      {isAnimating && (
+      {/* Rolling indicator */}
+      {isRolling && (
         <div className="rolling-indicator">
           掷骰子中...
         </div>

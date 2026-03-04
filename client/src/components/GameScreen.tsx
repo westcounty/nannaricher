@@ -79,22 +79,25 @@ export function GameScreen() {
     activePanel !== 'more' &&
     chatMessages.length > lastSeenChatCountRef.current;
 
-  // Dice overlay state
+  // Dice overlay state — visible to ALL players
   const [showDiceOverlay, setShowDiceOverlay] = useState(false);
   const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Show dice overlay when rolling starts, hide 2.5s after result arrives
+  // Show overlay when local player starts rolling
   useEffect(() => {
     if (isRolling) {
       setShowDiceOverlay(true);
     }
   }, [isRolling]);
 
+  // Show overlay when ANY player's dice result arrives, hold for 4s
   useEffect(() => {
     if (diceResult) {
+      setShowDiceOverlay(true);
+      if (diceTimerRef.current) clearTimeout(diceTimerRef.current);
       diceTimerRef.current = setTimeout(() => {
         setShowDiceOverlay(false);
-      }, 2500);
+      }, 4000);
     }
     return () => {
       if (diceTimerRef.current) {
@@ -345,15 +348,24 @@ export function GameScreen() {
       {/* Turn Overlay */}
       <TurnOverlay isMyTurn={isMyTurn} />
 
-      {/* Dice Roller Overlay */}
-      {showDiceOverlay && (
-        <div className="dice-overlay">
-          <DiceRoller
-            count={myPlayer?.diceCount === 2 ? 2 : 1}
-            autoRoll={true}
-          />
-        </div>
-      )}
+      {/* Dice Roller Overlay — visible to ALL players */}
+      {showDiceOverlay && (() => {
+        const rollingPlayer = diceResult
+          ? allPlayers.find(p => p.id === diceResult.playerId)
+          : null;
+        const diceCount = diceResult
+          ? (diceResult.values.length as 1 | 2)
+          : (myPlayer?.diceCount === 2 ? 2 : 1);
+        return (
+          <div className="dice-overlay">
+            <DiceRoller
+              count={diceCount}
+              values={diceResult?.values ?? null}
+              playerName={rollingPlayer?.name}
+            />
+          </div>
+        );
+      })()}
 
       {/* Vote Panel */}
       {isVoting && gameState.pendingAction && playerId && (
