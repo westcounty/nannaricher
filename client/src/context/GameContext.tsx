@@ -1,3 +1,10 @@
+/**
+ * @deprecated This context is superseded by the unified Zustand store (stores/gameStore.ts)
+ * and SocketProvider (context/SocketProvider.tsx). It is kept for backward compatibility
+ * during the migration period. New code should use:
+ *   - `useGameStore()` for state
+ *   - `useGameStore().socketActions` for actions
+ */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { GameState, PendingAction, Card } from '@nannaricher/shared';
 import { useSocket } from './SocketContext';
@@ -6,6 +13,7 @@ import { useSocket } from './SocketContext';
 export interface GameEvent {
   title: string;
   description: string;
+  pendingAction?: PendingAction;
   effects?: {
     money?: number;
     gpa?: number;
@@ -22,11 +30,27 @@ export interface DiceResult {
   total: number;
 }
 
+// Announcement data
+export interface Announcement {
+  message: string;
+  type: 'info' | 'warning' | 'success';
+  timestamp: number;
+}
+
+// Winner data
+export interface WinnerInfo {
+  playerId: string;
+  playerName: string;
+  condition: string;
+}
+
 interface GameContextValue {
   gameState: GameState | null;
   roomId: string | null;
   playerId: string | null;
   isLoading: boolean;
+  isRolling: boolean;
+  error: string | null;
   // Actions
   rollDice: () => void;
   chooseAction: (actionId: string, choice: string) => void;
@@ -41,6 +65,15 @@ interface GameContextValue {
   // Card drawn
   drawnCard: { card: Card; deckType: string } | null;
   clearDrawnCard: () => void;
+  // Announcement
+  announcement: Announcement | null;
+  clearAnnouncement: () => void;
+  // Winner
+  winner: WinnerInfo | null;
+  clearWinner: () => void;
+  // Helpers
+  isMyTurn: boolean;
+  currentPlayerId: string | null;
 }
 
 const GameContext = createContext<GameContextValue>({
@@ -48,6 +81,8 @@ const GameContext = createContext<GameContextValue>({
   roomId: null,
   playerId: null,
   isLoading: true,
+  isRolling: false,
+  error: null,
   rollDice: () => {},
   chooseAction: () => {},
   useCard: () => {},
@@ -58,6 +93,12 @@ const GameContext = createContext<GameContextValue>({
   clearDiceResult: () => {},
   drawnCard: null,
   clearDrawnCard: () => {},
+  announcement: null,
+  clearAnnouncement: () => {},
+  winner: null,
+  clearWinner: () => {},
+  isMyTurn: false,
+  currentPlayerId: null,
 });
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
@@ -68,53 +109,89 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const [diceResult, setDiceResult] = useState<DiceResult | null>(null);
   const [drawnCard, setDrawnCard] = useState<{ card: Card; deckType: string } | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [winner, setWinner] = useState<WinnerInfo | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('game:state-update', (state: GameState) => {
+    const handleStateUpdate = (state: GameState) => {
       setGameState(state);
-    });
+      setIsRolling(false);
+    };
 
-    socket.on('room:created', ({ roomId: id, playerId: pid }) => {
+    const handleRoomCreated = ({ roomId: id, playerId: pid }: { roomId: string; playerId: string }) => {
       setRoomId(id);
       setPlayerId(pid);
-    });
+      setError(null);
+    };
 
-    socket.on('room:joined', ({ playerId: pid }) => {
+    const handleRoomJoined = ({ playerId: pid }: { playerId: string }) => {
       setPlayerId(pid);
-    });
+      setError(null);
+    };
 
-    socket.on('room:error', ({ message }) => {
+    const handleRoomError = ({ message }: { message: string }) => {
       console.error('Room error:', message);
-    });
+      setError(message);
+    };
 
-    // Dice result event
-    socket.on('game:dice-result', (data: DiceResult) => {
+    const handleDiceResult = (data: DiceResult) => {
       setDiceResult(data);
-    });
+      setIsRolling(false);
+    };
 
-    // Event trigger event
-    socket.on('game:event-trigger', (data: { title: string; description: string; pendingAction: PendingAction }) => {
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction: PendingAction }) => {
       setCurrentEvent({
         title: data.title,
         description: data.description,
+        pendingAction: data.pendingAction,
       });
-    });
+    };
 
-    // Card drawn event
-    socket.on('game:card-drawn', (data: { card: Card; deckType: string }) => {
+    const handleCardDrawn = (data: { card: Card; deckType: string }) => {
       setDrawnCard(data);
-    });
+    };
+
+    const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
+      setAnnouncement({
+        message: data.message,
+        type: data.type,
+        timestamp: Date.now(),
+      });
+
+      // Auto-clear announcement after 5 seconds
+      setTimeout(() => {
+        setAnnouncement(null);
+      }, 5000);
+    };
+
+    const handlePlayerWon = (data: WinnerInfo) => {
+      setWinner(data);
+    };
+
+    socket.on('game:state-update', handleStateUpdate);
+    socket.on('room:created', handleRoomCreated);
+    socket.on('room:joined', handleRoomJoined);
+    socket.on('room:error', handleRoomError);
+    socket.on('game:dice-result', handleDiceResult);
+    socket.on('game:event-trigger', handleEventTrigger);
+    socket.on('game:card-drawn', handleCardDrawn);
+    socket.on('game:announcement', handleAnnouncement);
+    socket.on('game:player-won', handlePlayerWon);
 
     return () => {
-      socket.off('game:state-update');
-      socket.off('room:created');
-      socket.off('room:joined');
-      socket.off('room:error');
-      socket.off('game:dice-result');
-      socket.off('game:event-trigger');
-      socket.off('game:card-drawn');
+      socket.off('game:state-update', handleStateUpdate);
+      socket.off('room:created', handleRoomCreated);
+      socket.off('room:joined', handleRoomJoined);
+      socket.off('room:error', handleRoomError);
+      socket.off('game:dice-result', handleDiceResult);
+      socket.off('game:event-trigger', handleEventTrigger);
+      socket.off('game:card-drawn', handleCardDrawn);
+      socket.off('game:announcement', handleAnnouncement);
+      socket.off('game:player-won', handlePlayerWon);
     };
   }, [socket]);
 
@@ -125,17 +202,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, [gameState?.roomId]);
 
+  // Compute derived state
+  const isMyTurn = gameState
+    ? gameState.players[gameState.currentPlayerIndex]?.id === playerId
+    : false;
+  const currentPlayerId = gameState?.players[gameState.currentPlayerIndex]?.id || null;
+
   // Action: Roll dice
   const rollDice = useCallback(() => {
-    if (socket) {
+    if (socket && isMyTurn && !isRolling) {
+      setIsRolling(true);
       socket.emit('game:roll-dice');
     }
-  }, [socket]);
+  }, [socket, isMyTurn, isRolling]);
 
   // Action: Choose action (for pending actions)
   const chooseAction = useCallback((actionId: string, choice: string) => {
     if (socket) {
       socket.emit('game:choose-action', { actionId, choice });
+      // Clear the event after making a choice
+      setCurrentEvent(null);
     }
   }, [socket]);
 
@@ -168,12 +254,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setDrawnCard(null);
   }, []);
 
+  // Clear announcement
+  const clearAnnouncement = useCallback(() => {
+    setAnnouncement(null);
+  }, []);
+
+  // Clear winner
+  const clearWinner = useCallback(() => {
+    setWinner(null);
+  }, []);
+
   return (
     <GameContext.Provider value={{
       gameState,
       roomId,
       playerId,
       isLoading: !isConnected,
+      isRolling,
+      error,
       rollDice,
       chooseAction,
       useCard,
@@ -184,6 +282,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       clearDiceResult,
       drawnCard,
       clearDrawnCard,
+      announcement,
+      clearAnnouncement,
+      winner,
+      clearWinner,
+      isMyTurn,
+      currentPlayerId,
     }}>
       {children}
     </GameContext.Provider>

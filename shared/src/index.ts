@@ -1,4 +1,5 @@
 // shared/src/index.ts
-export * from './types';
-export * from './constants';
-export * from './board-types';
+export * from './types.js';
+export * from './constants.js';
+export * from './board-types.js';
+export * from './board-data.js';
