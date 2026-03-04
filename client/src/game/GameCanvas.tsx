@@ -14,15 +14,13 @@ import { StationLayer, type CellHoverInfo } from './layers/StationLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
-import { animateDiceResult } from './animations/DiceRollAnim';
 import { showFloatingText } from './animations/FloatingText';
+import { playSound } from '../audio/AudioManager';
 import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
-import { MAIN_BOARD_SIZE, LINE_CONFIGS } from '@nannaricher/shared';
 
 interface GameCanvasProps {
   gameState: GameState;
   currentPlayerId: string | null;
-  diceResult?: { playerId: string; values: number[]; total: number } | null;
   onCellClick?: (cellId: string, position: Position) => void;
   onCellHover?: (info: CellHoverInfo | null) => void;
 }
@@ -30,7 +28,6 @@ interface GameCanvasProps {
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   gameState,
   currentPlayerId,
-  diceResult,
   onCellClick,
   onCellHover,
 }) => {
@@ -195,6 +192,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
           const color = delta > 0 ? '#4ade80' : '#ef4444';
           showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current ?? undefined);
+          if (player.id === currentPlayerId) {
+            playSound(delta > 0 ? 'coin_gain' : 'coin_loss');
+          }
         }
 
         // GPA change
@@ -203,6 +203,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
           const color = '#60a5fa';
           showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current ?? undefined);
+          if (player.id === currentPlayerId) {
+            playSound(delta > 0 ? 'gpa_up' : 'gpa_down');
+          }
         }
 
         // Exploration change
@@ -211,6 +214,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
           const color = '#fbbf24';
           showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current ?? undefined);
+          if (player.id === currentPlayerId) {
+            playSound('explore_up');
+          }
         }
       }
     }
@@ -232,67 +238,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
-
-  // Animate dice result on the effect layer + highlight destination
-  useEffect(() => {
-    if (!diceResult || !screenEffectLayerRef.current || !tweenRef.current) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    let centerX = rect.width / 2;
-    let centerY = rect.height / 2;
-
-    // Position dice animation near the rolling player's piece
-    if (playerLayerRef.current && stageRef.current) {
-      const playerPos = playerLayerRef.current.getPlayerPosition(diceResult.playerId);
-      if (playerPos) {
-        // Convert world coords to screen coords via mainContainer transform
-        const mc = stageRef.current.getMainContainer();
-        const screenX = mc.x + (METRO_BOARD_WIDTH / 2 + playerPos.x) * mc.scale.x;
-        const screenY = mc.y + (METRO_BOARD_HEIGHT / 2 + playerPos.y) * mc.scale.y;
-        // Clamp to stay within canvas bounds with margin
-        const margin = 50;
-        centerX = Math.max(margin, Math.min(rect.width - margin, screenX));
-        centerY = Math.max(margin, Math.min(rect.height - margin, screenY - 60));
-      }
-    }
-
-    animateDiceResult(
-      screenEffectLayerRef.current,
-      diceResult.values,
-      diceResult.total,
-      tweenRef.current,
-      centerX,
-      centerY,
-    );
-
-    // Highlight destination cell
-    if (stationLayerRef.current && gameState) {
-      const roller = gameState.players.find(p => p.id === diceResult.playerId);
-      if (roller) {
-        const destKeys: string[] = [];
-        if (roller.position.type === 'main') {
-          const destIndex = (roller.position.index + diceResult.total) % MAIN_BOARD_SIZE;
-          destKeys.push(`main:${destIndex}`);
-        } else if (roller.position.type === 'line') {
-          // On branch line: advance within the line
-          const linePos = roller.position;
-          const line = LINE_CONFIGS.find(l => l.id === linePos.lineId);
-          if (line) {
-            const destIndex = linePos.index + diceResult.total;
-            if (destIndex < line.cellCount) {
-              destKeys.push(`line:${linePos.lineId}:${destIndex}`);
-            }
-          }
-        }
-        if (destKeys.length > 0) {
-          stationLayerRef.current.highlightCells(destKeys);
-        }
-      }
-    }
-  }, [diceResult]);
 
   // Handle viewport resize using ResizeObserver for accurate container tracking
   useEffect(() => {

@@ -31,6 +31,10 @@ import { ZoomHint } from './ZoomHint';
 import { SettlementScreen } from './SettlementScreen';
 import { OpponentToast } from './OpponentToast';
 import { playSound } from '../audio/AudioManager';
+import type { CellHoverInfo } from '../game/layers/StationLayer';
+import { CellTooltip } from './CellTooltip';
+import type { BoardCell, BoardLine } from '@nannaricher/shared';
+import { boardData } from '../data/board';
 import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
@@ -140,6 +144,39 @@ export function GameScreen() {
 
   const needsToRoll = myPlayer && (myPlayer.isInHospital || myPlayer.isAtDing);
 
+  // Cell hover state for tooltip
+  const [hoveredCell, setHoveredCell] = useState<{ cell: BoardCell; lineData?: BoardLine | null; x: number; y: number } | null>(null);
+
+  const handleCellHover = (info: CellHoverInfo | null) => {
+    if (!info) {
+      setHoveredCell(null);
+      return;
+    }
+    const { position, screenX, screenY } = info;
+    if (position.type === 'main') {
+      const cell = boardData.mainBoard[position.index];
+      if (cell) {
+        const lineData = cell.lineId ? boardData.lines[cell.lineId] ?? null : null;
+        setHoveredCell({ cell: cell as BoardCell, lineData, x: screenX, y: screenY });
+      }
+    } else {
+      const lineData = boardData.lines[position.lineId];
+      if (lineData) {
+        const isExperience = position.index === lineData.cells.length;
+        const lineCell = isExperience ? lineData.experienceCard : lineData.cells[position.index];
+        if (lineCell) {
+          const syntheticCell: BoardCell = {
+            index: position.index,
+            id: lineCell.id,
+            name: lineCell.name,
+            type: 'line_entry' as BoardCell['type'],
+          };
+          setHoveredCell({ cell: syntheticCell, lineData, x: screenX, y: screenY });
+        }
+      }
+    }
+  };
+
   // Mobile panel toggle
   const handlePanelToggle = (panelId: PanelId) => {
     playSound('tab_switch');
@@ -179,6 +216,7 @@ export function GameScreen() {
                   gameState={gameState}
                   currentPlayerId={currentPlayer?.id || null}
                   onCellClick={() => {}}
+                  onCellHover={handleCellHover}
                 />
               </div>
             </div>
@@ -268,6 +306,7 @@ export function GameScreen() {
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
                 onCellClick={() => {}}
+                onCellHover={handleCellHover}
               />
             </div>
             <MiniPlayerOverlay
@@ -467,6 +506,14 @@ export function GameScreen() {
 
       {/* Missed Events Panel */}
       <MissedEventsPanel />
+
+      {/* Cell Tooltip */}
+      <CellTooltip
+        cell={hoveredCell?.cell ?? null}
+        lineData={hoveredCell?.lineData}
+        position={{ x: hoveredCell?.x ?? 0, y: hoveredCell?.y ?? 0 }}
+        visible={!!hoveredCell}
+      />
 
       {/* Tutorial System */}
       <TutorialSystem />

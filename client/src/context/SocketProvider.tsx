@@ -149,6 +149,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
   const { socket, isConnected } = useSocket();
   const prevStateRef = useRef<GameState | null>(null);
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastEventActionIdRef = useRef<string | null>(null);
   const store = useGameStore;
 
   // Keep isLoading synced with connection status
@@ -219,10 +220,12 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => {
-      // Only show event modal if this event is for the current player
-      const localPlayerId = store.getState().playerId;
-      if (data.pendingAction?.playerId && data.pendingAction.playerId !== localPlayerId) {
+      // Deduplicate by pendingAction id
+      if (data.pendingAction?.id && data.pendingAction.id === lastEventActionIdRef.current) {
         return;
+      }
+      if (data.pendingAction?.id) {
+        lastEventActionIdRef.current = data.pendingAction.id;
       }
       store.getState().setCurrentEvent({
         title: data.title,
@@ -256,6 +259,19 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       setTimeout(() => playSound('victory_fanfare'), 300);
     };
 
+    const handleResourceChange = (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {
+      const localId = store.getState().playerId;
+      if (data.playerId !== localId) {
+        const statNames: Record<string, string> = { money: '资金', gpa: 'GPA', exploration: '探索值' };
+        const sign = data.delta > 0 ? '+' : '';
+        store.getState().setAnnouncement({
+          message: `${data.playerName} ${statNames[data.stat] || data.stat} ${sign}${data.delta}`,
+          type: data.delta > 0 ? 'success' : 'warning',
+          timestamp: Date.now(),
+        });
+      }
+    };
+
     socket.on('game:state-update', handleStateUpdate);
     socket.on('room:created', handleRoomCreated);
     socket.on('room:joined', handleRoomJoined);
@@ -265,6 +281,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:event-trigger', handleEventTrigger);
     socket.on('game:announcement', handleAnnouncement);
     socket.on('game:player-won', handlePlayerWon);
+    socket.on('game:resource-change', handleResourceChange);
 
     // ------ Cleanup ------
     return () => {
@@ -279,6 +296,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:event-trigger', handleEventTrigger);
       socket.off('game:announcement', handleAnnouncement);
       socket.off('game:player-won', handlePlayerWon);
+      socket.off('game:resource-change', handleResourceChange);
     };
   }, [socket]);
 

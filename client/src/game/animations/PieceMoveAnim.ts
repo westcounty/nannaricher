@@ -4,6 +4,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
+import { playSound } from '../../audio/AudioManager';
 
 export async function animatePieceMove(
   piece: Container,
@@ -72,10 +73,18 @@ export async function animatePieceMove(
       );
     }
 
+    // Play step sound after each hop completes
+    playSound('piece_step');
+
     // Landing ripple only on last 2 steps for long paths, every step for short
     if (path.length <= 8 || isLastTwo) {
       createRipple(effectLayer, target.x, target.y, tweenEngine);
     }
+  }
+
+  // Play landing sound after all steps complete
+  if (path.length > 0) {
+    playSound('piece_land');
   }
 }
 
