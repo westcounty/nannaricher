@@ -5,7 +5,7 @@
 import { Container } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import type { GameState } from '@nannaricher/shared';
-import { BOARD_SIZE } from './layout/BoardLayout';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
 
 // ============================================
 // Layer Interface
@@ -73,11 +73,13 @@ export class GameStage {
    * Recalculate scale and position when the viewport changes.
    */
   resize(viewWidth: number, viewHeight: number): void {
-    const canvasSize = Math.min(viewWidth, viewHeight, 850);
-    const scale = Math.max(0.1, canvasSize / (BOARD_SIZE + 150));
-
-    this.mainContainer.x = (viewWidth - canvasSize) / 2 + 75 * scale;
-    this.mainContainer.y = (viewHeight - canvasSize) / 2 + 75 * scale;
+    const maxCanvasW = Math.min(viewWidth, 1400);
+    const maxCanvasH = Math.min(viewHeight, 1100);
+    const scaleX = maxCanvasW / (METRO_BOARD_WIDTH + 100);
+    const scaleY = maxCanvasH / (METRO_BOARD_HEIGHT + 100);
+    const scale = Math.max(0.1, Math.min(scaleX, scaleY));
+    this.mainContainer.x = viewWidth / 2 - (METRO_BOARD_WIDTH / 2) * scale;
+    this.mainContainer.y = viewHeight / 2 - (METRO_BOARD_HEIGHT / 2) * scale;
     this.mainContainer.scale.set(scale);
   }
 
