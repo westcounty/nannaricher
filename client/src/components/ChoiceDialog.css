@@ -15,11 +15,13 @@
 }
 
 .choice-dialog {
-  background: white;
+  background: rgba(26, 18, 48, 0.92);
+  backdrop-filter: blur(20px);
   border-radius: 16px;
+  border: 1px solid rgba(139, 95, 191, 0.3);
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(94, 58, 141, 0.3);
   max-width: 500px;
   width: 90%;
   max-height: 85vh;
@@ -39,7 +41,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(139, 95, 191, 0.3);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
@@ -86,18 +88,18 @@
 .dialog-prompt {
   font-size: 1.05rem;
   line-height: 1.6;
-  color: #333;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0 0 20px 0;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(139, 95, 191, 0.2);
 }
 
 .timeout-message {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 8px;
   padding: 12px 16px;
-  color: #dc2626;
+  color: #f87171;
   text-align: center;
   font-weight: 500;
   margin-bottom: 16px;
@@ -114,12 +116,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: #f8f9fa;
-  border: 2px solid #e5e7eb;
+  background: rgba(139, 95, 191, 0.12);
+  border: 2px solid rgba(139, 95, 191, 0.25);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
+  color: rgba(255, 255, 255, 0.9);
   animation: slide-in 0.3s ease-out backwards;
 }
 
@@ -135,32 +138,32 @@
 }
 
 .option-button:hover:not(:disabled) {
-  background: #fff;
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  background: rgba(139, 95, 191, 0.25);
+  border-color: rgba(139, 95, 191, 0.5);
+  box-shadow: 0 4px 15px rgba(139, 95, 191, 0.2);
   transform: translateX(4px);
 }
 
 .option-button.hovered {
-  background: #f0f4ff;
-  border-color: #667eea;
+  background: rgba(139, 95, 191, 0.2);
+  border-color: rgba(139, 95, 191, 0.4);
 }
 
 .option-button.selected {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.3) 0%, rgba(224, 197, 94, 0.2) 100%);
+  border-color: #C9A227;
   color: white;
 }
 
 .option-button.selected .option-description {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .option-button.disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
-  background: #f0f0f0;
-  border-color: #ddd;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .option-content {
@@ -178,13 +181,13 @@
 
 .option-description {
   font-size: 0.85rem;
-  color: #666;
+  color: rgba(255, 255, 255, 0.6);
   line-height: 1.4;
 }
 
 .option-checkmark {
   font-size: 1.3rem;
-  color: white;
+  color: #C9A227;
   margin-left: 12px;
   animation: pop-in 0.2s ease-out;
 }
@@ -203,7 +206,7 @@
 
 .dialog-footer {
   padding: 16px 24px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(139, 95, 191, 0.2);
   display: flex;
   justify-content: center;
 }
@@ -212,17 +215,17 @@
   padding: 10px 32px;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #666;
-  background: #f0f0f0;
-  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .cancel-button:hover:not(:disabled) {
-  background: #e0e0e0;
-  color: #333;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .cancel-button:disabled {
@@ -294,10 +297,10 @@
 
 .selection-hint {
   font-size: 0.9rem;
-  color: #888;
+  color: rgba(255, 255, 255, 0.5);
   margin: -12px 0 16px 0;
   padding: 8px 12px;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   text-align: center;
 }

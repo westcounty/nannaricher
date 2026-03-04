@@ -15,11 +15,13 @@
 }
 
 .event-modal {
-  background: white;
+  background: rgba(26, 18, 48, 0.92);
+  backdrop-filter: blur(20px);
   border-radius: 16px;
+  border: 1px solid rgba(139, 95, 191, 0.3);
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(94, 58, 141, 0.3);
   max-width: 450px;
   width: 90%;
   max-height: 85vh;
@@ -39,7 +41,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(139, 95, 191, 0.3);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
@@ -80,12 +82,12 @@
 .modal-description {
   font-size: 1rem;
   line-height: 1.6;
-  color: #333;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0 0 20px 0;
 }
 
 .effects-preview {
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 16px;
   margin-top: 8px;
@@ -94,7 +96,7 @@
 .effects-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #666;
+  color: rgba(255, 255, 255, 0.6);
   margin: 0 0 12px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -111,19 +113,19 @@
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: white;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  border-left: 4px solid #ddd;
+  border-left: 4px solid rgba(255, 255, 255, 0.15);
 }
 
 .effect-item.positive {
   border-left-color: #22c55e;
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, white 50%);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.negative {
   border-left-color: #ef4444;
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, white 50%);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-icon {
@@ -132,7 +134,7 @@
 
 .effect-label {
   font-size: 0.95rem;
-  color: #555;
+  color: rgba(255, 255, 255, 0.7);
   flex: 1;
 }
 
@@ -142,36 +144,36 @@
 }
 
 .effect-item.positive .effect-value {
-  color: #16a34a;
+  color: #4ade80;
 }
 
 .effect-item.negative .effect-value {
-  color: #dc2626;
+  color: #f87171;
 }
 
 .effect-item.cards-effect {
   border-left-color: #8b5cf6;
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.1) 0%, white 50%);
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.cards-effect .effect-value {
-  color: #7c3aed;
+  color: #a78bfa;
   font-size: 0.9rem;
 }
 
 .effect-item.status-effect {
   border-left-color: #f59e0b;
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, white 50%);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.status-effect .effect-value {
-  color: #d97706;
+  color: #fbbf24;
   font-size: 0.9rem;
 }
 
 .modal-footer {
   padding: 16px 24px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(139, 95, 191, 0.2);
   display: flex;
   justify-content: center;
   gap: 12px;
@@ -205,6 +207,65 @@
   cursor: not-allowed;
 }
 
+/* Options Container */
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: rgba(139, 95, 191, 0.12);
+  border: 2px solid rgba(139, 95, 191, 0.25);
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.option-button:hover:not(:disabled) {
+  border-color: rgba(139, 95, 191, 0.5);
+  background: rgba(139, 95, 191, 0.25);
+  box-shadow: 0 0 15px rgba(139, 95, 191, 0.15);
+}
+
+.option-button.selected {
+  border-color: #C9A227;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.25) 0%, rgba(224, 197, 94, 0.15) 100%);
+}
+
+.option-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.option-label {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.option-checkmark {
+  color: #C9A227;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Modal with options styling */
+.event-modal.has-options {
+  max-width: 500px;
+}
+
+.event-modal.has-options .modal-body {
+  padding: 20px 24px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .event-modal {
@@ -227,61 +288,4 @@
   .effect-item {
     padding: 8px 12px;
   }
-}
-
-/* Options Container */
-.options-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.option-button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.option-button:hover:not(:disabled) {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.05);
-}
-
-.option-button.selected {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-}
-
-.option-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.option-label {
-  font-weight: 500;
-  color: #333;
-}
-
-.option-checkmark {
-  color: #667eea;
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-/* Modal with options styling */
-.event-modal.has-options {
-  max-width: 500px;
-}
-
-.event-modal.has-options .modal-body {
-  padding: 20px 24px;
 }
