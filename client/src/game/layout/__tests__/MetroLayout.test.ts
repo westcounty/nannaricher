@@ -8,6 +8,7 @@ import {
   bezierArcLength,
   getLineBezierConfig,
   getLineStationPosition,
+  getLineTrackPath,
   getStationColor,
   getStationColorDark,
   getLineThemeColor,
@@ -49,10 +50,10 @@ describe('Board dimensions', () => {
     expect(MAIN_STATION_HEIGHT).toBe(100);
     expect(CORNER_STATION_SIZE).toBe(120);
     expect(CORNER_STATION_HEIGHT).toBe(140);
-    expect(LINE_STATION_SIZE).toBe(44);
-    expect(LINE_STATION_HEIGHT).toBe(52);
-    expect(EXP_STATION_SIZE).toBe(65);
-    expect(EXP_STATION_HEIGHT).toBe(75);
+    expect(LINE_STATION_SIZE).toBe(50);
+    expect(LINE_STATION_HEIGHT).toBe(60);
+    expect(EXP_STATION_SIZE).toBe(60);
+    expect(EXP_STATION_HEIGHT).toBe(70);
   });
 
   it('exports track width constants', () => {
@@ -141,21 +142,39 @@ describe('getMainStationPosition', () => {
     }
   });
 
-  it('bottom side stations share approximately the same y', () => {
-    const ys = [];
-    for (let i = 0; i < 7; i++) ys.push(getMainStationPosition(i).y);
-    const avg = ys.reduce((a, b) => a + b, 0) / ys.length;
-    for (const y of ys) {
-      expect(Math.abs(y - avg)).toBeLessThan(5);
-    }
+  it('last regular station on each side does NOT overlap with next corner', () => {
+    // Station 6 should NOT be at corner 7's position
+    const s6 = getMainStationPosition(6);
+    const s7 = getMainStationPosition(7);
+    const dist67 = Math.sqrt((s6.x - s7.x) ** 2 + (s6.y - s7.y) ** 2);
+    expect(dist67).toBeGreaterThan(50); // significant distance
+
+    // Station 13 should NOT be at corner 14's position
+    const s13 = getMainStationPosition(13);
+    const s14 = getMainStationPosition(14);
+    const dist1314 = Math.sqrt((s13.x - s14.x) ** 2 + (s13.y - s14.y) ** 2);
+    expect(dist1314).toBeGreaterThan(50);
+
+    // Station 20 should NOT be at corner 21's position
+    const s20 = getMainStationPosition(20);
+    const s21 = getMainStationPosition(21);
+    const dist2021 = Math.sqrt((s20.x - s21.x) ** 2 + (s20.y - s21.y) ** 2);
+    expect(dist2021).toBeGreaterThan(50);
+
+    // Station 27 should NOT be at corner 0's position
+    const s27 = getMainStationPosition(27);
+    const s0 = getMainStationPosition(0);
+    const dist270 = Math.sqrt((s27.x - s0.x) ** 2 + (s27.y - s0.y) ** 2);
+    expect(dist270).toBeGreaterThan(50);
   });
 
-  it('left side stations share approximately the same x', () => {
-    const xs = [];
-    for (let i = 7; i < 14; i++) xs.push(getMainStationPosition(i).x);
-    const avg = xs.reduce((a, b) => a + b, 0) / xs.length;
-    for (const x of xs) {
-      expect(Math.abs(x - avg)).toBeLessThan(5);
+  it('no two adjacent main ring stations overlap (min distance > card size)', () => {
+    for (let i = 0; i < 28; i++) {
+      const curr = getMainStationPosition(i);
+      const next = getMainStationPosition((i + 1) % 28);
+      const dist = Math.sqrt((curr.x - next.x) ** 2 + (curr.y - next.y) ** 2);
+      // Min distance should be > half the diagonal of the larger card (corner: 120x140)
+      expect(dist).toBeGreaterThan(80);
     }
   });
 });
@@ -209,7 +228,7 @@ describe('bezierArcLength', () => {
 });
 
 // ============================================
-// Line Bezier Config
+// Line Bezier Config (deprecated, kept for compat)
 // ============================================
 describe('getLineBezierConfig', () => {
   it('returns config for all 8 line IDs', () => {
@@ -250,47 +269,10 @@ describe('getLineBezierConfig', () => {
       expect(config.end.y).toBeCloseTo(exitPos.y, 0);
     }
   });
-
-  it('bottom lines (pukou, study) arc downward (control points have larger y)', () => {
-    for (const id of ['pukou', 'study']) {
-      const config = getLineBezierConfig(id);
-      if (!config) continue;
-      // Control points should extend further in y (downward = positive y)
-      expect(config.cp1.y).toBeGreaterThan(config.start.y);
-      expect(config.cp2.y).toBeGreaterThan(config.end.y);
-    }
-  });
-
-  it('top lines (explore, xianlin) arc upward (control points have smaller y)', () => {
-    for (const id of ['explore', 'xianlin']) {
-      const config = getLineBezierConfig(id);
-      if (!config) continue;
-      expect(config.cp1.y).toBeLessThan(config.start.y);
-      expect(config.cp2.y).toBeLessThan(config.end.y);
-    }
-  });
-
-  it('left lines (money, suzhou) arc leftward (control points have smaller x)', () => {
-    for (const id of ['money', 'suzhou']) {
-      const config = getLineBezierConfig(id);
-      if (!config) continue;
-      expect(config.cp1.x).toBeLessThan(config.start.x);
-      expect(config.cp2.x).toBeLessThan(config.end.x);
-    }
-  });
-
-  it('right lines (gulou, food) arc rightward (control points have larger x)', () => {
-    for (const id of ['gulou', 'food']) {
-      const config = getLineBezierConfig(id);
-      if (!config) continue;
-      expect(config.cp1.x).toBeGreaterThan(config.start.x);
-      expect(config.cp2.x).toBeGreaterThan(config.end.x);
-    }
-  });
 });
 
 // ============================================
-// Line Station Positions
+// Line Station Positions (Snake Layout)
 // ============================================
 describe('getLineStationPosition', () => {
   it('returns positions for all cells in each line', () => {
@@ -305,28 +287,28 @@ describe('getLineStationPosition', () => {
     }
   });
 
-  it('stations are evenly spaced along the bezier arc', () => {
+  it('no two adjacent stations in same line overlap (distance > card size)', () => {
     for (const line of LINE_CONFIGS) {
-      if (line.cellCount < 3) continue;
-      const positions = [];
+      for (let i = 0; i < line.cellCount - 1; i++) {
+        const curr = getLineStationPosition(line.id, i);
+        const next = getLineStationPosition(line.id, i + 1);
+        const dist = Math.sqrt((curr.x - next.x) ** 2 + (curr.y - next.y) ** 2);
+        // Min gap: station size is 50x60, so distance must be > 50
+        expect(dist).toBeGreaterThan(LINE_STATION_SIZE);
+      }
+    }
+  });
+
+  it('all branch stations are within board bounds', () => {
+    const halfW = METRO_BOARD_WIDTH / 2;
+    const halfH = METRO_BOARD_HEIGHT / 2;
+    for (const line of LINE_CONFIGS) {
       for (let i = 0; i < line.cellCount; i++) {
-        positions.push(getLineStationPosition(line.id, i));
-      }
-
-      // Calculate distances between consecutive stations
-      const dists: number[] = [];
-      for (let i = 1; i < positions.length; i++) {
-        const dx = positions[i].x - positions[i - 1].x;
-        const dy = positions[i].y - positions[i - 1].y;
-        dists.push(Math.sqrt(dx * dx + dy * dy));
-      }
-
-      // All distances should be approximately equal
-      const avgDist = dists.reduce((a, b) => a + b, 0) / dists.length;
-      for (const d of dists) {
-        // Allow 15% tolerance for arc-length parameterization approximation
-        expect(d).toBeGreaterThan(avgDist * 0.85);
-        expect(d).toBeLessThan(avgDist * 1.15);
+        const pos = getLineStationPosition(line.id, i);
+        expect(pos.x).toBeGreaterThanOrEqual(-halfW);
+        expect(pos.x).toBeLessThanOrEqual(halfW);
+        expect(pos.y).toBeGreaterThanOrEqual(-halfH);
+        expect(pos.y).toBeLessThanOrEqual(halfH);
       }
     }
   });
@@ -335,6 +317,34 @@ describe('getLineStationPosition', () => {
     const pos = getLineStationPosition('nonexistent', 0);
     expect(pos.x).toBe(0);
     expect(pos.y).toBe(0);
+  });
+});
+
+// ============================================
+// Line Track Path
+// ============================================
+describe('getLineTrackPath', () => {
+  it('returns path starting at entry and ending at exit for each line', () => {
+    for (const line of LINE_CONFIGS) {
+      const path = getLineTrackPath(line.id);
+      expect(path.length).toBe(line.cellCount + 2); // entry + stations + exit
+
+      const entryPos = getMainStationPosition(line.entryIndex);
+      expect(path[0].x).toBeCloseTo(entryPos.x, 0);
+      expect(path[0].y).toBeCloseTo(entryPos.y, 0);
+
+      const exitIndex = LINE_EXIT_MAP[line.id];
+      if (exitIndex !== undefined) {
+        const exitPos = getMainStationPosition(exitIndex);
+        const last = path[path.length - 1];
+        expect(last.x).toBeCloseTo(exitPos.x, 0);
+        expect(last.y).toBeCloseTo(exitPos.y, 0);
+      }
+    }
+  });
+
+  it('returns empty array for unknown line', () => {
+    expect(getLineTrackPath('nonexistent')).toEqual([]);
   });
 });
 

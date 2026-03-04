@@ -44,10 +44,11 @@ export const MAIN_STATION_SIZE = 80;
 export const MAIN_STATION_HEIGHT = 100;
 export const CORNER_STATION_SIZE = 120;
 export const CORNER_STATION_HEIGHT = 140;
-export const LINE_STATION_SIZE = 44;
-export const LINE_STATION_HEIGHT = 52;
-export const EXP_STATION_SIZE = 65;
-export const EXP_STATION_HEIGHT = 75;
+// Branch line stations — compact but readable
+export const LINE_STATION_SIZE = 50;
+export const LINE_STATION_HEIGHT = 60;
+export const EXP_STATION_SIZE = 60;
+export const EXP_STATION_HEIGHT = 70;
 
 // Track widths — used by TrackLayer
 export const MAIN_TRACK_WIDTH = 6;
@@ -72,6 +73,10 @@ const HALF_HEIGHT = 380;  // half-height of rounded rect ring
  *   Left side (7-13):   bottom to top   x = -HALF_WIDTH
  *   Top side (14-20):   left to right   y = -HALF_HEIGHT
  *   Right side (21-27): top to bottom   x = +HALF_WIDTH
+ *
+ * Each side has 7 stations: 1 corner (posInSide=0) + 6 regular.
+ * Regular stations are placed at fractions 1/7 to 6/7 between corners,
+ * so the last regular station does NOT land on the next corner.
  */
 export function getMainStationPosition(index: number): Point {
   const side = Math.floor(index / CELLS_PER_SIDE);
@@ -87,11 +92,9 @@ export function getMainStationPosition(index: number): Point {
     }
   }
 
-  // Regular cells: 6 per side, evenly distributed between corners
-  const cellSpacing = (CELLS_PER_SIDE - 1);
-  // posInSide goes from 1 to 6
-  // fraction: 1/6 to 6/6 — progress from first corner toward next corner
-  const fraction = posInSide / cellSpacing;
+  // Regular cells: 6 per side, placed at 1/7 to 6/7 between this corner and the next.
+  // This ensures station 6 (last on each side) does NOT overlap with the next corner.
+  const fraction = posInSide / CELLS_PER_SIDE;
 
   switch (side) {
     case 0: {
@@ -148,7 +151,6 @@ export function getBezierPoint(
 
 /**
  * Approximate the arc length of a cubic bezier curve using numerical integration.
- * Uses Gaussian quadrature with a subdivision approach for accuracy.
  */
 export function bezierArcLength(
   p0: Point,
@@ -170,78 +172,152 @@ export function bezierArcLength(
   return length;
 }
 
+// ============================================
+// Branch Line Snake Layout
+// ============================================
+
+// Snake layout parameters
+const SNAKE_COLS = 4;           // max stations per row
+const SNAKE_STATION_GAP = 62;   // distance between stations in a row
+const SNAKE_ROW_GAP = 70;       // distance between rows
+const SNAKE_FIRST_OFFSET = 55;  // offset from ring to first row
+
 /**
- * Build an arc-length parameterization lookup table for a bezier curve.
- * Returns an array of { t, len } where len is cumulative arc length at parameter t.
+ * For a branch line, compute the outward direction and the row direction
+ * based on which side of the ring the entry station is on.
+ *
+ * Row direction matches the ring travel direction so the snake extends
+ * "along" the ring edge, and outward direction goes away from center.
  */
-function buildArcLengthTable(
-  p0: Point,
-  p1: Point,
-  p2: Point,
-  p3: Point,
-  segments = 64,
-): { t: number; len: number }[] {
-  const table: { t: number; len: number }[] = [{ t: 0, len: 0 }];
-  let totalLen = 0;
-  let prev = p0;
-  for (let i = 1; i <= segments; i++) {
-    const t = i / segments;
-    const curr = getBezierPoint(t, p0, p1, p2, p3);
-    const dx = curr.x - prev.x;
-    const dy = curr.y - prev.y;
-    totalLen += Math.sqrt(dx * dx + dy * dy);
-    table.push({ t, len: totalLen });
-    prev = curr;
+function getSnakeDirections(side: number): { outDir: Point; rowDir: Point } {
+  switch (side) {
+    case 0: return { outDir: { x: 0, y: +1 }, rowDir: { x: -1, y: 0 } }; // bottom → down, rows go left
+    case 1: return { outDir: { x: -1, y: 0 }, rowDir: { x: 0, y: -1 } }; // left → left, rows go up
+    case 2: return { outDir: { x: 0, y: -1 }, rowDir: { x: +1, y: 0 } }; // top → up, rows go right
+    case 3: return { outDir: { x: +1, y: 0 }, rowDir: { x: 0, y: +1 } }; // right → right, rows go down
+    default: return { outDir: { x: 0, y: +1 }, rowDir: { x: -1, y: 0 } };
   }
-  return table;
 }
 
 /**
- * Given a target arc length, find the parameter t using the lookup table.
- * Uses binary search + linear interpolation.
+ * Build the full snake path for a branch line.
+ *
+ * The snake starts at the entry station, extends outward, folds back and forth,
+ * and the last station ends up near the exit station.
+ *
+ * Layout example (pukou, 12 stations, bottom side, entry=4, exit=5):
+ *
+ *   主线: ... [entry=4] [exit=5] ...
+ *                |          ↑
+ *          ① ── ② ── ③ ── ④     (row 0: extends from entry, going in rowDir)
+ *                              |
+ *          ⑧ ── ⑦ ── ⑥ ── ⑤     (row 1: folds back in -rowDir)
+ *          |
+ *          ⑨ ── ⑩ ── ⑪ ── ⑫     (row 2: folds again, ends near exit column)
+ *                              ↑
+ *                         back to exit
+ *
+ * Key: row 0 starts aligned with entry, and the snake folds such that
+ * the last station is near the exit column. This is achieved by choosing
+ * the row direction and fold pattern based on the relative positions of
+ * entry and exit.
  */
-function tAtArcLength(
-  targetLen: number,
-  table: { t: number; len: number }[],
-): number {
-  const totalLen = table[table.length - 1].len;
-  if (targetLen <= 0) return 0;
-  if (targetLen >= totalLen) return 1;
+function buildSnakePositions(
+  entryPos: Point,
+  _exitPos: Point,
+  cellCount: number,
+  outDir: Point,
+  rowDir: Point,
+): Point[] {
+  const positions: Point[] = [];
+  const cols = Math.min(SNAKE_COLS, cellCount);
 
-  // Binary search
-  let lo = 0;
-  let hi = table.length - 1;
-  while (lo < hi - 1) {
-    const mid = (lo + hi) >> 1;
-    if (table[mid].len < targetLen) {
-      lo = mid;
+  // Row 0 starts from entry, extending in rowDir
+  // The first station is offset outward from entry
+  const row0Start: Point = {
+    x: entryPos.x + outDir.x * SNAKE_FIRST_OFFSET,
+    y: entryPos.y + outDir.y * SNAKE_FIRST_OFFSET,
+  };
+
+  for (let i = 0; i < cellCount; i++) {
+    const row = Math.floor(i / cols);
+    const posInRow = i % cols;
+    const colsInRow = Math.min(cols, cellCount - row * cols);
+
+    // Even rows: go in rowDir from entry side
+    // Odd rows: go in -rowDir (fold back)
+    let col: number;
+    if (row % 2 === 0) {
+      col = posInRow;
     } else {
-      hi = mid;
+      col = colsInRow - 1 - posInRow;
     }
+
+    positions.push({
+      x: row0Start.x + outDir.x * row * SNAKE_ROW_GAP + rowDir.x * col * SNAKE_STATION_GAP,
+      y: row0Start.y + outDir.y * row * SNAKE_ROW_GAP + rowDir.y * col * SNAKE_STATION_GAP,
+    });
   }
 
-  // Linear interpolation between lo and hi
-  const segLen = table[hi].len - table[lo].len;
-  if (segLen < 1e-10) return table[lo].t;
-  const frac = (targetLen - table[lo].len) / segLen;
-  return table[lo].t + frac * (table[hi].t - table[lo].t);
+  return positions;
 }
 
-// ============================================
-// Branch Line Bezier Configs
-// ============================================
+// Cache for snake positions per line (computed once)
+const snakeCache = new Map<string, Point[]>();
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+function getOrBuildSnake(lineId: string): Point[] {
+  if (snakeCache.has(lineId)) return snakeCache.get(lineId)!;
+
+  const line = LINE_CONFIGS.find(l => l.id === lineId);
+  if (!line) return [];
+
+  const exitIndex = LINE_EXIT_MAP[lineId];
+  if (exitIndex === undefined) return [];
+
+  const entryPos = getMainStationPosition(line.entryIndex);
+  const exitPos = getMainStationPosition(exitIndex);
+  const side = Math.floor(line.entryIndex / CELLS_PER_SIDE);
+  const { outDir, rowDir } = getSnakeDirections(side);
+
+  const positions = buildSnakePositions(entryPos, exitPos, line.cellCount, outDir, rowDir);
+  snakeCache.set(lineId, positions);
+  return positions;
 }
 
 /**
- * Get the bezier curve configuration for a branch line.
- * The curve arcs outward from the ring:
- *   bottom side lines arc downward (+y)
- *   left side lines arc leftward (-x)
- *   top side lines arc upward (-y)
- *   right side lines arc rightward (+x)
+ * Get the position of a station along a branch line.
+ * Uses snake/zigzag layout: stations arranged in rows that fold back,
+ * extending outward from the main ring.
+ * cellIndex is 0-based.
+ */
+export function getLineStationPosition(lineId: string, cellIndex: number): Point {
+  const positions = getOrBuildSnake(lineId);
+  if (cellIndex < 0 || cellIndex >= positions.length) return { x: 0, y: 0 };
+  return positions[cellIndex];
+}
+
+/**
+ * Get the track path for a branch line as a polyline through all station positions,
+ * with entry and exit connection points.
+ * Returns array of Points: [entryPos, station0, station1, ..., stationN-1, exitPos]
+ */
+export function getLineTrackPath(lineId: string): Point[] {
+  const line = LINE_CONFIGS.find(l => l.id === lineId);
+  if (!line) return [];
+
+  const exitIndex = LINE_EXIT_MAP[lineId];
+  if (exitIndex === undefined) return [];
+
+  const entryPos = getMainStationPosition(line.entryIndex);
+  const exitPos = getMainStationPosition(exitIndex);
+  const positions = getOrBuildSnake(lineId);
+
+  return [entryPos, ...positions, exitPos];
+}
+
+/**
+ * @deprecated Use getLineTrackPath() instead for snake layout.
+ * Kept for backward compatibility with tests and line name label positioning.
  */
 export function getLineBezierConfig(lineId: string): BezierConfig | undefined {
   const line = LINE_CONFIGS.find(l => l.id === lineId);
@@ -252,80 +328,22 @@ export function getLineBezierConfig(lineId: string): BezierConfig | undefined {
 
   const entryPos = getMainStationPosition(line.entryIndex);
   const exitPos = getMainStationPosition(exitIndex);
-
-  // Determine arc direction based on which side of the ring
   const side = Math.floor(line.entryIndex / CELLS_PER_SIDE);
+  const { outDir } = getSnakeDirections(side);
 
-  // Arc depth proportional to cell count, capped per-side to stay within board margins
-  // Vertical (top/bottom) margin: METRO_BOARD_HEIGHT/2 - HALF_HEIGHT = 220px
-  // Horizontal (left/right) margin: METRO_BOARD_WIDTH/2 - HALF_WIDTH = 260px
-  const isVerticalArc = side === 0 || side === 2;
-  const maxDepth = isVerticalArc ? 200 : 240;
-  const depth = clamp(line.cellCount * 18, 80, maxDepth);
+  const rows = Math.ceil(line.cellCount / SNAKE_COLS);
+  const depth = SNAKE_FIRST_OFFSET + (rows - 1) * SNAKE_ROW_GAP;
 
-  let cp1: Point;
-  let cp2: Point;
-
-  switch (side) {
-    case 0: // Bottom side -> arc downward (+y)
-      cp1 = { x: entryPos.x, y: entryPos.y + depth };
-      cp2 = { x: exitPos.x, y: exitPos.y + depth };
-      break;
-    case 1: // Left side -> arc leftward (-x)
-      cp1 = { x: entryPos.x - depth, y: entryPos.y };
-      cp2 = { x: exitPos.x - depth, y: exitPos.y };
-      break;
-    case 2: // Top side -> arc upward (-y)
-      cp1 = { x: entryPos.x, y: entryPos.y - depth };
-      cp2 = { x: exitPos.x, y: exitPos.y - depth };
-      break;
-    case 3: // Right side -> arc rightward (+x)
-      cp1 = { x: entryPos.x + depth, y: entryPos.y };
-      cp2 = { x: exitPos.x + depth, y: exitPos.y };
-      break;
-    default:
-      cp1 = entryPos;
-      cp2 = exitPos;
-  }
-
-  return {
-    start: { x: entryPos.x, y: entryPos.y },
-    cp1,
-    cp2,
-    end: { x: exitPos.x, y: exitPos.y },
+  const cp1: Point = {
+    x: entryPos.x + outDir.x * depth,
+    y: entryPos.y + outDir.y * depth,
   };
-}
+  const cp2: Point = {
+    x: exitPos.x + outDir.x * depth,
+    y: exitPos.y + outDir.y * depth,
+  };
 
-// ============================================
-// Branch Station Positions
-// ============================================
-
-/**
- * Get the position of a station along a branch line bezier curve.
- * Stations are evenly distributed by arc length (not by parameter t).
- * cellIndex is 0-based.
- */
-export function getLineStationPosition(lineId: string, cellIndex: number): Point {
-  const config = getLineBezierConfig(lineId);
-  if (!config) return { x: 0, y: 0 };
-
-  const line = LINE_CONFIGS.find(l => l.id === lineId);
-  if (!line) return { x: 0, y: 0 };
-
-  const { start, cp1, cp2, end } = config;
-  const table = buildArcLengthTable(start, cp1, cp2, end);
-  const totalLen = table[table.length - 1].len;
-
-  // Distribute cellCount stations evenly along the arc.
-  // Station 0 is near entry (but not at entry — offset inward),
-  // Station (cellCount-1) is near exit.
-  // We place them at equal arc-length intervals across the full arc.
-  const numStations = line.cellCount;
-  const segmentLen = totalLen / (numStations + 1);
-  const targetLen = segmentLen * (cellIndex + 1);
-
-  const t = tAtArcLength(targetLen, table);
-  return getBezierPoint(t, start, cp1, cp2, end);
+  return { start: entryPos, cp1, cp2, end: exitPos };
 }
 
 // ============================================
@@ -434,7 +452,6 @@ export function getLineThemeColorDark(lineId: string): number {
 export function getRingPath(pointsPerCorner = 8): Point[] {
   const path: Point[] = [];
 
-  // Straight segments with corner arcs
   // Corner radius for the rounded rectangle
   const cornerRadius = 60;
 

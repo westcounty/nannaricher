@@ -15,8 +15,7 @@ import {
   getStationColorDark,
   getLineThemeColor,
   getLineThemeColorDark,
-  getLineBezierConfig,
-  getBezierPoint,
+  getLineTrackPath,
   MAIN_STATION_SIZE,
   MAIN_STATION_HEIGHT,
   CORNER_STATION_SIZE,
@@ -279,7 +278,7 @@ export class StationLayer implements RenderLayer {
         card.x = pos.x;
         card.y = pos.y;
 
-        // --- Card background ---
+        // --- Card background (frosted glass style) ---
         const bg = new Graphics();
 
         // Dark tint
@@ -290,13 +289,13 @@ export class StationLayer implements RenderLayer {
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
         bg.fill({ color: 0x1A1230, alpha: 0.6 });
 
-        // Border
+        // Border (gold for experience, line color for regular)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.stroke({ width: 1.5, color: colorLight, alpha: 0.5 });
+        bg.stroke({ width: isExperience ? 2 : 1.5, color: isExperience ? 0xE0C55E : colorLight, alpha: isExperience ? 0.7 : 0.5 });
 
         // Experience card gold star marker
         if (isExperience) {
-          bg.circle(0, -cardH / 2 + 16, 10);
+          bg.circle(0, -cardH / 2 + 14, 9);
           bg.fill({ color: 0xE0C55E, alpha: 0.5 });
         }
 
@@ -314,14 +313,14 @@ export class StationLayer implements RenderLayer {
           text: labelText,
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 14 : 10,
+            fontSize: isExperience ? 12 : 10,
             fill: isExperience ? 0xE0C55E : 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
           }),
         });
         label.anchor.set(0.5);
-        label.y = isExperience ? -cardH / 2 + 16 : -cardH / 2 + 14;
+        label.y = isExperience ? -cardH / 2 + 14 : -cardH / 2 + 14;
         card.addChild(label);
 
         // --- Station name text ---
@@ -366,11 +365,12 @@ export class StationLayer implements RenderLayer {
   }
 
   private drawLineNameLabel(lineId: string, name: string, color: number): void {
-    const bezier = getLineBezierConfig(lineId);
-    if (!bezier) return;
+    const path = getLineTrackPath(lineId);
+    if (path.length < 2) return;
 
-    // Get midpoint of bezier curve (t = 0.5)
-    const mid = getBezierPoint(0.5, bezier.start, bezier.cp1, bezier.cp2, bezier.end);
+    // Get midpoint of the track path
+    const midIdx = Math.floor(path.length / 2);
+    const mid = path[midIdx];
 
     const label = new Text({
       text: name,

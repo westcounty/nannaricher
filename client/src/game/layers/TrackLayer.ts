@@ -10,8 +10,7 @@ import {
   METRO_BOARD_WIDTH,
   METRO_BOARD_HEIGHT,
   getMainStationPosition,
-  getLineBezierConfig,
-  getBezierPoint,
+  getLineTrackPath,
   getLineThemeColor,
   getLineThemeColorDark,
   MAIN_TRACK_WIDTH,
@@ -19,7 +18,6 @@ import {
 } from '../layout/MetroLayout';
 
 const MAIN_STATION_COUNT = 28;
-const BEZIER_SAMPLES = 60;
 
 export class TrackLayer implements RenderLayer {
   private container: Container | null = null;
@@ -81,14 +79,13 @@ export class TrackLayer implements RenderLayer {
 
   private drawBranchTracks(): void {
     for (const line of LINE_CONFIGS) {
-      const bezier = getLineBezierConfig(line.id);
-      if (!bezier) continue;
+      const path = getLineTrackPath(line.id);
+      if (path.length < 2) continue;
 
-      const { start, cp1, cp2, end } = bezier;
       const lineColor = getLineThemeColor(line.id);
       const lineColorDark = getLineThemeColorDark(line.id);
 
-      // 3-layer neon tube per branch
+      // 3-layer neon tube per branch (polyline through snake path)
       const layers: { width: number; color: number; alpha: number }[] = [
         { width: LINE_TRACK_WIDTH + 6, color: lineColor, alpha: 0.12 },
         { width: LINE_TRACK_WIDTH + 2, color: lineColorDark, alpha: 0.8 },
@@ -97,12 +94,9 @@ export class TrackLayer implements RenderLayer {
 
       for (const layer of layers) {
         const gfx = new Graphics();
-        const p0 = getBezierPoint(0, start, cp1, cp2, end);
-        gfx.moveTo(p0.x, p0.y);
-        for (let i = 1; i <= BEZIER_SAMPLES; i++) {
-          const t = i / BEZIER_SAMPLES;
-          const pt = getBezierPoint(t, start, cp1, cp2, end);
-          gfx.lineTo(pt.x, pt.y);
+        gfx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) {
+          gfx.lineTo(path[i].x, path[i].y);
         }
         gfx.stroke({ width: layer.width, color: layer.color, alpha: layer.alpha });
         this.container!.addChild(gfx);
