@@ -15,8 +15,6 @@ export { CardHand } from './CardHand';
 export { CardDetail } from './CardDetail';
 export { EventModal } from './EventModal';
 export { TrainingPlanView } from './TrainingPlanView';
-export { CellTooltip } from './CellTooltip';
 export { ChoiceDialog, PlayerChoiceDialog, LineChoiceDialog, pendingActionToChoices } from './ChoiceDialog';
-export { GuideTooltip, useGuideCompleted, useResetGuide } from './GuideTooltip';
 export { LoadingScreen, InlineLoading, Skeleton } from './LoadingScreen';
 export type { LoadingType } from './LoadingScreen';

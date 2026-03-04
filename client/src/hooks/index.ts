@@ -14,5 +14,3 @@ export {
   useScalePulse,
 } from './useAnimation';
 export type { AnimatedValueOptions, Position } from './useAnimation';
-export { useSound } from './useSound';
-export type { SoundType } from './useSound';
