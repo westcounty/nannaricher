@@ -1,6 +1,6 @@
 // shared/src/constants.ts
-export const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
-export const MAX_PLAYERS = 4;
+export const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#8e24aa', '#00897b'];
+export const MAX_PLAYERS = 6;
 export const MIN_PLAYERS = 2;
 export const ROOM_CODE_LENGTH = 6;
 export const SALARY_PASS = 500;
@@ -15,3 +15,8 @@ export const ACTION_TIMEOUT_MS = 60_000;
 export const RECONNECT_TIMEOUT_MS = 60_000;
 export const ROOM_IDLE_TIMEOUT_MS = 600_000;
 export const BASE_WIN_THRESHOLD = 60; // GPA*10 + exploration >= 60
+
+// 回合上限（按人数）
+export const TOTAL_ROUNDS: Record<number, number> = {
+  2: 32, 3: 28, 4: 24, 5: 20, 6: 20,
+};

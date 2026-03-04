@@ -72,6 +72,9 @@ export interface Player {
   cardsDrawnWithDigitStart: string[];
   chanceCardsUsedOnPlayers: Record<string, number>; // playerId -> count
   gulou_endpoint_count: number;
+  modifiedWinThresholds: Record<string, number>; // 社会学院/AI学院动态阈值
+  lawyerShield: boolean;        // 法学院：金钱保护盾
+  lastDiceValues: number[];     // 上次骰子值（供能力使用）
 }
 
 // === Pending Action (waiting for player input) ===
