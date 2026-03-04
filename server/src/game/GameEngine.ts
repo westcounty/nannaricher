@@ -12,6 +12,7 @@ import {
   SALARY_STOP,
   BASE_WIN_THRESHOLD,
   ACTION_TIMEOUT_MS,
+  TOTAL_ROUNDS,
 } from '@nannaricher/shared';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import { createDecks } from '../data/cards.js';
@@ -93,6 +94,59 @@ export class GameEngine implements IGameEngine {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
+  }
+
+  /**
+   * Get max rounds for the current player count.
+   * Falls back to a sensible default if the player count isn't in TOTAL_ROUNDS.
+   */
+  private getMaxRounds(): number {
+    const playerCount = this.state.players.length;
+    if (TOTAL_ROUNDS[playerCount] !== undefined) {
+      return TOTAL_ROUNDS[playerCount];
+    }
+    // Fallback: <=3 → 30, <=4 → 25, else 20
+    if (playerCount <= 3) return 30;
+    if (playerCount <= 4) return 25;
+    return 20;
+  }
+
+  /**
+   * Calculate final score for a player (used in forced scoring at round limit).
+   */
+  private calculateFinalScore(player: Player): number {
+    return player.gpa * 10 + player.exploration + Math.floor(player.money / 100);
+  }
+
+  /**
+   * Forced scoring when the round limit is reached.
+   * Scores all non-bankrupt players, declares the highest scorer as winner.
+   */
+  private forceEndGame(): void {
+    const activePlayers = this.state.players.filter(p => !p.isBankrupt);
+    if (activePlayers.length === 0) {
+      this.state.phase = 'finished';
+      this.log('回合上限到达，无存活玩家，游戏结束');
+      return;
+    }
+
+    // Calculate scores and find winner
+    let bestScore = -Infinity;
+    let winnerId = activePlayers[0].id;
+
+    for (const player of activePlayers) {
+      const score = this.calculateFinalScore(player);
+      this.log(`最终得分: ${score} (GPA×10=${player.gpa * 10}, 探索=${player.exploration}, 金钱÷100=${Math.floor(player.money / 100)})`, player.id);
+      if (score > bestScore) {
+        bestScore = score;
+        winnerId = player.id;
+      }
+    }
+
+    this.state.phase = 'finished';
+    this.state.winner = winnerId;
+    this.log(`回合上限到达，强制结算！最高分: ${bestScore}`, winnerId);
+    this.log(`获胜！条件: 回合上限强制结算`, winnerId);
   }
 
   // ============================================
@@ -693,6 +747,14 @@ export class GameEngine implements IGameEngine {
     if (this.state.turnNumber % 6 === 0) {
       this.state.roundNumber++;
       this.log(`=== 第 ${this.state.roundNumber} 轮开始 ===`, 'system');
+    }
+
+    // Check round limit — force end game if exceeded
+    const maxRounds = this.getMaxRounds();
+    if (this.state.roundNumber > maxRounds) {
+      this.log(`已达到回合上限 (${maxRounds} 轮)，触发强制结算`);
+      this.forceEndGame();
+      return;
     }
 
     const currentPlayer = this.getCurrentPlayer();
