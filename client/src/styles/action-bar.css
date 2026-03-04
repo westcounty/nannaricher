@@ -1,0 +1,137 @@
+/* ActionBar - bottom action hub (desktop) */
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  height: 64px;
+  padding: 0 16px;
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--game-border);
+  gap: 16px;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+/* Left section: my stats */
+.action-bar__stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 0 12px;
+}
+
+.action-bar__stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.action-bar__stat-icon {
+  font-size: 1rem;
+}
+
+.action-bar__stat-value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.action-bar__stat-value--low {
+  color: var(--color-danger);
+}
+
+/* Center section: cards */
+.action-bar__cards {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Override CardHand's fixed positioning when inside ActionBar */
+.action-bar__cards .card-hand {
+  position: static;
+  background: transparent;
+  padding: 4px 0;
+  border-top: none;
+  z-index: auto;
+  backdrop-filter: none;
+}
+
+.action-bar__cards .card-hand-header {
+  display: none;
+}
+
+.action-bar__cards .card-list {
+  flex-wrap: nowrap;
+}
+
+.action-bar__cards .card-hand.empty {
+  background: transparent;
+  padding: 4px 0;
+  position: static;
+  border-top: none;
+}
+
+/* Right section: dice button */
+.action-bar__dice {
+  flex-shrink: 0;
+}
+
+.action-bar__dice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: 44px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.action-bar__dice-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(94, 58, 141, 0.5), 0 0 30px rgba(201, 162, 39, 0.25);
+}
+
+.action-bar__dice-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.action-bar__dice-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(94, 58, 141, 0.3);
+  box-shadow: none;
+}
+
+/* Glow animation when it's my turn */
+.action-bar__dice-btn--my-turn:not(:disabled) {
+  animation: action-dice-glow 2s ease-in-out infinite;
+}
+
+@keyframes action-dice-glow {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(94, 58, 141, 0.6), 0 0 35px rgba(201, 162, 39, 0.3);
+  }
+}
+
+.action-bar__wait-text {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
