@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { Card, Player } from '@nannaricher/shared';
 import { CardDetail } from './CardDetail';
+import { playSound } from '../audio/AudioManager';
 
 interface CardHandProps {
   player: Player;
@@ -22,6 +23,7 @@ export function CardHand({ player, onUseCard, isCurrentPlayer, players = [] }: C
   }
 
   const handleCardClick = (card: Card) => {
+    playSound('card_flip');
     setSelectedCard(card);
   };
 
@@ -30,6 +32,7 @@ export function CardHand({ player, onUseCard, isCurrentPlayer, players = [] }: C
   };
 
   const handleUseCard = (cardId: string, targetPlayerId?: string) => {
+    playSound('card_use');
     onUseCard(cardId, targetPlayerId);
     setSelectedCard(null);
   };

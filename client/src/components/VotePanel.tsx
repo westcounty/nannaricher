@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PendingAction, Player } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
+import { playSound } from '../audio/AudioManager';
 
 // ============================================
 // Types
@@ -64,6 +65,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
   const handleVote = useCallback(
     (value: string) => {
       if (isSubmitted || hasVoted) return;
+      playSound('vote_cast');
       setSelectedOption(value);
       setIsSubmitted(true);
       onVote(pendingAction.id, value);

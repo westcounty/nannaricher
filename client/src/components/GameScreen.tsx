@@ -21,6 +21,7 @@ import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import type { Player } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
+import { playSound } from '../audio/AudioManager';
 import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
@@ -154,6 +155,7 @@ export function GameScreen() {
 
   // Tab toggle handler
   const handleTabClick = (tabId: TabId) => {
+    playSound('tab_switch');
     setActiveTab((prev) => (prev === tabId ? null : tabId));
   };
 
