@@ -22,7 +22,11 @@ const drawRect = (g: Graphics) => {
   g.fill({ color: 0xff0000 });
 };
 
-export const GameCanvas: React.FC<GameCanvasProps> = (_props) => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({
+  gameState: _gameState,
+  currentPlayerId: _currentPlayerId,
+  onCellClick: _onCellClick,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [size, setSize] = useState({ w: 800, h: 600 });

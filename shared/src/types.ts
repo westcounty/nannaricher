@@ -73,6 +73,8 @@ export interface Player {
   chanceCardsUsedOnPlayers: Record<string, number>; // playerId -> count
   gulou_endpoint_count: number;
   modifiedWinThresholds: Record<string, number>; // 社会学院/AI学院动态阈值
+  maxWinConditionSlots: number;     // 最大胜利条件位（默认3: 基础+2培养计划）
+  disabledWinConditions: string[];  // 被禁用的胜利条件（'base' 或 planId）
   lawyerShield: boolean;        // 法学院：金钱保护盾
   lastDiceValues: number[];     // 上次骰子值（供能力使用）
 }
@@ -125,6 +127,7 @@ export interface GameState {
   turnOrderReversed: boolean;
   winner: string | null;        // player id
   log: GameLogEntry[];
+  disabledCells?: string[];     // 化学化工学院禁用的格子（单回合）
 }
 
 export interface GameLogEntry {
@@ -154,10 +157,11 @@ export interface ServerToClientEvents {
   'room:error': (data: { message: string }) => void;
   'game:state-update': (state: GameState) => void;
   'game:dice-result': (data: { playerId: string; values: number[]; total: number }) => void;
-  'game:event-trigger': (data: { title: string; description: string; pendingAction: PendingAction }) => void;
+  'game:event-trigger': (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => void;
   'game:card-drawn': (data: { card: Card; deckType: string }) => void;
   'game:announcement': (data: { message: string; type: 'info' | 'warning' | 'success' }) => void;
   'game:player-won': (data: { playerId: string; playerName: string; condition: string }) => void;
+  'game:resource-change': (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => void;
   'game:chat': (data: { playerName: string; message: string }) => void;
 }
 

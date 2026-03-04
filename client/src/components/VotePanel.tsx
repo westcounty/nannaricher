@@ -34,14 +34,11 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
     ? Object.prototype.hasOwnProperty.call(pendingAction.responses, playerId)
     : false;
 
-  // Tally votes from responses
-  const voteTally = computeVoteTally(pendingAction);
-  const totalVotes = Object.values(voteTally).reduce((sum, count) => sum + count, 0);
-
-  // Determine which players have voted
+  // Determine which players have voted (responses are masked with '__voted__')
   const votedPlayerIds = new Set(
     pendingAction.responses ? Object.keys(pendingAction.responses) : []
   );
+  const totalVotes = votedPlayerIds.size;
 
   // Countdown timer
   useEffect(() => {
@@ -107,9 +104,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
         {/* Vote options */}
         <div style={styles.optionsContainer}>
           {(pendingAction.options || []).map((option) => {
-            const count = voteTally[option.value] || 0;
             const isSelected = selectedOption === option.value;
-            const barWidth = totalVotes > 0 ? (count / players.length) * 100 : 0;
 
             return (
               <button
@@ -127,16 +122,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
               >
                 <div style={styles.optionContent}>
                   <span style={styles.optionLabel}>{option.label}</span>
-                  <span style={styles.optionCount}>{count}</span>
-                </div>
-                {/* Tally bar */}
-                <div style={styles.tallyBarTrack}>
-                  <div
-                    style={{
-                      ...styles.tallyBarFill,
-                      width: `${barWidth}%`,
-                    }}
-                  />
+                  {isSelected && <span style={styles.optionCount}>✓</span>}
                 </div>
               </button>
             );
@@ -188,15 +174,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
 // Helpers
 // ============================================
 
-function computeVoteTally(action: PendingAction): Record<string, number> {
-  const tally: Record<string, number> = {};
-  if (action.responses) {
-    for (const choice of Object.values(action.responses)) {
-      tally[choice] = (tally[choice] || 0) + 1;
-    }
-  }
-  return tally;
-}
+// Vote tally computation removed — responses are masked for privacy during voting
 
 // ============================================
 // Inline Styles (using design tokens)

@@ -16,7 +16,7 @@ const phaseLabels: Record<GamePhase, string> = {
   finished: '已结束',
   rolling_dice: '掷骰子',
   moving: '移动中',
-  event_popup: '事件触发',
+  event_popup: '事件弹窗',
   making_choice: '做选择',
   waiting_others: '等待他人',
   multi_interaction: '多人互动',

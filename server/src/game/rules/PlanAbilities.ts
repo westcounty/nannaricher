@@ -113,6 +113,8 @@ export class PlanAbilityHandler {
   calculateEntryFee(player: Player, state: GameState, lineId: string, baseFee: number): number {
     const result = this.checkAbilities(player, state, 'on_line_enter', { lineId });
     if (result?.effects?.skipEntryFee) return 0;
+    // 政府管理学院：校区线入场费固定150
+    if (result?.effects?.customEffect === 'zhengguan_discount') return Math.min(baseFee, 150);
     if (result?.effects?.money) return Math.max(0, baseFee - Math.abs(result.effects.money));
     return baseFee;
   }

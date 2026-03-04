@@ -7,6 +7,42 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
+    // 软件学院：可选择支付3200，不破产即获胜
+    if (player.confirmedPlans.includes('plan_ruanjian')) {
+      return engine.createPendingAction(
+        playerId, 'choose_option',
+        '软件学院能力：是否支付3200金钱？不破产即获胜！',
+        [
+          { label: `支付3200金钱 (当前: ${player.money})`, value: 'tuition_ruanjian_3200' },
+          { label: '正常交学费', value: 'tuition_normal' },
+        ]
+      );
+    }
+
+    const tuition = Math.round((5.0 - player.gpa) * 100);
+    engine.modifyPlayerMoney(playerId, -tuition);
+    engine.log(`交学费 ${(5.0 - player.gpa).toFixed(1)} * 100 = ${tuition} 金钱`, playerId);
+    return null;
+  });
+
+  // 软件学院：交学费3200选项回调
+  eventHandler.registerHandler('tuition_ruanjian_3200', (engine, playerId) => {
+    engine.modifyPlayerMoney(playerId, -3200);
+    engine.log('软件学院：支付3200金钱交学费', playerId);
+    const player = engine.getPlayer(playerId);
+    if (player && !player.isBankrupt) {
+      const disabled = player.disabledWinConditions ?? [];
+      if (!disabled.includes('plan_ruanjian')) {
+        engine.declareWinner(playerId, '软件学院：交学费3200金钱后未破产');
+      }
+    }
+    return null;
+  });
+
+  // 正常交学费（软件学院选择不使用能力时的回调）
+  eventHandler.registerHandler('tuition_normal', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
     const tuition = Math.round((5.0 - player.gpa) * 100);
     engine.modifyPlayerMoney(playerId, -tuition);
     engine.log(`交学费 ${(5.0 - player.gpa).toFixed(1)} * 100 = ${tuition} 金钱`, playerId);
@@ -61,7 +97,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('retake', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
       engine.modifyPlayerGpa(playerId, 0.2);
       engine.log(`投出 ${dice}（偶数），获得0.2 GPA`, playerId);
@@ -87,7 +123,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('society_money', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -200);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
     engine.log(`参加社团活动，获得 ${dice} 探索值`, playerId);
     return null;
@@ -95,7 +131,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('society_gpa', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.2);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
     engine.log(`参加社团活动，获得 ${dice} 探索值`, playerId);
     return null;
@@ -122,7 +158,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('draw_card', (engine, playerId) => {
     const deckType = Math.random() > 0.5 ? 'chance' : 'destiny';
-    engine.drawCard(playerId, deckType);
+    engine.drawAndProcessCard(playerId, deckType);
     return null;
   });
 
@@ -167,10 +203,19 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('kechuang_join', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.3);
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const gpaGain = dice * 0.1;
     engine.modifyPlayerGpa(playerId, gpaGain);
-    engine.log(`参加科创赛事，获得 ${gpaGain.toFixed(1)} GPA`, playerId);
+    engine.log(`参加科创赛事，投出 ${dice}，获得 ${gpaGain.toFixed(1)} GPA`, playerId);
+
+    // 电子科学与工程学院：投到6即获胜
+    const player = engine.getPlayer(playerId);
+    if (dice === 6 && player?.confirmedPlans.includes('plan_dianzi')) {
+      const disabled = player.disabledWinConditions ?? [];
+      if (!disabled.includes('plan_dianzi')) {
+        engine.declareWinner(playerId, '电子科学与工程学院：科创赛事投到6');
+      }
+    }
     return null;
   });
 

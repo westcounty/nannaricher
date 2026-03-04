@@ -71,7 +71,8 @@
 
 /* Desktop Log Area (below board) */
 .desktop-log-area {
-  max-height: 150px;
+  flex: 0 0 auto;
+  max-height: 200px;
   overflow-y: auto;
   border-top: 1px solid var(--game-border);
   background: var(--color-bg-surface);
@@ -94,6 +95,10 @@
 .side-panel-section {
   border-top: 1px solid var(--game-border);
   padding-top: 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Board Area */

@@ -41,6 +41,8 @@ function createMockPlayer(overrides: Partial<Player> = {}): Player {
     chanceCardsUsedOnPlayers: {},
     gulou_endpoint_count: 0,
     modifiedWinThresholds: {},
+    maxWinConditionSlots: 3,
+    disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
     ...overrides,
@@ -269,13 +271,12 @@ describe('Plan Abilities — on_cell_enter trigger', () => {
     expect(result!.effects?.skipEvent).toBe(true);
   });
 
-  it('plan_yishu (Art) triggers at pukou_exp_card cell', () => {
+  it('plan_yishu (Art) is a passive ability (double pukou exp card)', () => {
     const ability = getPlanAbility('plan_yishu')!;
-    expect(ability.trigger).toBe('on_cell_enter');
-    const result = ability.apply(createAbilityCtx('on_cell_enter', { cellId: 'pukou_exp_card' }));
+    expect(ability.trigger).toBe('passive');
+    const result = ability.apply(createAbilityCtx('passive', {}));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.customEffect).toBe('yishu_double_exp');
   });
 });
 
@@ -409,18 +410,16 @@ describe('Plan Abilities — on_line_enter trigger', () => {
   });
 });
 
-describe('Plan Abilities — on_dice_roll trigger', () => {
+describe('Plan Abilities — on_turn_start trigger', () => {
   it('plan_shuxue (Mathematics) activates set dice ability', () => {
     const ability = getPlanAbility('plan_shuxue')!;
-    expect(ability.trigger).toBe('on_dice_roll');
-    const result = ability.apply(createAbilityCtx('on_dice_roll'));
+    expect(ability.trigger).toBe('on_turn_start');
+    const result = ability.apply(createAbilityCtx('on_turn_start'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('shuxue_set_dice');
   });
-});
 
-describe('Plan Abilities — on_turn_start trigger', () => {
   it('plan_wuli (Physics) offers double move option', () => {
     const ability = getPlanAbility('plan_wuli')!;
     expect(ability.trigger).toBe('on_turn_start');
@@ -458,11 +457,11 @@ describe('Plan Abilities — on_turn_start trigger', () => {
   });
 });
 
-describe('Plan Abilities — on_card_draw trigger', () => {
+describe('Plan Abilities — on_confirm trigger (xiandai/daqi)', () => {
   it('plan_xiandai (Modern Engineering) allows assigning card to other player', () => {
     const ability = getPlanAbility('plan_xiandai')!;
-    expect(ability.trigger).toBe('on_card_draw');
-    const result = ability.apply(createAbilityCtx('on_card_draw'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('xiandai_assign_card');
@@ -470,8 +469,8 @@ describe('Plan Abilities — on_card_draw trigger', () => {
 
   it('plan_daqi (Atmospheric Sciences) draws 3 cards to choose from', () => {
     const ability = getPlanAbility('plan_daqi')!;
-    expect(ability.trigger).toBe('on_card_draw');
-    const result = ability.apply(createAbilityCtx('on_card_draw'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('daqi_draw_three');
@@ -489,11 +488,11 @@ describe('Plan Abilities — on_move trigger', () => {
   });
 });
 
-describe('Plan Abilities — passive trigger', () => {
+describe('Plan Abilities — on_confirm/passive trigger', () => {
   it('plan_shehuixue (Sociology) reduces win threshold', () => {
     const ability = getPlanAbility('plan_shehuixue')!;
-    expect(ability.trigger).toBe('passive');
-    const result = ability.apply(createAbilityCtx('passive'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('shehuixue_reduce_threshold');
@@ -501,8 +500,8 @@ describe('Plan Abilities — passive trigger', () => {
 
   it('plan_rengong (AI) reduces GPA threshold', () => {
     const ability = getPlanAbility('plan_rengong')!;
-    expect(ability.trigger).toBe('passive');
-    const result = ability.apply(createAbilityCtx('passive'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('rengong_reduce_threshold');

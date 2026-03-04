@@ -14,7 +14,7 @@ export function TrainingPlanView({
   turnNumber,
   isCurrentPlayer
 }: TrainingPlanViewProps) {
-  const { confirmPlan, gameState, isMyTurn: _isMyTurn } = useGameState();
+  const { confirmPlan, gameState } = useGameState();
   const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
 
   // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)

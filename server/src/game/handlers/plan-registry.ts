@@ -209,30 +209,30 @@ register({
 });
 
 // ---------- 11. plan_shehuixue — 社会学院 ----------
-// 被动：可花费胜利位减少差距
+// 确认时：可选择永久减少阈值 (20→15)
 register({
   planId: 'plan_shehuixue',
-  trigger: 'passive',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'passive') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '社会学院能力：可选择永久减少一个胜利条件位，将获胜条件修改为高15',
+      message: '社会学院能力：可选择将获胜条件修改为高15',
       effects: { customEffect: 'shehuixue_reduce_threshold' },
     };
   },
 });
 
 // ---------- 12. plan_shuxue — 数学系 ----------
-// 掷骰子时可选择指定下一回合骰子点数
+// 回合开始时可选择指定本回合骰子点数
 register({
   planId: 'plan_shuxue',
-  trigger: 'on_dice_roll',
+  trigger: 'on_turn_start',
   apply(ctx) {
-    if (ctx.trigger !== 'on_dice_roll') return null;
+    if (ctx.trigger !== 'on_turn_start') return null;
     return {
       activated: true,
-      message: '数学系能力：可指定下一回合骰子点数',
+      message: '数学系能力：可指定本回合骰子点数',
       effects: { customEffect: 'shuxue_set_dice' },
     };
   },
@@ -284,15 +284,15 @@ register({
 });
 
 // ---------- 16. plan_rengong — 人工智能学院 ----------
-// 被动：可花费胜利位减少GPA差距
+// 确认时：可选择永久减少GPA差距阈值 (2.0→1.5)
 register({
   planId: 'plan_rengong',
-  trigger: 'passive',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'passive') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '人工智能学院能力：可选择永久减少一个胜利条件位，将获胜条件修改为高1.5',
+      message: '人工智能学院能力：可选择将GPA差距阈值修改为1.5',
       effects: { customEffect: 'rengong_reduce_threshold' },
     };
   },
@@ -344,15 +344,15 @@ register({
 });
 
 // ---------- 20. plan_xiandai — 现代工程与应用科学学院 ----------
-// 抽卡时可将命运卡指派给他人
+// 确认时：立即抽一张命运卡并指定一位玩家执行
 register({
   planId: 'plan_xiandai',
-  trigger: 'on_card_draw',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'on_card_draw') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '现代工程学院能力：抽命运卡指定玩家执行',
+      message: '现代工程学院能力：抽一张命运卡指定玩家执行',
       effects: { customEffect: 'xiandai_assign_card' },
     };
   },
@@ -409,12 +409,12 @@ register({
 });
 
 // ---------- 24. plan_daqi — 大气科学学院 ----------
-// 抽卡时抽3张选1张
+// 确认时：抽3张机会/命运卡，选1张执行
 register({
   planId: 'plan_daqi',
-  trigger: 'on_card_draw',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'on_card_draw') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
       message: '大气学院能力：抽3张卡选1张执行',
@@ -531,16 +531,15 @@ register({
 });
 
 // ---------- 32. plan_yishu — 艺术学院 ----------
-// 浦口经验卡双倍效果
+// 浦口经验卡双倍效果（实际逻辑在 GameEngine.exitLine 中执行）
 register({
   planId: 'plan_yishu',
-  trigger: 'on_cell_enter',
+  trigger: 'passive',
   apply(ctx) {
-    if (ctx.trigger !== 'on_cell_enter' || ctx.cellId !== 'pukou_exp_card') return null;
+    // 被动能力：浦口线经验卡双倍奖励，直接在 exitLine 中通过 confirmedPlans 检查
     return {
       activated: true,
-      message: '艺术学院能力：浦口线双倍经验卡',
-      effects: { customEffect: 'yishu_double_exp' },
+      message: '艺术学院能力：浦口线经验卡奖励翻倍',
     };
   },
 });

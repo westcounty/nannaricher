@@ -10,7 +10,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const newExploration = Math.round(player.exploration * dice * 0.1 * 10) / 10;
     engine.modifyPlayerExploration(playerId, newExploration - player.exploration);
     engine.log(`BOSS直聘投出 ${dice}，探索值变为 ${newExploration}`, playerId);
@@ -45,7 +45,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 吞噬电梯
   eventHandler.registerHandler('card_destiny_swallowing_elevator', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice !== 6) {
       engine.skipPlayerTurn(playerId, 1);
       engine.modifyPlayerGpa(playerId, -0.1);
@@ -58,8 +58,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 七年之痒
   eventHandler.registerHandler('card_destiny_seven_year_itch', (engine, playerId) => {
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const total = dice1 + dice2;
 
     if (total === 7) {
@@ -321,6 +321,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_destiny_strong_base_plan', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, 0.2);
     engine.log('强基计划：GPA +0.2，再抽培养方案', playerId);
+    engine.drawTrainingPlan(playerId);
     return null;
   });
 
@@ -328,6 +329,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_destiny_national_special', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, 200);
     engine.log('国家专项：金钱 +200，再抽培养方案', playerId);
+    engine.drawTrainingPlan(playerId);
     return null;
   });
 
@@ -335,6 +337,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_destiny_secondary_selection', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('二次选拔：探索值 +2，再抽培养方案', playerId);
+    engine.drawTrainingPlan(playerId);
     return null;
   });
 
@@ -343,6 +346,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerMoney(playerId, -400);
     engine.modifyPlayerExploration(playerId, 3);
     engine.log('中外合办：金钱 -400，探索值 +3，再抽培养方案', playerId);
+    engine.drawTrainingPlan(playerId);
     return null;
   });
 
@@ -417,14 +421,14 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   // 谢谢惠顾
   eventHandler.registerHandler('card_destiny_thank_you', (engine, playerId) => {
     engine.log('谢谢惠顾：再抽一张命运卡', playerId);
-    engine.drawCard(playerId, 'destiny');
+    engine.drawAndProcessCard(playerId, 'destiny');
     return null;
   });
 
   // 限量供应
   eventHandler.registerHandler('card_destiny_limited_supply', (engine, playerId) => {
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice2 > dice1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`限量供应：${dice1} -> ${dice2}，探索值 +2`, playerId);
@@ -714,8 +718,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerGpa(playerId, 0.2);
@@ -749,8 +753,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerExploration(playerId, 2);
@@ -784,8 +788,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const target = engine.getPlayer(targetId);
     if (!player || !target) return null;
 
-    const dice1 = engine.rollDice(1)[0];
-    const dice2 = engine.rollDice(1)[0];
+    const dice1 = engine.rollDiceAndBroadcast(playerId, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(playerId, 1)[0];
     const sameOddEven = (dice1 % 2) === (dice2 % 2);
     if (sameOddEven) {
       engine.modifyPlayerMoney(playerId, 200);
@@ -998,7 +1002,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_chance_southbound_rose', (engine, playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
     for (const p of players) {
-      const dice = engine.rollDice(1)[0];
+      const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
       if (dice >= 4) {
         engine.modifyPlayerExploration(p.id, 1);
         engine.log(`南行玫瑰：${p.name}投出${dice}，探索值+1`, playerId);
@@ -1276,7 +1280,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 八卦秘闻 — 参与
   eventHandler.registerHandler('card_gossip_participate', (engine, playerId) => {
-    const dice = engine.rollDice(1)[0];
+    const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice > 1) {
       engine.modifyPlayerMoney(playerId, 200);
       engine.modifyPlayerGpa(playerId, 0.2);
@@ -1294,6 +1298,383 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   // 八卦秘闻 — 放弃
   eventHandler.registerHandler('card_gossip_skip', (engine, playerId) => {
     engine.log('八卦秘闻：放弃参与', playerId);
+    return null;
+  });
+
+  // ===================================================================
+  // Holdable Card Handlers (20 cards — used from hand via handleUseCard)
+  // ===================================================================
+
+  // --- Destiny Holdable (14) ---
+
+  // 1. 麦门护盾 — add foodShield effect (food line negative events blocked)
+  eventHandler.registerHandler('card_destiny_maimen_shield', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `foodShield_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { foodShield: true },
+    });
+    engine.log('麦门护盾：食堂线负面效果已屏蔽', playerId);
+    return null;
+  });
+
+  // 2. 及时止损 — cancel next event
+  eventHandler.registerHandler('card_destiny_stop_loss', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `cancelEvent_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { cancelNextEvent: true },
+    });
+    engine.log('及时止损：下次格子事件将被取消', playerId);
+    return null;
+  });
+
+  // 3. 工期紧迫 — leave hospital or ding immediately
+  eventHandler.registerHandler('card_destiny_urgent_deadline', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    if (player.isInHospital) {
+      engine.setPlayerHospitalStatus(playerId, false);
+      engine.log('工期紧迫：直接出院', playerId);
+      return {
+        id: `roll_dice_${Date.now()}`,
+        playerId,
+        type: 'roll_dice' as const,
+        prompt: '已出院，请投骰子移动',
+        timeoutMs: 60000,
+      };
+    } else if (player.isAtDing) {
+      engine.setPlayerDingStatus(playerId, false);
+      engine.log('工期紧迫：直接离开鼎', playerId);
+      return {
+        id: `roll_dice_${Date.now()}`,
+        playerId,
+        type: 'roll_dice' as const,
+        prompt: '已离开鼎，请投骰子移动',
+        timeoutMs: 60000,
+      };
+    } else {
+      engine.log('工期紧迫：当前不在医院或鼎，无效', playerId);
+      return null;
+    }
+  });
+
+  // 4. 余额为负 — negate next money expense
+  eventHandler.registerHandler('card_destiny_negative_balance', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `negateExpense_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { negateExpense: true },
+    });
+    engine.log('余额为负：下次金钱扣除将被抵消', playerId);
+    return null;
+  });
+
+  // 5. 祖传试卷 — block next GPA loss
+  eventHandler.registerHandler('card_destiny_inherited_papers', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `blockGpa_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { blockGpaLoss: true },
+    });
+    engine.log('祖传试卷：下次GPA损失将被抵消', playerId);
+    return null;
+  });
+
+  // 6. 投石问路 — block next money loss
+  eventHandler.registerHandler('card_destiny_throw_stone', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `blockMoney_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { blockMoneyLoss: true },
+    });
+    engine.log('投石问路：下次金钱损失将被抵消', playerId);
+    return null;
+  });
+
+  // 7. 校园传说 — block next exploration loss
+  eventHandler.registerHandler('card_destiny_campus_legend', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `blockExplore_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { blockExplorationLoss: true },
+    });
+    engine.log('校园传说：下次探索值损失将被抵消', playerId);
+    return null;
+  });
+
+  // 8. 另辟蹊径 — exit line immediately without experience card
+  eventHandler.registerHandler('card_destiny_alternative_path', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    if (player.position.type === 'line') {
+      engine.exitLine(playerId, false);
+      engine.log('另辟蹊径：直接退出支线，不领经验卡', playerId);
+    } else {
+      engine.log('另辟蹊径：当前不在支线内，无效', playerId);
+    }
+    return null;
+  });
+
+  // 9. 大类招生 — delay plan confirmation by 1 turn
+  eventHandler.registerHandler('card_destiny_major_admission', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `delayPlan_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { delayPlanConfirm: true },
+    });
+    engine.log('大类招生：延迟一回合选定培养计划', playerId);
+    return null;
+  });
+
+  // 10. 跨院准出 — remove a confirmed plan
+  eventHandler.registerHandler('card_destiny_cross_college_exit', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player || player.confirmedPlans.length === 0) {
+      engine.log('跨院准出：没有已确认的培养方案', playerId);
+      return null;
+    }
+
+    const options = player.confirmedPlans.map(planId => {
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      return { label: `取消: ${plan?.name || planId}`, value: `remove_plan_${planId}` };
+    });
+    options.push({ label: '不取消', value: 'skip_remove_plan' });
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '选择要取消的培养方案:', options
+    );
+    action.callbackHandler = 'card_cross_college_exit_callback';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_cross_college_exit_callback', (engine, playerId, choice) => {
+    if (choice && choice.startsWith('remove_plan_')) {
+      const planId = choice.replace('remove_plan_', '');
+      const player = engine.getPlayer(playerId);
+      if (player) {
+        player.confirmedPlans = player.confirmedPlans.filter(id => id !== planId);
+        const plan = player.trainingPlans.find(p => p.id === planId);
+        if (plan) plan.confirmed = false;
+        engine.log(`跨院准出：取消了培养方案 ${plan?.name || planId}`, playerId);
+      }
+    }
+    return null;
+  });
+
+  // 11. 专业意向 — confirm a plan early + bonus
+  eventHandler.registerHandler('card_destiny_professional_intention', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    const unconfirmed = player.trainingPlans.filter(p => !player.confirmedPlans.includes(p.id));
+    if (unconfirmed.length === 0) {
+      engine.log('专业意向：没有未确认的培养方案', playerId);
+      return null;
+    }
+
+    const options = unconfirmed.map(p => ({
+      label: `确认: ${p.name}`, value: `early_confirm_${p.id}`,
+    }));
+    options.push({ label: '不确认', value: 'skip_early_confirm' });
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '专业意向：提前确认一个培养方案', options
+    );
+    action.callbackHandler = 'card_professional_intention_callback';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_professional_intention_callback', (engine, playerId, choice) => {
+    if (choice && choice.startsWith('early_confirm_')) {
+      const planId = choice.replace('early_confirm_', '');
+      const player = engine.getPlayer(playerId);
+      if (player) {
+        const plan = player.trainingPlans.find(p => p.id === planId);
+        if (plan) {
+          plan.confirmed = true;
+          if (!player.confirmedPlans.includes(planId)) {
+            player.confirmedPlans.push(planId);
+          }
+          engine.log(`专业意向：提前确认了 ${plan.name}`, playerId);
+        }
+        engine.modifyPlayerGpa(playerId, 0.1);
+        engine.modifyPlayerExploration(playerId, 1);
+      }
+    }
+    return null;
+  });
+
+  // 12. 轻车熟路 — re-enter line after exiting
+  eventHandler.registerHandler('card_destiny_familiar_route', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `reenterLine_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { reenterLine: true },
+    });
+    engine.log('轻车熟路：下次离开支线终点后可重新进入', playerId);
+    return null;
+  });
+
+  // 13. 如何解释 — cancel next event (same as stop_loss)
+  eventHandler.registerHandler('card_destiny_how_to_explain', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `cancelEvent_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { cancelNextEvent: true },
+    });
+    engine.log('如何解释：下次格子事件将被取消', playerId);
+    return null;
+  });
+
+  // 14. 鼓点重奏 — next roll: roll twice, pick one
+  eventHandler.registerHandler('card_destiny_drum_beat_return', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `doubleDice_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 2,
+      data: { doubleDiceChoice: true },
+    });
+    engine.log('鼓点重奏：下次投骰可投两次选一', playerId);
+    return null;
+  });
+
+  // --- Chance Holdable (6) ---
+
+  // 1. 消息闭塞 — block next chance card globally
+  eventHandler.registerHandler('card_chance_info_blocked', (engine, playerId) => {
+    // Add to all players as a global effect - when any player draws a chance card, check
+    engine.addEffectToPlayer(playerId, {
+      id: `blockChance_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { blockChanceCard: true, ownerId: playerId },
+    });
+    engine.log('消息闭塞：下次任意玩家的机会卡效果将被抵消', playerId);
+    return null;
+  });
+
+  // 2. 虚晃一枪 — block next destiny card globally
+  eventHandler.registerHandler('card_chance_false_move', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `blockDestiny_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { blockDestinyCard: true, ownerId: playerId },
+    });
+    engine.log('虚晃一枪：下次任意玩家的命运卡效果将被抵消', playerId);
+    return null;
+  });
+
+  // 3. 画饼充饥 — cancel target player's next event
+  eventHandler.registerHandler('card_chance_pie_in_sky', (engine, playerId) => {
+    const state = engine.getState();
+    const targets = state.players
+      .filter(p => p.id !== playerId && !p.isBankrupt)
+      .map(p => p.id);
+
+    if (targets.length === 0) return null;
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_player', '画饼充饥：选择一名玩家取消其下次事件',
+      undefined, targets
+    );
+    action.callbackHandler = 'card_pie_in_sky_callback';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_pie_in_sky_callback', (engine, playerId, targetId) => {
+    if (targetId) {
+      engine.addEffectToPlayer(targetId, {
+        id: `cancelEvent_${Date.now()}`,
+        type: 'custom',
+        turnsRemaining: 2,
+        data: { cancelNextEvent: true },
+      });
+      const target = engine.getPlayer(targetId);
+      engine.log(`画饼充饥：${target?.name || targetId} 的下次事件将被取消`, playerId);
+    }
+    return null;
+  });
+
+  // 4. 一跃愁解 — reverse target player's next effects
+  eventHandler.registerHandler('card_chance_one_jump_relief', (engine, playerId) => {
+    const state = engine.getState();
+    const targets = state.players
+      .filter(p => p.id !== playerId && !p.isBankrupt)
+      .map(p => p.id);
+
+    if (targets.length === 0) return null;
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_player', '一跃愁解：选择一名玩家，其下次事件增减效果反转',
+      undefined, targets
+    );
+    action.callbackHandler = 'card_one_jump_callback';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_one_jump_callback', (engine, playerId, targetId) => {
+    if (targetId) {
+      engine.addEffectToPlayer(targetId, {
+        id: `reverseEffects_${Date.now()}`,
+        type: 'custom',
+        turnsRemaining: 2,
+        data: { reverseEffects: true },
+      });
+      const target = engine.getPlayer(targetId);
+      engine.log(`一跃愁解：${target?.name || targetId} 的下次事件效果将被反转`, playerId);
+    }
+    return null;
+  });
+
+  // 5. 停水停电 — skip target player's next turn + no repeat event
+  eventHandler.registerHandler('card_chance_water_power_outage', (engine, playerId) => {
+    const state = engine.getState();
+    const targets = state.players
+      .filter(p => p.id !== playerId && !p.isBankrupt)
+      .map(p => p.id);
+
+    if (targets.length === 0) return null;
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_player', '停水停电：选择一名玩家跳过下一回合',
+      undefined, targets
+    );
+    action.callbackHandler = 'card_water_power_callback';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_water_power_callback', (engine, playerId, targetId) => {
+    if (targetId) {
+      engine.skipPlayerTurn(targetId, 1);
+      const target = engine.getPlayer(targetId);
+      engine.log(`停水停电：${target?.name || targetId} 将跳过下一回合`, playerId);
+    }
+    return null;
+  });
+
+  // 6. 补天计划 — special: held until someone wins, then holder gets a last chance
+  // This is checked in win condition logic, not as a normal handler
+  eventHandler.registerHandler('card_chance_mending_plan', (engine, playerId) => {
+    engine.addEffectToPlayer(playerId, {
+      id: `mendingPlan_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { mendingPlan: true },
+    });
+    engine.log('补天计划：当任意玩家即将胜利时，你可以立即行动一次', playerId);
     return null;
   });
 
