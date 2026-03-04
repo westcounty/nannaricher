@@ -93,6 +93,15 @@ export class PlayerLayer implements RenderLayer {
     }
   }
 
+  /**
+   * Get the current screen position of a player's piece.
+   */
+  getPlayerPosition(playerId: string): { x: number; y: number } | null {
+    const piece = this.playerPieces.get(playerId);
+    if (!piece) return null;
+    return { x: piece.container.x, y: piece.container.y };
+  }
+
   destroy(): void {
     this.playerPieces.clear();
     if (this.layerContainer) {

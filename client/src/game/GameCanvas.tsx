@@ -15,6 +15,7 @@ import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { animateDiceResult } from './animations/DiceRollAnim';
+import { showFloatingText } from './animations/FloatingText';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -36,6 +37,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const tweenRef = useRef<TweenEngine | null>(null);
   const effectLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<ViewportController | null>(null);
+  const prevStateRef = useRef<GameState | null>(null);
 
   // Initialize PixiJS Application + layered stage
   useEffect(() => {
@@ -124,8 +126,45 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, []);
 
-  // Push state updates to the stage
+  // Push state updates to the stage, with floating text for stat changes
   useEffect(() => {
+    // Detect stat changes and show floating text
+    if (prevStateRef.current && effectLayerRef.current && playerLayerRef.current) {
+      const prevPlayers = prevStateRef.current.players;
+      for (const player of gameState.players) {
+        const prevPlayer = prevPlayers.find(p => p.id === player.id);
+        if (!prevPlayer) continue;
+
+        const pos = playerLayerRef.current.getPlayerPosition(player.id);
+        if (!pos) continue;
+
+        // Money change
+        if (player.money !== prevPlayer.money) {
+          const delta = player.money - prevPlayer.money;
+          const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
+          const color = delta > 0 ? '#4ade80' : '#ef4444';
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color);
+        }
+
+        // GPA change
+        if (player.gpa !== prevPlayer.gpa) {
+          const delta = player.gpa - prevPlayer.gpa;
+          const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
+          const color = '#60a5fa';
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color);
+        }
+
+        // Exploration change
+        if (player.exploration !== prevPlayer.exploration) {
+          const delta = player.exploration - prevPlayer.exploration;
+          const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
+          const color = '#fbbf24';
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color);
+        }
+      }
+    }
+    prevStateRef.current = gameState;
+
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
 
