@@ -804,8 +804,19 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('food_exp_card', (engine, playerId) => {
-    engine.log('宠辱不惊，自此以后食堂线入口可自行选择是否进入', playerId);
-    // TODO: 标记玩家已获得食堂线免进卡
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    // 宠辱不惊: food line becomes optional for this player
+    if (!player.effects.find(e => e.type === 'custom' && e.data?.foodLineOptional)) {
+      player.effects.push({
+        id: `food_optional_${Date.now()}`,
+        type: 'custom',
+        turnsRemaining: 999, // permanent effect
+        data: { foodLineOptional: true },
+      });
+    }
+    engine.log('获得经验卡: 宠辱不惊 — 食堂线不再强制进入', playerId);
     return null;
   });
 

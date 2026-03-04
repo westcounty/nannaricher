@@ -17,6 +17,7 @@ import {
   SALARY_STOP,
 } from '@nannaricher/shared';
 import { GameEngine } from './GameEngine.js';
+import { GameLogger } from './GameLogger.js';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import type { GameServer } from '../socket/types.js';
 
@@ -29,12 +30,14 @@ export class GameCoordinator {
   private engine: GameEngine;
   private io: GameServer;
   private roomId: string;
+  private logger: GameLogger;
   private processingAction = false;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
     this.io = io;
     this.roomId = roomId;
+    this.logger = new GameLogger(roomId);
 
     // Wire up dice broadcast so event handlers can emit dice results
     this.engine.setDiceResultCallback((pid, vals, total) => {
@@ -115,6 +118,7 @@ export class GameCoordinator {
       message,
       timestamp: Date.now(),
     });
+    this.logger.log({ turn: state.turnNumber, playerId, type: 'system', message });
   }
 
   // --------------------------------------------------
@@ -867,6 +871,8 @@ export class GameCoordinator {
       const winner = state.players.find(p => p.id === winnerId);
       state.winner = winnerId;
       state.phase = 'finished';
+      this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game won: ${condition}`, data: { winnerId, condition } });
+      this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: winnerId,
         playerName: winner?.name || 'Unknown',
@@ -1027,6 +1033,17 @@ export class GameCoordinator {
           return;
         }
         case 'line_entry': {
+          // Check if force entry is overridden by player effect (e.g., food line optional card)
+          let isForced = cell.forceEntry || false;
+          if (isForced && player) {
+            const optionalEffect = player.effects.find(
+              e => e.type === 'custom' && e.data?.foodLineOptional && cell.lineId === 'food'
+            );
+            if (optionalEffect) {
+              isForced = false;
+            }
+          }
+
           // Calculate actual entry fee with plan discounts
           const baseFee = cell.entryFee || 0;
           const actualEntryFee = player
@@ -1040,12 +1057,12 @@ export class GameCoordinator {
             id: `line_entry_${Date.now()}`,
             playerId,
             type: 'choose_option',
-            prompt: cell.forceEntry
+            prompt: isForced
               ? `必须进入 ${cell.name}`
               : actualEntryFee === 0
                 ? `培养计划能力：免费进入 ${cell.name}！`
                 : `是否支付 ${actualEntryFee} 金钱进入 ${cell.name}？`,
-            options: cell.forceEntry
+            options: isForced
               ? [{ label: '进入', value: `enter_${cell.lineId}` }]
               : [
                   { label: actualEntryFee === 0 ? '免费进入' : feeLabel, value: `enter_${cell.lineId}` },
@@ -1059,6 +1076,8 @@ export class GameCoordinator {
       }
 
       if (handlerId) {
+        const cell = boardData.mainBoard[position.index];
+        this.logger.log({ turn: state.turnNumber, playerId, type: 'event', message: `Cell landing: ${cell?.name || handlerId}`, data: { position, cellName: cell?.name || handlerId } });
         const pendingAction = this.engine.getEventHandler().execute(handlerId, playerId);
         if (pendingAction) {
           state.pendingAction = pendingAction;
@@ -1220,6 +1239,7 @@ export class GameCoordinator {
     });
 
     this.addLog(playerId, `${currentPlayer.name} 投出了 ${values.join('+')}=${total}`);
+    this.logger.log({ turn: state.turnNumber, playerId, type: 'dice_roll', message: `Rolled ${values.join('+')}=${total}`, data: { values, total } });
 
     // Move player
     this.engine.movePlayerForward(playerId, total);
@@ -1258,6 +1278,8 @@ export class GameCoordinator {
   private _processAction(playerId: string, actionId: string, choice: string): void {
     const state = this.engine.getState();
     if (!state.pendingAction) return;
+
+    this.logger.log({ turn: state.turnNumber, playerId, type: 'choice', message: `Action choice: ${choice}`, data: { actionId, choice } });
 
     const pendingActionId = state.pendingAction.id;
 
@@ -1706,6 +1728,8 @@ export class GameCoordinator {
       const winner = state.players.find(p => p.id === winnerId);
       state.winner = winnerId;
       state.phase = 'finished';
+      this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game won via plan: ${condition}`, data: { winnerId, condition } });
+      this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: winnerId,
         playerName: winner?.name || 'Unknown',

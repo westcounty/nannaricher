@@ -552,7 +552,10 @@ export class GameEngine implements IGameEngine {
 
     // Give experience card at end of line
     if (line?.experienceCard && moveToMainBoard) {
-      this.eventHandler.execute(line.experienceCard.handlerId, playerId);
+      const expCardAction = this.eventHandler.execute(line.experienceCard.handlerId, playerId);
+      if (expCardAction) {
+        this.state.pendingAction = expCardAction;
+      }
     }
 
     if (moveToMainBoard) {
