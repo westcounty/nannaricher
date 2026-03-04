@@ -42,6 +42,9 @@ describe('WinConditionChecker', () => {
       cardsDrawnWithDigitStart: [],
       chanceCardsUsedOnPlayers: {},
       gulou_endpoint_count: 0,
+      modifiedWinThresholds: {},
+      lawyerShield: false,
+      lastDiceValues: [],
     };
 
     mockState = {

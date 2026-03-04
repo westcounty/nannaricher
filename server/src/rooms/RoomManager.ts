@@ -46,6 +46,9 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
     cardsDrawnWithDigitStart: [],
     chanceCardsUsedOnPlayers: {},
     gulou_endpoint_count: 0,
+    modifiedWinThresholds: {},
+    lawyerShield: false,
+    lastDiceValues: [],
   };
 }
 
