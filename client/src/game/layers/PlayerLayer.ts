@@ -6,12 +6,9 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameState, Player, Position } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
-import {
-  BOARD_SIZE,
-  getCellPosition,
-  getLineCellPosition,
-  PLAYER_COLORS_HEX,
-} from '../layout/BoardLayout';
+import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, getMainStationPosition, getLineStationPosition } from '../layout/MetroLayout';
+
+const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
 import type { TweenEngine } from '../animations/TweenEngine';
 import { animatePieceMove } from '../animations/PieceMoveAnim';
 
@@ -39,8 +36,8 @@ export class PlayerLayer implements RenderLayer {
 
   init(stage: Container): void {
     this.layerContainer = new Container();
-    this.layerContainer.x = BOARD_SIZE / 2;
-    this.layerContainer.y = BOARD_SIZE / 2;
+    this.layerContainer.x = METRO_BOARD_WIDTH / 2;
+    this.layerContainer.y = METRO_BOARD_HEIGHT / 2;
     stage.addChild(this.layerContainer);
   }
 
@@ -120,9 +117,9 @@ export class PlayerLayer implements RenderLayer {
    */
   private calculatePosition(player: Player): { x: number; y: number; inLine: boolean } {
     if (player.position.type === 'main') {
-      return { ...getCellPosition(player.position.index), inLine: false };
+      return { ...getMainStationPosition(player.position.index), inLine: false };
     } else {
-      return { ...getLineCellPosition(player.position.lineId, player.position.index), inLine: true };
+      return { ...getLineStationPosition(player.position.lineId, player.position.index), inLine: true };
     }
   }
 
