@@ -8,4 +8,3 @@ export type { GameAnimation } from './AnimationQueue';
 export { AnimationConfig } from './AnimationConfig';
 export { animatePieceMove } from './PieceMoveAnim';
 export { showFloatingText } from './FloatingText';
-export { animateDiceResult } from './DiceRollAnim';

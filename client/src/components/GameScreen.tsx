@@ -177,7 +177,6 @@ export function GameScreen() {
                 <GameCanvas
                   gameState={gameState}
                   currentPlayerId={currentPlayer?.id || null}
-                  diceResult={diceResult}
                   onCellClick={() => {}}
                 />
               </div>
@@ -267,7 +266,6 @@ export function GameScreen() {
               <GameCanvas
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
-                diceResult={diceResult}
                 onCellClick={() => {}}
               />
             </div>
