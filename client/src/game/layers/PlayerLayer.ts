@@ -64,7 +64,7 @@ export class PlayerLayer implements RenderLayer {
           if (this.tweenEngine && this.effectLayer) {
             // Animate to new position
             const newPos = this.calculatePosition(player);
-            const offset = idx * 5;
+            const offset = idx * 8;
             const path = [{ x: newPos.x + offset, y: newPos.y + offset }];
             animatePieceMove(existing.container, path, this.tweenEngine, this.effectLayer);
             existing.lastPosition = { ...player.position } as Position;
@@ -124,7 +124,7 @@ export class PlayerLayer implements RenderLayer {
     const { x: posX, y: posY, inLine } = this.calculatePosition(player);
 
     const color = PLAYER_COLORS_HEX[playerIndex % PLAYER_COLORS_HEX.length];
-    const offset = playerIndex * 5;
+    const offset = playerIndex * 8;
 
     // Group container for this player's visuals
     const group = new Container();
@@ -135,26 +135,26 @@ export class PlayerLayer implements RenderLayer {
     const piece = new Graphics();
 
     // Shadow
-    piece.ellipse(0, 14, 12, 6);
+    piece.ellipse(0, 20, 18, 8);
     piece.fill({ color: 0x333333, alpha: 0.2 });
 
     // Body
-    piece.circle(0, 0, 10);
+    piece.circle(0, 0, 16);
     piece.fill({ color });
 
     // Highlight
-    piece.circle(-3, -3, 3);
+    piece.circle(-5, -5, 5);
     piece.fill({ color: 0xffffff, alpha: 0.4 });
 
     // Current player ring
     if (isCurrent) {
-      piece.circle(0, 0, 14);
+      piece.circle(0, 0, 20);
       piece.stroke({ width: 3, color: 0xC9A227 });
     }
 
     // In-line indicator
     if (inLine) {
-      piece.circle(0, 0, 12);
+      piece.circle(0, 0, 18);
       piece.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
     }
 
@@ -164,13 +164,13 @@ export class PlayerLayer implements RenderLayer {
     const nameText = new Text({
       text: player.name.slice(0, 2),
       style: new TextStyle({
-        fontSize: 9,
+        fontSize: 12,
         fill: 0xffffff,
         fontWeight: 'bold',
       }),
     });
     nameText.anchor.set(0.5);
-    nameText.y = -18;
+    nameText.y = -26;
     group.addChild(nameText);
 
     this.layerContainer.addChild(group);
