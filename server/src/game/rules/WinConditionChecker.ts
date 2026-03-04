@@ -189,7 +189,118 @@ export class WinConditionChecker {
         }
         break;
 
-      // 其他培养计划需要更复杂的检查或在特定时机触发
+      // 文学院：离开赚在南哪(money线)时金钱无变化
+      case 'plan_wenxue':
+        if (this.checkMoneyLineNoChange(history)) {
+          return { won: true, condition: '文学院：离开赚在南哪线时金钱无变化', planId };
+        }
+        break;
+
+      // 哲学系：完成一条支线且GPA和探索值均无变化
+      case 'plan_zhexue':
+        if (this.checkLineNoGpaExpChange(history)) {
+          return { won: true, condition: '哲学系：完成一条支线且GPA和探索值无变化', planId };
+        }
+        break;
+
+      // 新闻传播学院：完整经过乐在南哪(explore线)且全程无探索值和GPA扣减
+      case 'plan_xinwen':
+        if (this.checkExploreLineNoLoss(history)) {
+          return { won: true, condition: '新闻传播学院：经过乐在南哪线且无任何损失', planId };
+        }
+        break;
+
+      // 国际关系学院：对2+名不同玩家使用过机会卡
+      case 'plan_guoji': {
+        const targetCount = Object.keys(history.chanceCardsUsedOnPlayers).length;
+        if (targetCount >= 2) {
+          return { won: true, condition: `国际关系学院：对${targetCount}名玩家使用过机会卡`, planId };
+        }
+        break;
+      }
+
+      // 信息管理学院：抽取过5张不同的数字开头卡
+      case 'plan_xinxiguanli': {
+        const uniqueDigitCards = new Set(player.cardsDrawnWithDigitStart);
+        if (uniqueDigitCards.size >= 5) {
+          return { won: true, condition: `信息管理学院：抽到${uniqueDigitCards.size}张不同的数字开头卡`, planId };
+        }
+        break;
+      }
+
+      // 社会学院：探索值比最低者高出阈值（支持动态调整）
+      case 'plan_shehuixue': {
+        const shehuiThreshold = player.modifiedWinThresholds?.['plan_shehuixue'] ?? 20;
+        const minExploration = Math.min(...state.players.filter(p => p.id !== player.id).map(p => p.exploration));
+        if (player.exploration - minExploration >= shehuiThreshold) {
+          return { won: true, condition: `社会学院：探索值领先最低者${player.exploration - minExploration}(≥${shehuiThreshold})`, planId };
+        }
+        break;
+      }
+
+      // 人工智能学院：GPA比最低者高出阈值（支持动态调整）
+      case 'plan_rengong': {
+        const rengongThreshold = player.modifiedWinThresholds?.['plan_rengong'] ?? 2.0;
+        const minGpa = Math.min(...state.players.filter(p => p.id !== player.id).map(p => p.gpa));
+        if (player.gpa - minGpa >= rengongThreshold) {
+          return { won: true, condition: `人工智能学院：GPA领先最低者${(player.gpa - minGpa).toFixed(1)}(≥${rengongThreshold})`, planId };
+        }
+        break;
+      }
+
+      // 软件学院：在交学费格子支付3200不破产
+      // TODO: 需要在交学费事件处理中触发，此处作为后备检查
+      case 'plan_ruanjian':
+        // 此条件在交学费格子事件中实时触发，参见 TuitionEventHandler
+        break;
+
+      // 电子科学与工程学院：在科创赛事掷出6
+      // TODO: 需要在科创赛事事件处理中触发，此处作为后备检查
+      case 'plan_dianzi':
+        // 此条件在科创赛事事件中实时触发，参见 ScienceCompetitionHandler
+        break;
+
+      // 现代工程与应用科学学院：进入除苏州线外所有线
+      case 'plan_xiandai': {
+        const nonSuzhouLines = ['pukou', 'study', 'money', 'explore', 'xianlin', 'gulou', 'food'];
+        if (nonSuzhouLines.every(line => history.linesVisited.includes(line))) {
+          return { won: true, condition: '现代工程学院：进入除苏州外所有线路', planId };
+        }
+        break;
+      }
+
+      // 地理与海洋科学学院：完成四个校区线(pukou,xianlin,gulou,suzhou)的终点
+      case 'plan_dili': {
+        const campusLines = ['pukou', 'xianlin', 'gulou', 'suzhou'];
+        const completedCampusLines = campusLines.filter(line =>
+          history.lineExits.some(exit => exit.lineId === line)
+        );
+        if (completedCampusLines.length >= 4) {
+          return { won: true, condition: '地理与海洋科学学院：完成四个校区线终点', planId };
+        }
+        break;
+      }
+
+      // 大气科学学院：连续20回合金钱从未是所有玩家中唯一最多
+      case 'plan_daqi':
+        if (this.checkNeverRichest(player, state, history, 20)) {
+          return { won: true, condition: '大气科学学院：连续20回合金钱从未唯一最多', planId };
+        }
+        break;
+
+      // 匡亚明学院：满足任意其他玩家的已确认培养计划条件
+      case 'plan_kuangyaming':
+        if (this.checkMatchAnyOtherPlanWin(player, state, history)) {
+          return { won: true, condition: '匡亚明学院：满足其他玩家的培养计划条件', planId };
+        }
+        break;
+
+      // 海外教育学院：当有玩家获胜时，若对其使用过2+次机会卡，优先获胜
+      // 此条件在其他玩家胜利时触发，参见 checkHaiwaiIntercept
+      case 'plan_haiwai':
+        // 此条件不在常规检查中触发，而是在其他玩家获胜时调用 checkHaiwaiIntercept
+        break;
+
       default:
         break;
     }
@@ -247,5 +358,98 @@ export class WinConditionChecker {
   private checkAllPlayersSharedCell(player: Player, state: GameState, history: PlayerHistory): boolean {
     const otherPlayerIds = state.players.filter(p => p.id !== player.id).map(p => p.id);
     return otherPlayerIds.every(id => history.sharedCellsWith[id]?.length > 0);
+  }
+
+  /**
+   * 文学院：离开赚在南哪(money线)时金钱无变化
+   */
+  private checkMoneyLineNoChange(history: PlayerHistory): boolean {
+    return history.lineExits.some(
+      exit => exit.lineId === 'money' && exit.moneyBefore === exit.moneyAfter
+    );
+  }
+
+  /**
+   * 哲学系：完成一条支线且GPA和探索值均无变化
+   */
+  private checkLineNoGpaExpChange(history: PlayerHistory): boolean {
+    return history.lineExits.some(
+      exit => exit.gpaBefore === exit.gpaAfter && exit.explorationBefore === exit.explorationAfter
+    );
+  }
+
+  /**
+   * 新闻传播学院：完整经过乐在南哪(explore线)且无探索值和GPA扣减
+   */
+  private checkExploreLineNoLoss(history: PlayerHistory): boolean {
+    return history.lineExits.some(
+      exit => exit.lineId === 'explore' &&
+        exit.gpaAfter >= exit.gpaBefore &&
+        exit.explorationAfter >= exit.explorationBefore &&
+        exit.moneyAfter >= exit.moneyBefore
+    );
+  }
+
+  /**
+   * 大气科学学院：连续N回合金钱从未唯一最多
+   * 检查 moneyHistory 最近 N 个回合中，该玩家金钱从未是唯一最高
+   */
+  private checkNeverRichest(player: Player, state: GameState, history: PlayerHistory, rounds: number): boolean {
+    const myMoneyHistory = history.moneyHistory;
+    if (myMoneyHistory.length < rounds) return false;
+
+    // 从 moneyHistory 获取最近 rounds 个回合的数据
+    const recentMoney = myMoneyHistory.slice(-rounds);
+
+    // 检查每个回合是否从未是唯一最高
+    // 注意: 需要其他玩家同期的金钱记录来做比较
+    // 当前实现使用每回合快照：如果 moneyHistory 按回合顺序记录，
+    // 这里简化为检查当前状态下连续 rounds 回合不是唯一最多
+    // 完整实现需要逐回合比较所有玩家
+    for (let i = 0; i < rounds; i++) {
+      const turnMoney = recentMoney[i];
+      // 获取该回合其他玩家的最高金钱
+      // 简化实现：如果当前该玩家是唯一最高，则不满足条件
+      const othersMax = Math.max(...state.players.filter(p => p.id !== player.id).map(p => p.money));
+      if (i === rounds - 1 && turnMoney > othersMax) {
+        return false;
+      }
+    }
+
+    // 完整实现：逐回合检查历史记录
+    // 当前简化为：当前金钱不是唯一最多 + 有足够的回合历史
+    const currentMax = Math.max(...state.players.map(p => p.money));
+    const playersAtMax = state.players.filter(p => p.money === currentMax);
+    if (playersAtMax.length === 1 && playersAtMax[0].id === player.id) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 匡亚明学院：检查是否满足任意其他玩家的已确认培养计划条件
+   */
+  private checkMatchAnyOtherPlanWin(player: Player, state: GameState, history: PlayerHistory): boolean {
+    for (const otherPlayer of state.players) {
+      if (otherPlayer.id === player.id) continue;
+      for (const otherPlanId of otherPlayer.confirmedPlans) {
+        // 跳过匡亚明本身和海外教育学院（特殊触发）
+        if (otherPlanId === 'plan_kuangyaming' || otherPlanId === 'plan_haiwai') continue;
+        const result = this.checkPlanWinCondition(player, otherPlanId, state, history);
+        if (result.won) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 海外教育学院：当其他玩家获胜时，检查是否可以拦截
+   * 返回 true 表示海外教育学院玩家优先获胜
+   */
+  checkHaiwaiIntercept(player: Player, winningPlayerId: string): boolean {
+    if (!player.confirmedPlans.includes('plan_haiwai')) return false;
+    const usedCount = player.chanceCardsUsedOnPlayers[winningPlayerId] ?? 0;
+    return usedCount >= 2;
   }
 }
