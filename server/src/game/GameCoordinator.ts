@@ -1935,6 +1935,9 @@ export class GameCoordinator {
 
     // Handle based on pending action type
     if (state.pendingAction.type === 'choose_option') {
+      // Save and clear pendingAction BEFORE processing to avoid infinite broadcast loop
+      const savedPendingAction = state.pendingAction;
+      state.pendingAction = null;
       let pendingAction: import('@nannaricher/shared').PendingAction | null = null;
 
       // Handle line entry choices inline (enter_* patterns)
@@ -1945,10 +1948,10 @@ export class GameCoordinator {
           this.engine.enterLine(playerId, lineId, !line.forceEntry);
           this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 进入 ${line.name}`);
         }
-      } else if (state.pendingAction.callbackHandler) {
+      } else if (savedPendingAction.callbackHandler) {
         // Use callbackHandler: pass choice as the third parameter
         pendingAction = this.engine.getEventHandler().execute(
-          state.pendingAction.callbackHandler, playerId, choice
+          savedPendingAction.callbackHandler, playerId, choice
         );
       } else {
         // Default: choice is the handler ID
@@ -1996,13 +1999,16 @@ export class GameCoordinator {
         }
       }
     } else if (state.pendingAction.type === 'choose_player') {
+      // Save and clear pendingAction BEFORE processing to avoid infinite broadcast loop
+      const savedPlayerAction = state.pendingAction;
+      state.pendingAction = null;
       // Target player selected — use callbackHandler if available
       let pendingAction: import('@nannaricher/shared').PendingAction | null = null;
-      if (state.pendingAction.callbackHandler) {
+      if (savedPlayerAction.callbackHandler) {
         pendingAction = this.engine.getEventHandler().execute(
-          state.pendingAction.callbackHandler, playerId, choice
+          savedPlayerAction.callbackHandler, playerId, choice
         );
-      } else if (state.pendingAction.targetPlayerIds?.includes(choice)) {
+      } else if (savedPlayerAction.targetPlayerIds?.includes(choice)) {
         const handlerId = `${pendingActionId}_${choice}`;
         pendingAction = this.engine.getEventHandler().execute(handlerId, playerId);
       }
