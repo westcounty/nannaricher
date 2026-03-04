@@ -6,7 +6,7 @@
 import React, { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useGameStore } from '../stores/gameStore';
-import type { ClientToServerEvents, ServerToClientEvents, PendingAction } from '@nannaricher/shared';
+import type { ClientToServerEvents, ServerToClientEvents } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
 
 type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -108,19 +108,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       playSound('dice_land');
     });
 
-    socket.on('game:event-trigger', (data: { title: string; description: string; pendingAction: PendingAction }) => {
-      store.getState().setCurrentEvent({
-        title: data.title,
-        description: data.description,
-        pendingAction: data.pendingAction,
-      });
-      playSound('event_trigger');
-    });
-
-    socket.on('game:card-drawn', (data) => {
-      store.getState().setDrawnCard(data);
-      playSound('card_draw');
-    });
+    // NOTE: game:event-trigger is handled by GameContext to avoid duplicate listeners.
+    // Sound is played there as well.
 
     socket.on('game:announcement', (data) => {
       store.getState().setAnnouncement({

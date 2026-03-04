@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { GameState, PendingAction, Card } from '@nannaricher/shared';
 import { useSocket } from './SocketContext';
+import { playSound } from '../audio/AudioManager';
 
 // Event data structure for modal display
 export interface GameEvent {
@@ -155,6 +156,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         description: data.description,
         pendingAction: data.pendingAction,
       });
+      playSound('event_trigger');
     };
 
     const handleCardDrawn = (data: { card: Card; deckType: string }) => {

@@ -568,10 +568,8 @@ export class GameEngine implements IGameEngine {
     // StateTracker: record card draw
     this.stateTracker.recordCardDraw(playerId, card, this.state.turnNumber);
 
-    this.log(`抽取 ${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}`, playerId);
-
-    // NOTE: Card effect execution (holdable add / non-holdable execute) is handled
-    // by GameCoordinator.handleCellLanding() to avoid duplicate processing.
+    // NOTE: User-facing log is handled by GameCoordinator.handleCellLanding()
+    // to avoid duplicate log entries. Only console log here for debugging.
 
     return card;
   }
