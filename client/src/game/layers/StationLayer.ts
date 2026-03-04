@@ -3,8 +3,9 @@
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameState, Position } from '@nannaricher/shared';
-import { MAIN_BOARD_CELLS, CORNER_INDICES, LINE_CONFIGS } from '@nannaricher/shared';
+import { MAIN_BOARD_CELLS, CORNER_INDICES, LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
+import { boardData } from '../../data/board';
 import {
   METRO_BOARD_WIDTH,
   METRO_BOARD_HEIGHT,
@@ -214,6 +215,29 @@ export class StationLayer implements RenderLayer {
         card.addChild(descText);
       }
 
+      // --- Transfer marker (换乘标记) ---
+      const transferLines = this.getTransferLines(index);
+      if (transferLines.length > 0) {
+        const transferBg = new Graphics();
+        transferBg.roundRect(-cardW / 2 + 2, cardH / 2 - 14, cardW - 4, 12, 3);
+        transferBg.fill({ color: 0x000000, alpha: 0.4 });
+        card.addChild(transferBg);
+
+        const transferLabel = new Text({
+          text: transferLines.map(t => t.symbol).join(' '),
+          style: new TextStyle({
+            fontFamily: DESIGN_TOKENS.typography.fontFamily,
+            fontSize: 7,
+            fill: 0xFFFFFF,
+            fontWeight: 'bold',
+            align: 'center',
+          }),
+        });
+        transferLabel.anchor.set(0.5);
+        transferLabel.y = cardH / 2 - 8;
+        card.addChild(transferLabel);
+      }
+
       // --- Interaction ---
       card.eventMode = 'static';
       card.cursor = 'pointer';
@@ -278,7 +302,13 @@ export class StationLayer implements RenderLayer {
 
         card.addChild(bg);
 
-        // --- Label: cell index number ---
+        // --- Resolve station name from boardData ---
+        const lineData = boardData.lines[line.id];
+        const stationName = isExperience
+          ? lineData?.experienceCard?.name ?? '体验卡'
+          : lineData?.cells?.[i]?.name ?? `${i + 1}`;
+
+        // --- Icon / index label ---
         const labelText = isExperience ? '\u2B50' : `${i + 1}`;
         const label = new Text({
           text: labelText,
@@ -291,25 +321,25 @@ export class StationLayer implements RenderLayer {
           }),
         });
         label.anchor.set(0.5);
-        label.y = isExperience ? -cardH / 2 + 16 : -4;
+        label.y = isExperience ? -cardH / 2 + 16 : -cardH / 2 + 14;
         card.addChild(label);
 
-        // Experience card: show "体验卡" text
-        if (isExperience) {
-          const expLabel = new Text({
-            text: '体验卡',
-            style: new TextStyle({
-              fontFamily: DESIGN_TOKENS.typography.fontFamily,
-              fontSize: 9,
-              fill: 0xE0C55E,
-              fontWeight: 'bold',
-              align: 'center',
-            }),
-          });
-          expLabel.anchor.set(0.5);
-          expLabel.y = 10;
-          card.addChild(expLabel);
-        }
+        // --- Station name text ---
+        const nameText = new Text({
+          text: this.getShortName(stationName),
+          style: new TextStyle({
+            fontFamily: DESIGN_TOKENS.typography.fontFamily,
+            fontSize: isExperience ? 9 : 7,
+            fill: isExperience ? 0xE0C55E : 0xFFFFFF,
+            fontWeight: 'bold',
+            align: 'center',
+            wordWrap: true,
+            wordWrapWidth: cardW - 8,
+          }),
+        });
+        nameText.anchor.set(0.5);
+        nameText.y = isExperience ? 10 : 6;
+        card.addChild(nameText);
 
         // --- Interaction ---
         card.eventMode = 'static';
@@ -376,5 +406,21 @@ export class StationLayer implements RenderLayer {
     if (EMOJI_BY_ID[id]) return EMOJI_BY_ID[id];
     if (EMOJI_BY_TYPE[type]) return EMOJI_BY_TYPE[type];
     return DEFAULT_EMOJI;
+  }
+
+  /** Returns transfer line info for a main ring station (entry or exit point). */
+  private getTransferLines(mainIndex: number): Array<{ lineId: string; symbol: string; isEntry: boolean }> {
+    const results: Array<{ lineId: string; symbol: string; isEntry: boolean }> = [];
+    for (const line of LINE_CONFIGS) {
+      const shortName = line.name.split(' ')[0]; // e.g. "浦口线" from "浦口线 - 浦口校区"
+      if (line.entryIndex === mainIndex) {
+        results.push({ lineId: line.id, symbol: `\u{21AA}${shortName}`, isEntry: true });
+      }
+      const exitIndex = LINE_EXIT_MAP[line.id];
+      if (exitIndex === mainIndex) {
+        results.push({ lineId: line.id, symbol: `${shortName}\u{21A9}`, isEntry: false });
+      }
+    }
+    return results;
   }
 }
