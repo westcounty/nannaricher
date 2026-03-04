@@ -46,10 +46,18 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     return defaultSettings;
   });
 
+  // Detect system prefers-reduced-motion once on mount
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setSettings(prev => ({ ...prev, reducedMotion: true }));
+    }
+  }, []);
+
+  // Apply settings to DOM and persist to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
-    // 应用设置到 DOM
     const root = document.documentElement;
 
     if (settings.highContrast) {
@@ -66,12 +74,6 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
 
     root.setAttribute('data-colorblind', settings.colorBlindMode);
     root.style.setProperty('--font-size-multiplier', String(settings.fontSize));
-
-    // 检测系统偏好
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion && !settings.reducedMotion) {
-      setSettings(prev => ({ ...prev, reducedMotion: true }));
-    }
   }, [settings]);
 
   const updateSettings = (newSettings: Partial<AccessibilitySettings>) => {

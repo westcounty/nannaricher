@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react';
+import { AccessibilityProvider } from './a11y/AccessibilityProvider';
 import { SocketProvider } from './context/SocketContext';
 import { GameProvider, useGameState } from './context/GameContext';
 import { ResponsiveProvider } from './ui/layouts/ResponsiveLayout';
 import { Lobby } from './components';
+import { LoadingScreen } from './components/LoadingScreen';
 import './App.css';
 
 // Lazy-load GameScreen — it pulls in pixi.js, framer-motion, and heavy game UI
@@ -11,12 +13,7 @@ const LazyGameScreen = lazy(() =>
 );
 
 function GameScreenFallback() {
-  return (
-    <div className="loading-screen">
-      <div className="loading-spinner" />
-      <p>Loading game...</p>
-    </div>
-  );
+  return <LoadingScreen type="loading" />;
 }
 
 function GameRouter() {
@@ -24,12 +21,7 @@ function GameRouter() {
 
   // Show loading screen while connecting
   if (isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner" />
-        <p>Connecting...</p>
-      </div>
-    );
+    return <LoadingScreen type="connecting" />;
   }
 
   // If we have game state with phase 'playing' or 'setup_plans', show the game screen
@@ -53,14 +45,16 @@ function GameRouter() {
 
 export default function App() {
   return (
-    <SocketProvider>
-      <GameProvider>
-        <ResponsiveProvider>
-          <div className="app">
-            <GameRouter />
-          </div>
-        </ResponsiveProvider>
-      </GameProvider>
-    </SocketProvider>
+    <AccessibilityProvider>
+      <SocketProvider>
+        <GameProvider>
+          <ResponsiveProvider>
+            <div className="app">
+              <GameRouter />
+            </div>
+          </ResponsiveProvider>
+        </GameProvider>
+      </SocketProvider>
+    </AccessibilityProvider>
   );
 }
