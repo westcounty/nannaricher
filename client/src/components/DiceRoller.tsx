@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useAnimation, useShakeAnimation } from '../hooks/useAnimation';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useShakeAnimation } from '../hooks/useAnimation';
 import { useGameState } from '../context/GameContext';
 import './DiceRoller.css';
 
@@ -51,12 +51,12 @@ export function DiceRoller({
     Array.from({ length: count }, () => 1)
   );
   const [finalValues, setFinalValues] = useState<number[]>([]);
-  const { isAnimating, progress, animate } = useAnimation(rollDuration);
   const { startShake, transform } = useShakeAnimation(3);
+  const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Randomize display values during roll
+  // Keep randomizing display values while rolling (until server result arrives)
   useEffect(() => {
-    if (isAnimating) {
+    if (rolling && finalValues.length === 0) {
       const interval = setInterval(() => {
         setDisplayValues(
           Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
@@ -64,9 +64,9 @@ export function DiceRoller({
       }, 50);
       return () => clearInterval(interval);
     }
-  }, [isAnimating, count]);
+  }, [rolling, finalValues.length, count]);
 
-  // Handle server dice result
+  // Handle server dice result — this stops the animation
   useEffect(() => {
     if (diceResult && diceResult.playerId === playerId) {
       setFinalValues(diceResult.values);
@@ -85,47 +85,59 @@ export function DiceRoller({
       setRolling(true);
       setFinalValues([]);
       startShake(rollDuration);
-      animate();
-    }
-  }, [isRolling, rolling, rollDuration, startShake, animate]);
 
-  // Handle animation completion (fallback if server doesn't respond)
-  useEffect(() => {
-    if (!isAnimating && progress === 1 && rolling && finalValues.length === 0) {
-      // Wait for server response - don't generate local values
-      // Server is authoritative
+      // Re-trigger shake periodically if server hasn't responded yet
+      shakeTimerRef.current = setInterval(() => {
+        startShake(rollDuration);
+      }, rollDuration);
     }
-  }, [isAnimating, progress, rolling, finalValues.length]);
+
+    return () => {
+      if (shakeTimerRef.current) {
+        clearInterval(shakeTimerRef.current);
+        shakeTimerRef.current = null;
+      }
+    };
+  }, [isRolling, rolling, rollDuration, startShake]);
+
+  // Clean up shake timer when rolling stops
+  useEffect(() => {
+    if (!rolling && shakeTimerRef.current) {
+      clearInterval(shakeTimerRef.current);
+      shakeTimerRef.current = null;
+    }
+  }, [rolling]);
 
   const handleManualRoll = useCallback(() => {
-    if (!rolling && !isAnimating && isMyTurn && !isRolling) {
+    if (!rolling && isMyTurn && !isRolling) {
       clearDiceResult();
       rollDice();
     }
-  }, [rolling, isAnimating, isMyTurn, isRolling, clearDiceResult, rollDice]);
+  }, [rolling, isMyTurn, isRolling, clearDiceResult, rollDice]);
 
   const total = finalValues.reduce((sum, v) => sum + v, 0);
+  const showRolling = rolling && finalValues.length === 0;
 
   return (
     <div className="dice-roller-container">
       <div
-        className={`dice-roller ${isAnimating ? 'animating' : ''}`}
+        className={`dice-roller ${showRolling ? 'animating' : ''}`}
         style={{ transform }}
       >
         {Array.from({ length: count }, (_, i) => (
           <div
             key={i}
-            className={`dice-wrapper ${isAnimating ? 'tumbling' : ''}`}
+            className={`dice-wrapper ${showRolling ? 'tumbling' : ''}`}
             style={{
               animationDelay: `${i * 0.1}s`,
             }}
           >
-            <DiceFace value={displayValues[i]} rolling={isAnimating} />
+            <DiceFace value={displayValues[i]} rolling={showRolling} />
           </div>
         ))}
       </div>
 
-      {!autoRoll && !rolling && !isAnimating && finalValues.length === 0 && (
+      {!autoRoll && !rolling && finalValues.length === 0 && (
         <button
           className="roll-button"
           onClick={handleManualRoll}
@@ -135,7 +147,7 @@ export function DiceRoller({
         </button>
       )}
 
-      {!isAnimating && finalValues.length > 0 && (
+      {!showRolling && finalValues.length > 0 && (
         <div className="dice-result">
           <div className="dice-values">
             {finalValues.map((v, i) => (
@@ -150,7 +162,7 @@ export function DiceRoller({
         </div>
       )}
 
-      {isAnimating && (
+      {showRolling && (
         <div className="rolling-indicator">
           掷骰子中...
         </div>

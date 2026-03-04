@@ -48,6 +48,8 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
     chanceCardsUsedOnPlayers: {},
     gulou_endpoint_count: 0,
     modifiedWinThresholds: {},
+    maxWinConditionSlots: 3,
+    disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
   };

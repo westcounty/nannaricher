@@ -73,6 +73,8 @@ export interface Player {
   chanceCardsUsedOnPlayers: Record<string, number>; // playerId -> count
   gulou_endpoint_count: number;
   modifiedWinThresholds: Record<string, number>; // 社会学院/AI学院动态阈值
+  maxWinConditionSlots: number;     // 最大胜利条件位（默认3: 基础+2培养计划）
+  disabledWinConditions: string[];  // 被禁用的胜利条件（'base' 或 planId）
   lawyerShield: boolean;        // 法学院：金钱保护盾
   lastDiceValues: number[];     // 上次骰子值（供能力使用）
 }
@@ -125,6 +127,7 @@ export interface GameState {
   turnOrderReversed: boolean;
   winner: string | null;        // player id
   log: GameLogEntry[];
+  disabledCells?: string[];     // 化学化工学院禁用的格子（单回合）
 }
 
 export interface GameLogEntry {
