@@ -2,8 +2,8 @@
 // Three-layout responsive game screen: desktop (>=1024), tablet (768-1023), mobile (<768)
 // Redesigned with CompactHeader, ActionBar, CompactPlayerCard, MobileStatusBar, MobileBottomNav
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useGameState } from '../context/GameContext';
+import { useEffect, useRef, useState } from 'react';
+import { useGameStore } from '../stores/gameStore';
 import { CompactHeader } from './CompactHeader';
 import { CompactPlayerCard } from './CompactPlayerCard';
 import { ActionBar } from './ActionBar';
@@ -17,27 +17,18 @@ import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './Choic
 import { VotePanel } from './VotePanel';
 import { ChainActionPanel } from './ChainActionPanel';
 import { DiceRoller } from './DiceRoller';
-import { CardHand } from './CardHand';
 import { TrainingPlanView } from './TrainingPlanView';
 import { useChat } from '../hooks/useChat';
+import { useLayout } from '../hooks/useLayout';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import { LoadingScreen } from './LoadingScreen';
-import type { Player } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { MobileSheetContent } from './MobileSheetContent';
+import { MiniPlayerOverlay } from './MiniPlayerOverlay';
 import { playSound } from '../audio/AudioManager';
 import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
 import '../styles/training-plan.css';
-
-// ============================================
-// Layout Types & Breakpoints
-// ============================================
-
-type LayoutMode = 'desktop' | 'tablet' | 'mobile';
-
-const BREAKPOINT_MOBILE = DESIGN_TOKENS.breakpoint.mobile;  // 768
-const BREAKPOINT_TABLET = DESIGN_TOKENS.breakpoint.tablet;   // 1024
 
 // Mobile panel definitions
 type PanelId = 'hand' | 'players' | 'more';
@@ -46,56 +37,24 @@ type PanelId = 'hand' | 'players' | 'more';
 type SidebarTab = 'chat' | 'log';
 
 // ============================================
-// Layout Detection Hook
-// ============================================
-
-function useLayout(): LayoutMode {
-  const [layout, setLayout] = useState<LayoutMode>(() => getLayout(window.innerWidth));
-
-  useEffect(() => {
-    let rafId: number;
-    const handleResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        setLayout(getLayout(window.innerWidth));
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return layout;
-}
-
-function getLayout(width: number): LayoutMode {
-  if (width >= BREAKPOINT_TABLET) return 'desktop';
-  if (width >= BREAKPOINT_MOBILE) return 'tablet';
-  return 'mobile';
-}
-
-// ============================================
 // GameScreen Component
 // ============================================
 
 export function GameScreen() {
-  const {
-    gameState,
-    playerId,
-    chooseAction,
-    confirmPlan,
-    useCard,
-    currentEvent,
-    announcement,
-    winner,
-    clearWinner,
-    isRolling,
-    diceResult,
-    rollDice,
-  } = useGameState();
+  const gameState = useGameStore((s) => s.gameState);
+  const playerId = useGameStore((s) => s.playerId);
+  const currentEvent = useGameStore((s) => s.currentEvent);
+  const announcement = useGameStore((s) => s.announcement);
+  const winner = useGameStore((s) => s.winner);
+  const isRolling = useGameStore((s) => s.isRolling);
+  const diceResult = useGameStore((s) => s.diceResult);
+  const socketActions = useGameStore((s) => s.socketActions);
+
+  const chooseAction = socketActions?.chooseAction ?? (() => {});
+  const confirmPlan = socketActions?.confirmPlan ?? (() => {});
+  const useCard = socketActions?.useCard ?? (() => {});
+  const rollDice = socketActions?.rollDice ?? (() => {});
+  const clearWinner = () => useGameStore.getState().setWinner(null);
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
 
@@ -283,9 +242,7 @@ export function GameScreen() {
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
                 diceResult={diceResult}
-                onCellClick={(cellId, position) => {
-                  console.log('Cell clicked:', cellId, position);
-                }}
+                onCellClick={() => {}}
               />
             </div>
             <MiniPlayerOverlay
@@ -459,162 +416,6 @@ export function GameScreen() {
 
       {/* Tutorial System */}
       <TutorialSystem />
-    </div>
-  );
-}
-
-// ============================================
-// MobileSheetContent — for tablet/mobile panels
-// ============================================
-
-interface MobileSheetContentProps {
-  activePanel: PanelId | null;
-  myPlayer: Player | undefined;
-  gameState: NonNullable<ReturnType<typeof useGameState>['gameState']>;
-  chatMessages: Array<{ id: string; playerName: string; playerColor: string; text: string; timestamp: number }>;
-  sendChatMessage: (message: string) => void;
-  allPlayers: Player[];
-  currentPlayer: Player | undefined;
-  playerId: string | null;
-  isMyTurn: boolean;
-  useCard: (cardId: string, targetPlayerId?: string) => void;
-}
-
-function MobileSheetContent({
-  activePanel,
-  myPlayer,
-  gameState,
-  chatMessages,
-  sendChatMessage,
-  allPlayers,
-  currentPlayer,
-  playerId,
-  isMyTurn,
-  useCard: onUseCard,
-}: MobileSheetContentProps) {
-  switch (activePanel) {
-    case 'hand':
-      return myPlayer ? (
-        <div className="action-bar__cards">
-          <CardHand
-            player={myPlayer}
-            onUseCard={onUseCard}
-            isCurrentPlayer={isMyTurn}
-            players={gameState?.players}
-          />
-        </div>
-      ) : null;
-
-    case 'players':
-      return (
-        <div className="mobile-players-list">
-          {allPlayers.map((player) => (
-            <CompactPlayerCard
-              key={player.id}
-              player={player}
-              isCurrentTurn={player.id === currentPlayer?.id}
-              isLocalPlayer={player.id === playerId}
-            />
-          ))}
-          {/* Training plan in players panel for mobile */}
-          {myPlayer && myPlayer.trainingPlans.length > 0 && (
-            <div style={{ marginTop: '12px' }}>
-              <TrainingPlanView
-                player={myPlayer}
-                turnNumber={gameState.turnNumber}
-                isCurrentPlayer={isMyTurn}
-              />
-            </div>
-          )}
-        </div>
-      );
-
-    case 'more':
-      return (
-        <MorePanel
-          chatMessages={chatMessages}
-          sendChatMessage={sendChatMessage}
-          gameState={gameState}
-        />
-      );
-
-    default:
-      return null;
-  }
-}
-
-// ============================================
-// MorePanel — tabbed chat/log for mobile
-// ============================================
-
-type MoreTab = 'chat' | 'log';
-
-function MorePanel({
-  chatMessages,
-  sendChatMessage,
-  gameState,
-}: {
-  chatMessages: Array<{ id: string; playerName: string; playerColor: string; text: string; timestamp: number }>;
-  sendChatMessage: (message: string) => void;
-  gameState: NonNullable<ReturnType<typeof useGameState>['gameState']>;
-}) {
-  const [tab, setTab] = useState<MoreTab>('chat');
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="more-panel-tabs">
-        <button
-          className={`more-panel-tab ${tab === 'chat' ? 'more-panel-tab--active' : ''}`}
-          onClick={() => setTab('chat')}
-        >
-          💬 聊天
-        </button>
-        <button
-          className={`more-panel-tab ${tab === 'log' ? 'more-panel-tab--active' : ''}`}
-          onClick={() => setTab('log')}
-        >
-          📜 日志
-        </button>
-      </div>
-      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {tab === 'chat' ? (
-          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
-        ) : (
-          <GameLog entries={gameState.log} players={gameState.players} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// MiniPlayerOverlay — small opponent indicators on mobile board
-// ============================================
-
-function MiniPlayerOverlay({
-  players,
-  currentPlayerId,
-  localPlayerId,
-}: {
-  players: Player[];
-  currentPlayerId: string | null;
-  localPlayerId: string | null;
-}) {
-  const others = players.filter((p) => p.id !== localPlayerId);
-  if (others.length === 0) return null;
-
-  return (
-    <div className="mini-player-overlay">
-      {others.map((p) => (
-        <div
-          key={p.id}
-          className={`mini-player-dot ${p.id === currentPlayerId ? 'active' : ''} ${p.isBankrupt ? 'bankrupt' : ''}`}
-          style={{ borderColor: p.color, '--player-color': p.color } as React.CSSProperties}
-        >
-          <span className="mini-player-initial">{p.name.charAt(0)}</span>
-          <span className="mini-player-money">{p.money}</span>
-        </div>
-      ))}
     </div>
   );
 }

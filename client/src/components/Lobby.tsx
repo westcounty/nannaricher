@@ -3,7 +3,7 @@ import { CreateRoom } from './CreateRoom';
 import { JoinRoom } from './JoinRoom';
 import { WaitingRoom } from './WaitingRoom';
 import { useSocket } from '../context/SocketContext';
-import { useGameState } from '../context/GameContext';
+import { useGameStore } from '../stores/gameStore';
 import { Player } from '@nannaricher/shared';
 import './Lobby.css';
 
@@ -20,7 +20,9 @@ interface LobbyState {
 
 export function Lobby() {
   const { socket } = useSocket();
-  const { gameState, roomId: contextRoomId, playerId: contextPlayerId } = useGameState();
+  const gameState = useGameStore((s) => s.gameState);
+  const contextRoomId = useGameStore((s) => s.roomId);
+  const contextPlayerId = useGameStore((s) => s.playerId);
 
   const [state, setState] = useState<LobbyState>({
     mode: 'select',

@@ -1,0 +1,246 @@
+/* ChainActionPanel — chain reaction card effects UI */
+
+.chain-action__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.chain-action__panel {
+  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-elevated) 100%);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+  width: 92%;
+  border: 1px solid rgba(139, 95, 191, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.chain-action__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.chain-action__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.chain-action__timer-badge {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: rgba(94, 58, 141, 0.6);
+  transition: background-color 0.3s ease;
+}
+
+.chain-action__timer-badge--urgent {
+  background-color: var(--color-danger);
+}
+
+.chain-action__prompt {
+  margin: 0 0 20px 0;
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.chain-action__chain-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-lg);
+}
+
+.chain-action__chain-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chain-action__chain-node {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  background-color: var(--color-bg-elevated);
+}
+
+.chain-action__chain-node--current {
+  transform: scale(1.15);
+  background-color: rgba(201, 162, 39, 0.3);
+}
+
+.chain-action__chain-node-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.chain-action__chain-node-text--completed {
+  color: #000;
+}
+
+.chain-action__completed-mark {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-success);
+  color: #000;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.chain-action__current-indicator {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulse 1.5s infinite;
+}
+
+.chain-action__chain-node-name {
+  font-size: 0.75rem;
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+.chain-action__chain-node-name--current {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.chain-action__chain-node-name--pending {
+  color: var(--color-text-muted);
+}
+
+.chain-action__arrow {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 2px;
+  color: var(--color-text-muted);
+  transition: color 0.3s ease;
+}
+
+.chain-action__arrow--completed {
+  color: var(--color-success);
+}
+
+.chain-action__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-action__action-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  border: none;
+  border-radius: var(--radius);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chain-action__action-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.chain-action__action-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.chain-action__waiting-message {
+  text-align: center;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: rgba(94, 58, 141, 0.15);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   Responsive — mobile
+   ============================================ */
+
+@media (max-width: 767px) {
+  .chain-action__panel {
+    padding: 16px;
+    width: 95%;
+    max-width: none;
+    border-radius: 12px;
+  }
+
+  .chain-action__title {
+    font-size: 1.1rem;
+  }
+
+  .chain-action__chain-container {
+    padding: 8px;
+    gap: 2px;
+  }
+
+  .chain-action__chain-node {
+    width: 36px;
+    height: 36px;
+  }
+
+  .chain-action__chain-node-text {
+    font-size: 0.75rem;
+  }
+
+  .chain-action__chain-node-name {
+    font-size: 0.65rem;
+    max-width: 36px;
+  }
+
+  .chain-action__arrow {
+    font-size: 1rem;
+  }
+
+  .chain-action__action-btn {
+    padding: 10px 12px;
+  }
+}

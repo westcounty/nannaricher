@@ -48,6 +48,8 @@ const LEGACY_MAP: Record<string, SoundName> = {
 class AudioManagerImpl {
   private static _instance: AudioManagerImpl | null = null;
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private patchedCtx: AudioContext | null = null;
   private settings: AudioSettings;
   private _muted: boolean;
 
@@ -85,6 +87,17 @@ class AudioManagerImpl {
       const AudioCtx = window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AudioCtx();
+
+      // Create a persistent master GainNode to avoid per-play allocations
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = this.settings.masterVolume * this.settings.sfxVolume;
+      this.masterGain.connect(this.ctx.destination);
+
+      // Create a single patched context that routes audio through the master gain
+      this.patchedCtx = Object.create(this.ctx, {
+        destination: { get: () => this.masterGain },
+      }) as AudioContext;
+
       return this.ctx;
     } catch (error) {
       console.warn('[AudioManager] Failed to create AudioContext:', error);
@@ -140,17 +153,12 @@ class AudioManagerImpl {
       const resolved = LEGACY_MAP[sound] || sound;
       const synthFn = SOUNDS[resolved as SoundName];
       if (synthFn) {
-        // Create a gain node for volume control
-        const masterGain = ctx.createGain();
-        masterGain.gain.value = this.settings.masterVolume * this.settings.sfxVolume;
-        masterGain.connect(ctx.destination);
+        // Update the persistent master gain with current volume settings
+        if (this.masterGain) {
+          this.masterGain.gain.value = this.settings.masterVolume * this.settings.sfxVolume;
+        }
 
-        // Patch destination for volume control
-        const patchedCtx = Object.create(ctx, {
-          destination: { get: () => masterGain },
-        }) as AudioContext;
-
-        synthFn(patchedCtx);
+        synthFn(this.patchedCtx || ctx);
       } else {
         console.warn(`[AudioManager] Unknown sound: "${sound}"`);
       }

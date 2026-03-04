@@ -1,7 +1,7 @@
 // client/src/components/CurrentPlayerPanel.tsx
 import React, { useState, useCallback } from 'react';
 import type { Player } from '@nannaricher/shared';
-import { useGameState } from '../context/GameContext';
+import { useGameStore } from '../stores/gameStore';
 import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
 import { boardData } from '../data/board';
 
@@ -14,7 +14,12 @@ export function CurrentPlayerPanel({
   player,
   isMyTurn,
 }: CurrentPlayerPanelProps) {
-  const { rollDice, isRolling, diceResult, gameState, confirmPlan } = useGameState();
+  const isRolling = useGameStore((s) => s.isRolling);
+  const diceResult = useGameStore((s) => s.diceResult);
+  const gameState = useGameStore((s) => s.gameState);
+  const socketActions = useGameStore((s) => s.socketActions);
+  const rollDice = socketActions?.rollDice ?? (() => {});
+  const confirmPlan = socketActions?.confirmPlan ?? (() => {});
   const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
 
   if (!player) {

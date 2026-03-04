@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PendingAction, Player } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import '../styles/chain-action.css';
 
 // ============================================
 // Types
@@ -84,28 +84,21 @@ export function ChainActionPanel({
   const isUrgent = timeRemaining <= 5;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.panel}>
+    <div className="chain-action__overlay">
+      <div className="chain-action__panel">
         {/* Header */}
-        <div style={styles.header}>
-          <h3 style={styles.title}>连锁行动</h3>
-          <div
-            style={{
-              ...styles.timerBadge,
-              backgroundColor: isUrgent
-                ? DESIGN_TOKENS.color.text.danger
-                : 'rgba(94, 58, 141, 0.6)',
-            }}
-          >
+        <div className="chain-action__header">
+          <h3 className="chain-action__title">连锁行动</h3>
+          <div className={`chain-action__timer-badge${isUrgent ? ' chain-action__timer-badge--urgent' : ''}`}>
             {timeRemaining}s
           </div>
         </div>
 
         {/* Prompt */}
-        <p style={styles.prompt}>{pendingAction.prompt}</p>
+        <p className="chain-action__prompt">{pendingAction.prompt}</p>
 
         {/* Chain visualization */}
-        <div style={styles.chainContainer}>
+        <div className="chain-action__chain-container">
           {chainOrder.map((pid, index) => {
             const player = playerMap.get(pid);
             if (!player) return null;
@@ -114,61 +107,53 @@ export function ChainActionPanel({
             const isCurrent = index === currentChainIndex;
             const isPending = !isCompleted && !isCurrent;
 
+            const nodeClass = [
+              'chain-action__chain-node',
+              isCurrent ? 'chain-action__chain-node--current' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+
+            // Dynamic styles: player color border, completed bg, current glow
+            const nodeStyle: React.CSSProperties = {
+              borderColor: player.color,
+              ...(isCompleted
+                ? { backgroundColor: player.color }
+                : {}),
+              ...(isCurrent
+                ? { boxShadow: `0 0 16px ${player.color}80, 0 0 4px rgba(201, 162, 39, 0.38)` }
+                : {}),
+            };
+
+            const nameClass = [
+              'chain-action__chain-node-name',
+              isCurrent ? 'chain-action__chain-node-name--current' : '',
+              isPending ? 'chain-action__chain-node-name--pending' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+
             return (
-              <div key={pid} style={styles.chainItem}>
+              <div key={pid} className="chain-action__chain-item">
                 {/* Player node */}
-                <div
-                  style={{
-                    ...styles.chainNode,
-                    borderColor: player.color,
-                    backgroundColor: isCompleted
-                      ? player.color
-                      : isCurrent
-                        ? 'rgba(201, 162, 39, 0.3)'
-                        : DESIGN_TOKENS.color.bg.elevated,
-                    boxShadow: isCurrent
-                      ? `0 0 16px ${player.color}80, 0 0 4px ${DESIGN_TOKENS.color.brand.accent}60`
-                      : 'none',
-                    transform: isCurrent ? 'scale(1.15)' : 'scale(1)',
-                  }}
-                >
+                <div className={nodeClass} style={nodeStyle}>
                   <span
-                    style={{
-                      ...styles.chainNodeText,
-                      color: isCompleted ? '#000' : DESIGN_TOKENS.color.text.primary,
-                    }}
+                    className={`chain-action__chain-node-text${isCompleted ? ' chain-action__chain-node-text--completed' : ''}`}
                   >
                     {player.name.charAt(0)}
                   </span>
-                  {isCompleted && <span style={styles.completedMark}>✓</span>}
-                  {isCurrent && <span style={styles.currentIndicator} />}
+                  {isCompleted && <span className="chain-action__completed-mark">✓</span>}
+                  {isCurrent && <span className="chain-action__current-indicator" />}
                 </div>
 
                 {/* Player name */}
-                <span
-                  style={{
-                    ...styles.chainNodeName,
-                    color: isCurrent
-                      ? DESIGN_TOKENS.color.brand.accent
-                      : isPending
-                        ? DESIGN_TOKENS.color.text.muted
-                        : DESIGN_TOKENS.color.text.primary,
-                    fontWeight: isCurrent ? 700 : 400,
-                  }}
-                >
+                <span className={nameClass}>
                   {player.name}
                 </span>
 
                 {/* Arrow connector (except last) */}
                 {index < chainOrder.length - 1 && (
-                  <div
-                    style={{
-                      ...styles.arrow,
-                      color: isCompleted
-                        ? DESIGN_TOKENS.color.text.success
-                        : DESIGN_TOKENS.color.text.muted,
-                    }}
-                  >
+                  <div className={`chain-action__arrow${isCompleted ? ' chain-action__arrow--completed' : ''}`}>
                     →
                   </div>
                 )}
@@ -179,11 +164,11 @@ export function ChainActionPanel({
 
         {/* Action buttons for current player */}
         {isMyTurn && !isSubmitted && (
-          <div style={styles.actionsContainer}>
+          <div className="chain-action__actions">
             {(pendingAction.options || []).map((option) => (
               <button
                 key={option.value}
-                style={styles.actionButton}
+                className="chain-action__action-btn"
                 onClick={() => handleAction(option.value)}
               >
                 {option.label}
@@ -194,169 +179,18 @@ export function ChainActionPanel({
 
         {/* Waiting message */}
         {!isMyTurn && (
-          <div style={styles.waitingMessage}>
+          <div className="chain-action__waiting-message">
             等待 {playerMap.get(currentChainPlayerId)?.name || '玩家'} 操作...
           </div>
         )}
 
         {/* Submitted message */}
         {isMyTurn && isSubmitted && (
-          <div style={styles.waitingMessage}>已选择，等待链中下一位玩家...</div>
+          <div className="chain-action__waiting-message">已选择，等待链中下一位玩家...</div>
         )}
       </div>
     </div>
   );
 }
-
-// ============================================
-// Inline Styles
-// ============================================
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 500,
-    animation: 'fadeIn 0.3s ease-out',
-  },
-  panel: {
-    background: `linear-gradient(135deg, ${DESIGN_TOKENS.color.bg.surface} 0%, ${DESIGN_TOKENS.color.bg.elevated} 100%)`,
-    borderRadius: DESIGN_TOKENS.radius.xl,
-    padding: '24px',
-    maxWidth: '480px',
-    width: '92%',
-    border: '1px solid rgba(139, 95, 191, 0.3)',
-    boxShadow: DESIGN_TOKENS.shadow.lg,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '1.25rem',
-    fontWeight: 700,
-    color: DESIGN_TOKENS.color.text.primary,
-  },
-  timerBadge: {
-    padding: '4px 10px',
-    borderRadius: DESIGN_TOKENS.radius.pill,
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    color: DESIGN_TOKENS.color.text.primary,
-    transition: 'background-color 0.3s ease',
-  },
-  prompt: {
-    margin: '0 0 20px 0',
-    fontSize: '1rem',
-    color: DESIGN_TOKENS.color.text.secondary,
-    lineHeight: 1.5,
-  },
-  chainContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '4px',
-    flexWrap: 'wrap' as const,
-    marginBottom: '20px',
-    padding: '12px',
-    background: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: DESIGN_TOKENS.radius.lg,
-  },
-  chainItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  chainNode: {
-    position: 'relative' as const,
-    width: '44px',
-    height: '44px',
-    borderRadius: '50%',
-    border: '2px solid',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.3s ease',
-  },
-  chainNodeText: {
-    fontSize: '0.875rem',
-    fontWeight: 600,
-  },
-  chainNodeName: {
-    fontSize: '0.75rem',
-    maxWidth: '48px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-    textAlign: 'center' as const,
-  },
-  completedMark: {
-    position: 'absolute' as const,
-    bottom: '-2px',
-    right: '-2px',
-    width: '16px',
-    height: '16px',
-    borderRadius: '50%',
-    background: DESIGN_TOKENS.color.text.success,
-    color: '#000',
-    fontSize: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 700,
-  },
-  currentIndicator: {
-    position: 'absolute' as const,
-    top: '-4px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: DESIGN_TOKENS.color.brand.accent,
-    animation: 'pulse 1.5s infinite',
-  },
-  arrow: {
-    fontSize: '1.2rem',
-    fontWeight: 700,
-    margin: '0 2px',
-    transition: 'color 0.3s ease',
-  },
-  actionsContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  actionButton: {
-    width: '100%',
-    padding: '12px 16px',
-    background: `linear-gradient(135deg, ${DESIGN_TOKENS.color.brand.primary}, ${DESIGN_TOKENS.color.brand.primaryLight})`,
-    border: 'none',
-    borderRadius: DESIGN_TOKENS.radius.md,
-    color: DESIGN_TOKENS.color.text.primary,
-    fontSize: '1rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  waitingMessage: {
-    textAlign: 'center' as const,
-    padding: '12px',
-    borderRadius: DESIGN_TOKENS.radius.md,
-    background: 'rgba(94, 58, 141, 0.15)',
-    color: DESIGN_TOKENS.color.text.secondary,
-    fontSize: '0.875rem',
-  },
-};
 
 export default ChainActionPanel;

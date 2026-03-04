@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
-import { useGameState } from '../context/GameContext';
+import { useGameStore } from '../stores/gameStore';
 import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
 
 interface TrainingPlanViewProps {
@@ -14,7 +14,9 @@ export function TrainingPlanView({
   turnNumber,
   isCurrentPlayer
 }: TrainingPlanViewProps) {
-  const { confirmPlan, gameState, isMyTurn } = useGameState();
+  const gameState = useGameStore((s) => s.gameState);
+  const socketActions = useGameStore((s) => s.socketActions);
+  const confirmPlan = socketActions?.confirmPlan ?? (() => {});
   const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
 
   // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)

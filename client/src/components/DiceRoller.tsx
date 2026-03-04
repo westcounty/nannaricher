@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAnimation, useShakeAnimation } from '../hooks/useAnimation';
-import { useGameState } from '../context/GameContext';
+import { useGameStore } from '../stores/gameStore';
 import './DiceRoller.css';
 
 interface DiceRollerProps {
@@ -45,7 +45,16 @@ export function DiceRoller({
   rollDuration = 800,
   onComplete,
 }: DiceRollerProps) {
-  const { diceResult, isRolling, rollDice, clearDiceResult, isMyTurn, playerId } = useGameState();
+  const diceResult = useGameStore((s) => s.diceResult);
+  const isRolling = useGameStore((s) => s.isRolling);
+  const playerId = useGameStore((s) => s.playerId);
+  const isMyTurn = useGameStore((s) => {
+    if (!s.gameState || !s.playerId) return false;
+    return s.gameState.players[s.gameState.currentPlayerIndex]?.id === s.playerId;
+  });
+  const socketActions = useGameStore((s) => s.socketActions);
+  const rollDice = socketActions?.rollDice ?? (() => {});
+  const clearDiceResult = () => useGameStore.getState().setDiceResult(null);
   const [rolling, setRolling] = useState(false);
   const [displayValues, setDisplayValues] = useState<number[]>(() =>
     Array.from({ length: count }, () => 1)

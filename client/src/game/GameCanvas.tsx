@@ -40,6 +40,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const viewportRef = useRef<ViewportController | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
 
+  // Keep a ref to the latest onCellClick so the PixiJS layer always calls the current callback
+  const onCellClickRef = useRef(onCellClick);
+  onCellClickRef.current = onCellClick;
+
   // Initialize PixiJS Application + layered stage
   useEffect(() => {
     const container = containerRef.current;
@@ -78,10 +82,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const stage = new GameStage();
       stage.addLayer(new BackgroundLayer());
       stage.addLayer(new LineLayer());
-      // TODO: onCellClick may capture a stale closure if the callback references
-      // component state that changes between renders. Consider using a ref-based
-      // approach (e.g., onCellClickRef.current) to always call the latest callback.
-      stage.addLayer(new BoardLayer({ onCellClick }));
+      stage.addLayer(new BoardLayer({ onCellClick: (cellId, pos) => onCellClickRef.current?.(cellId, pos) }));
 
       // Create PlayerLayer with animation support
       const playerLayer = new PlayerLayer();
@@ -169,7 +170,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.money - prevPlayer.money;
           const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
           const color = delta > 0 ? '#4ade80' : '#ef4444';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color);
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current || undefined);
           if (player.id === currentPlayerId) {
             playSound(delta > 0 ? 'coin_gain' : 'coin_loss');
           }
@@ -180,7 +181,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.gpa - prevPlayer.gpa;
           const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
           const color = '#60a5fa';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color);
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current || undefined);
           if (player.id === currentPlayerId) {
             playSound(delta > 0 ? 'gpa_up' : 'gpa_down');
           }
@@ -191,7 +192,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const delta = player.exploration - prevPlayer.exploration;
           const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
           const color = '#fbbf24';
-          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color);
+          showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current || undefined);
           if (player.id === currentPlayerId) {
             playSound('explore_up');
           }

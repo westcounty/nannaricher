@@ -1,15 +1,12 @@
 // client/src/context/SocketProvider.tsx
-// Thin Socket.IO connection manager — only manages connection lifecycle
-// and bridges socket events to the Zustand store.
-// Does NOT hold any game state itself.
+// Bridges socket events from SocketContext to the Zustand store.
+// Does NOT create its own socket — it uses the one from SocketContext.
 
 import React, { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useSocket } from './SocketContext';
 import { useGameStore } from '../stores/gameStore';
-import type { ClientToServerEvents, ServerToClientEvents, GameState } from '@nannaricher/shared';
+import type { GameState, PendingAction } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
-
-type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 /**
  * Compare previous and new game state and play appropriate sounds.
@@ -75,33 +72,27 @@ function diffAndPlaySounds(
 }
 
 /**
- * SocketProvider — wraps children with a Socket.IO connection.
+ * ZustandBridge — sits inside SocketContext's SocketProvider.
  *
  * On mount it:
- *   1. Creates a socket connection
- *   2. Injects socket-based actions into the Zustand store
- *   3. Listens for server events and updates the store
+ *   1. Injects socket-based actions into the Zustand store
+ *   2. Listens for server events and updates the store
  *
- * On unmount it disconnects cleanly.
+ * On unmount it cleans up listeners.
  */
-export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const socketRef = useRef<GameSocket | null>(null);
+export function ZustandBridge({ children }: { children: React.ReactNode }) {
+  const { socket, isConnected } = useSocket();
   const prevStateRef = useRef<GameState | null>(null);
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const store = useGameStore;
 
+  // Keep isLoading synced with connection status
   useEffect(() => {
-    const socket: GameSocket = io(window.location.origin, {
-      path: '/socket.io',
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
+    store.getState().setLoading(!isConnected);
+  }, [isConnected]);
 
-    socketRef.current = socket;
+  useEffect(() => {
+    if (!socket) return;
 
     // ------ Inject socket actions into Zustand store ------
     store.getState().setSocketActions({
@@ -128,63 +119,55 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // ------ Connection lifecycle ------
-    socket.on('connect', () => {
-      console.log('[SocketProvider] Connected:', socket.id);
-      store.getState().setLoading(false);
-      store.getState().setError(null);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('[SocketProvider] Disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        store.getState().setError('Server disconnected. Reconnecting...');
-      }
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('[SocketProvider] Connection error:', error.message);
-      store.getState().setError(`Connection failed: ${error.message}`);
-    });
-
     // ------ Game event listeners -> store updates ------
-    socket.on('game:state-update', (state) => {
+    const handleStateUpdate = (state: GameState) => {
       const localPlayerId = store.getState().playerId;
       diffAndPlaySounds(prevStateRef.current, state, localPlayerId);
       prevStateRef.current = state;
       store.getState().setGameState(state);
-    });
+    };
 
-    socket.on('game:card-drawn', (data) => {
-      playSound('card_draw');
-      store.getState().setDrawnCard(data);
-    });
-
-    socket.on('room:created', ({ roomId, playerId }) => {
+    const handleRoomCreated = ({ roomId, playerId }: { roomId: string; playerId: string }) => {
       store.getState().setRoomId(roomId);
       store.getState().setPlayerId(playerId);
       store.getState().setError(null);
-    });
+    };
 
-    socket.on('room:joined', ({ playerId }) => {
+    const handleRoomJoined = ({ playerId }: { playerId: string }) => {
       store.getState().setPlayerId(playerId);
       store.getState().setError(null);
-    });
+    };
 
-    socket.on('room:error', ({ message }) => {
-      console.error('[SocketProvider] Room error:', message);
+    const handleRoomError = ({ message }: { message: string }) => {
+      console.error('[ZustandBridge] Room error:', message);
       store.getState().setError(message);
-    });
+    };
 
-    socket.on('game:dice-result', (data) => {
+    const handleCardDrawn = (data: { card: any; deckType: string }) => {
+      playSound('card_draw');
+      store.getState().setDrawnCard(data);
+    };
+
+    const handleDiceResult = (data: { playerId: string; values: number[]; total: number }) => {
       store.getState().setDiceResult(data);
       playSound('dice_land');
-    });
+    };
 
-    // NOTE: game:event-trigger is handled by GameContext to avoid duplicate listeners.
-    // Sound is played there as well.
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction: PendingAction }) => {
+      // Only show event modal if this event is for the current player
+      const localPlayerId = store.getState().playerId;
+      if (data.pendingAction?.playerId && data.pendingAction.playerId !== localPlayerId) {
+        return;
+      }
+      store.getState().setCurrentEvent({
+        title: data.title,
+        description: data.description,
+        pendingAction: data.pendingAction,
+      });
+      playSound('event_trigger');
+    };
 
-    socket.on('game:announcement', (data) => {
+    const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
       store.getState().setAnnouncement({
         ...data,
         timestamp: Date.now(),
@@ -199,23 +182,40 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         store.getState().setAnnouncement(null);
         announcementTimerRef.current = null;
       }, 5000);
-    });
+    };
 
-    socket.on('game:player-won', (data) => {
+    const handlePlayerWon = (data: { playerId: string; playerName: string; condition: string }) => {
       store.getState().setWinner(data);
       playSound('victory');
       // Fanfare follows after a brief delay
       setTimeout(() => playSound('victory_fanfare'), 300);
-    });
+    };
+
+    socket.on('game:state-update', handleStateUpdate);
+    socket.on('room:created', handleRoomCreated);
+    socket.on('room:joined', handleRoomJoined);
+    socket.on('room:error', handleRoomError);
+    socket.on('game:card-drawn', handleCardDrawn);
+    socket.on('game:dice-result', handleDiceResult);
+    socket.on('game:event-trigger', handleEventTrigger);
+    socket.on('game:announcement', handleAnnouncement);
+    socket.on('game:player-won', handlePlayerWon);
 
     // ------ Cleanup ------
     return () => {
       if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
       store.getState().setSocketActions(null);
-      socket.disconnect();
-      socketRef.current = null;
+      socket.off('game:state-update', handleStateUpdate);
+      socket.off('room:created', handleRoomCreated);
+      socket.off('room:joined', handleRoomJoined);
+      socket.off('room:error', handleRoomError);
+      socket.off('game:card-drawn', handleCardDrawn);
+      socket.off('game:dice-result', handleDiceResult);
+      socket.off('game:event-trigger', handleEventTrigger);
+      socket.off('game:announcement', handleAnnouncement);
+      socket.off('game:player-won', handlePlayerWon);
     };
-  }, []);
+  }, [socket]);
 
   return <>{children}</>;
 }

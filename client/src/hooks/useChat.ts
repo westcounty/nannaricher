@@ -1,7 +1,7 @@
 // client/src/hooks/useChat.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
-import { useGameState } from '../context/GameContext';
+import { useGameStore } from '../stores/gameStore';
 import type { ChatMessage } from '../components/ChatPanel';
 
 interface UseChatReturn {
@@ -12,7 +12,7 @@ interface UseChatReturn {
 
 export function useChat(): UseChatReturn {
   const { socket, isConnected } = useSocket();
-  const { gameState, playerId } = useGameState();
+  const gameState = useGameStore((s) => s.gameState);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Listen for chat messages from server

@@ -1,7 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
-import { useGameState } from '../context/GameContext';
-import type { PendingAction } from '@nannaricher/shared';
+import { useGameStore } from '../stores/gameStore';
 import './EventModal.css';
 
 interface EffectPreview {
@@ -31,10 +30,14 @@ export function EventModal({
   confirmText = '确定',
   showCloseButton = false,
 }: EventModalProps) {
-  const { currentEvent, chooseAction, clearEvent } = useGameState();
+  const currentEvent = useGameStore((s) => s.currentEvent);
+  const socketActions = useGameStore((s) => s.socketActions);
+  const chooseAction = socketActions?.chooseAction ?? (() => {});
+  const clearEvent = () => useGameStore.getState().setCurrentEvent(null);
   const { isVisible, opacity, fadeIn } = useFadeAnimation(300);
   const [isClosing, setIsClosing] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Use props or game context data
   const title = propTitle || currentEvent?.title || '事件';
@@ -44,6 +47,16 @@ export function EventModal({
   useEffect(() => {
     fadeIn();
   }, [fadeIn]);
+
+  // Clear all pending timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const id of timerRefs.current) {
+        clearTimeout(id);
+      }
+      timerRefs.current = [];
+    };
+  }, []);
 
   const handleOptionSelect = useCallback((value: string) => {
     if (isClosing) return;
@@ -55,34 +68,34 @@ export function EventModal({
       chooseAction(pendingAction.id, value);
     }
 
-    setTimeout(() => {
+    timerRefs.current.push(setTimeout(() => {
       if (onConfirm) {
         onConfirm();
       }
       clearEvent();
-    }, 200);
+    }, 200));
   }, [isClosing, pendingAction, chooseAction, onConfirm, clearEvent]);
 
   const handleConfirm = useCallback(() => {
     if (!pendingAction) {
       // No pending action, just confirm and close
       setIsClosing(true);
-      setTimeout(() => {
+      timerRefs.current.push(setTimeout(() => {
         if (onConfirm) {
           onConfirm();
         }
         clearEvent();
-      }, 150);
+      }, 150));
     }
   }, [pendingAction, onConfirm, clearEvent]);
 
   const handleClose = useCallback(() => {
     if (onClose) {
       setIsClosing(true);
-      setTimeout(() => {
+      timerRefs.current.push(setTimeout(() => {
         onClose();
         clearEvent();
-      }, 150);
+      }, 150));
     }
   }, [onClose, clearEvent]);
 
@@ -222,7 +235,8 @@ export function createEffectPreview(
 
 // Container component that automatically shows events from game context
 export function GameEventModal() {
-  const { currentEvent, clearEvent } = useGameState();
+  const currentEvent = useGameStore((s) => s.currentEvent);
+  const clearEvent = () => useGameStore.getState().setCurrentEvent(null);
 
   if (!currentEvent) return null;
 

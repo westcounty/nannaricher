@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { AccessibilityProvider } from './a11y/AccessibilityProvider';
 import { SocketProvider } from './context/SocketContext';
-import { GameProvider, useGameState } from './context/GameContext';
+import { ZustandBridge } from './context/SocketProvider';
+import { useGameStore } from './stores/gameStore';
 import { ResponsiveProvider } from './ui/layouts/ResponsiveLayout';
 import { Lobby } from './components';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -17,7 +18,9 @@ function GameScreenFallback() {
 }
 
 function GameRouter() {
-  const { gameState, isLoading, roomId } = useGameState();
+  const gameState = useGameStore((s) => s.gameState);
+  const isLoading = useGameStore((s) => s.isLoading);
+  const roomId = useGameStore((s) => s.roomId);
 
   // Show loading screen while connecting
   if (isLoading) {
@@ -47,13 +50,13 @@ export default function App() {
   return (
     <AccessibilityProvider>
       <SocketProvider>
-        <GameProvider>
+        <ZustandBridge>
           <ResponsiveProvider>
             <div className="app">
               <GameRouter />
             </div>
           </ResponsiveProvider>
-        </GameProvider>
+        </ZustandBridge>
       </SocketProvider>
     </AccessibilityProvider>
   );
