@@ -16,7 +16,6 @@ export class CanvasController {
   private isDragging = false;
   private lastMouse: Point = { x: 0, y: 0 };
   private lastTouchDist = 0;
-  private lastTouchCenter: Point = { x: 0, y: 0 };
   private canvas: HTMLCanvasElement;
   private onViewportChange: (vp: Viewport) => void;
   private onHover?: (screenPos: Point, boardPos: Point) => void;
@@ -187,7 +186,6 @@ export class CanvasController {
       // Pinch start
       this.isDragging = false;
       this.lastTouchDist = this.getTouchDistance(e.touches);
-      this.lastTouchCenter = this.getTouchCenter(e.touches);
     }
   };
 
@@ -229,7 +227,6 @@ export class CanvasController {
       }
 
       this.lastTouchDist = newDist;
-      this.lastTouchCenter = newCenter;
     }
   };
 

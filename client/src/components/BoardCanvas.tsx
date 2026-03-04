@@ -1,11 +1,11 @@
 // client/src/components/BoardCanvas.tsx
 // React组件 - 棋盘Canvas渲染
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { GameState, Player, BoardCell, BoardLine, Position } from '@nannaricher/shared';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { GameState, BoardCell, BoardLine } from '@nannaricher/shared';
 import { CanvasController } from '../canvas/CanvasController';
 import type { Viewport, Point } from '../canvas/types';
-import { BoardRenderer, CELL_COLORS } from '../canvas/BoardRenderer';
+import { BoardRenderer } from '../canvas/BoardRenderer';
 import { CellTooltip } from './CellTooltip';
 import { defaultRenderConfig } from '../canvas/types';
 

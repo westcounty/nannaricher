@@ -1,8 +1,11 @@
 // client/src/game/board/CellSprite.tsx
 import React, { useCallback, useMemo } from 'react';
-import { Container, Graphics, Text } from '@pixi/react';
-import { Graphics as PixiGraphics, TextStyle } from 'pixi.js';
+import { extend } from '@pixi/react';
+import { Container, Graphics as PixiGraphics, Text, TextStyle } from 'pixi.js';
 import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
+
+// Register PixiJS components for JSX usage
+extend({ Container, Graphics: PixiGraphics, Text });
 
 interface CellSpriteProps {
   cell: {
@@ -101,27 +104,27 @@ export const CellSprite: React.FC<CellSpriteProps> = ({
     switch (cell.type) {
       case 'chance': return '?';
       case 'event': return '!';
-      case 'line_entry': return '→';
+      case 'line_entry': return '\u2192';
       default: return '';
     }
   }, [cell.type]);
 
   return (
-    <Container
+    <pixiContainer
       x={x}
       y={y}
       interactive={true}
-      pointerdown={onClick}
+      onPointerDown={onClick}
     >
-      <Graphics draw={drawCell} />
-      <Text
+      <pixiGraphics draw={drawCell} />
+      <pixiText
         text={cell.name}
         style={nameStyle}
         anchor={0.5}
         y={isCorner ? -5 : -8}
       />
       {typeIcon && (
-        <Text
+        <pixiText
           text={typeIcon}
           style={new TextStyle({
             fontSize: 20,
@@ -132,6 +135,6 @@ export const CellSprite: React.FC<CellSpriteProps> = ({
           y={size/3 - 5}
         />
       )}
-    </Container>
+    </pixiContainer>
   );
 };

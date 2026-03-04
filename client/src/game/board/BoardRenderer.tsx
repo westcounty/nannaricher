@@ -121,7 +121,6 @@ function drawBackground(g: Graphics) {
 }
 
 export const BoardRenderer: React.FC<BoardRendererProps> = ({
-  gameState,
   onCellClick,
 }) => {
   const cells = MAIN_BOARD_CELLS.map((cell, index) => {
@@ -137,7 +136,7 @@ export const BoardRenderer: React.FC<BoardRendererProps> = ({
         y={pos.y}
         draw={createDrawCellFn(size, color)}
         interactive={true}
-        pointerdown={() => {
+        onPointerDown={() => {
           const position: MainPosition = { type: 'main', index };
           onCellClick?.(cell.id, position);
         }}

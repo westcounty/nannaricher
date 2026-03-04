@@ -1,7 +1,7 @@
 // client/src/game/pieces/Dice.tsx
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { extend } from '@pixi/react';
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 
 // 注册 PixiJS 组件
 extend({ Container, Graphics, Text });

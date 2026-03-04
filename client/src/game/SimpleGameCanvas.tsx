@@ -2,7 +2,7 @@
 // 简化版本 - 用于调试 PixiJS 问题
 import React, { useRef, useEffect, useState } from 'react';
 import { Application, extend } from '@pixi/react';
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
@@ -23,9 +23,9 @@ const drawRect = (g: Graphics) => {
 };
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
-  gameState,
-  currentPlayerId,
-  onCellClick,
+  gameState: _gameState,
+  currentPlayerId: _currentPlayerId,
+  onCellClick: _onCellClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);

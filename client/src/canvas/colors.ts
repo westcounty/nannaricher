@@ -65,7 +65,7 @@ export const UI_COLORS = {
 export function getCellColor(
   type: string,
   cornerType?: string,
-  lineId?: string
+  _lineId?: string
 ): string {
   switch (type) {
     case 'corner':

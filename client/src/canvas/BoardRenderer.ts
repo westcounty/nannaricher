@@ -2,7 +2,7 @@
 // 棋盘渲染核心逻辑 - 南京大学大富翁"菜根人生"
 
 import { BoardCell, BoardLine, BoardData, Player, Position } from '@nannaricher/shared';
-import { Point, CellRenderInfo, LineRenderInfo, BoardRenderConfig, defaultRenderConfig } from './types';
+import { CellRenderInfo, LineRenderInfo, BoardRenderConfig, defaultRenderConfig } from './types';
 
 // 格子颜色配置
 const CELL_COLORS = {
@@ -95,9 +95,6 @@ export class BoardRenderer {
       { index: 16, angle: 45 },    // 鼎 - 右下
       { index: 24, angle: 135 },   // 候车厅 - 左下
     ];
-
-    // 每边的格子数（不含角落）
-    const sideLength = 6;
 
     // 先放置角落格子
     corners.forEach(corner => {
@@ -226,7 +223,7 @@ export class BoardRenderer {
     if (cell.type === 'corner' && cell.cornerType) {
       return CELL_COLORS[cell.cornerType] || CELL_COLORS.default;
     }
-    return CELL_COLORS[cell.type] || CELL_COLORS.default;
+    return CELL_COLORS[cell.type as keyof typeof CELL_COLORS] || CELL_COLORS.default;
   }
 
   // === 公共方法 ===
@@ -510,7 +507,7 @@ export class BoardRenderer {
 
   // 绘制玩家棋子
   private drawPlayers(players: Player[]): void {
-    const { ctx, config } = this;
+    const { ctx } = this;
 
     // 按位置分组玩家
     const positionGroups = new Map<string, Player[]>();

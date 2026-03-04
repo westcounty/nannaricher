@@ -1,5 +1,5 @@
 // client/src/components/CardHand.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Card, Player } from '@nannaricher/shared';
 import { CardDetail } from './CardDetail';
 

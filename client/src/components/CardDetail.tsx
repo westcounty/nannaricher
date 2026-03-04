@@ -1,5 +1,5 @@
 // client/src/components/CardDetail.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Card, CardEffect, Player } from '@nannaricher/shared';
 
 interface CardDetailProps {

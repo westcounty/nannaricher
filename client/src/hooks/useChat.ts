@@ -12,7 +12,7 @@ interface UseChatReturn {
 
 export function useChat(): UseChatReturn {
   const { socket, isConnected } = useSocket();
-  const { gameState, playerId } = useGameState();
+  const { gameState } = useGameState();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Listen for chat messages from server

@@ -88,7 +88,6 @@ interface GameLayoutProps {
 }
 
 export const GameLayout: React.FC<GameLayoutProps> = ({
-  children,
   boardSlot,
   sidebarSlot,
   bottomSlot,

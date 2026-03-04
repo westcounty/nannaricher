@@ -65,18 +65,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.error('[Socket] Connection error:', error.message);
     });
 
-    newSocket.on('reconnect', (attemptNumber) => {
+    newSocket.io.on('reconnect', (attemptNumber: number) => {
       console.log('[Socket] Reconnected after', attemptNumber, 'attempts');
       setIsConnected(true);
       setIsConnecting(false);
       setConnectionError(null);
     });
 
-    newSocket.on('reconnect_error', (error) => {
+    newSocket.io.on('reconnect_error', (error: Error) => {
       console.error('[Socket] Reconnect error:', error.message);
     });
 
-    newSocket.on('reconnect_failed', () => {
+    newSocket.io.on('reconnect_failed', () => {
       console.error('[Socket] Reconnect failed');
       setConnectionError('Failed to reconnect after multiple attempts. Please refresh the page.');
       setIsConnecting(false);
