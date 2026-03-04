@@ -1,0 +1,65 @@
+.audio-control {
+  position: relative;
+  display: inline-block;
+}
+
+.audio-control__toggle {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary, #e2e8f0);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.audio-control__panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--color-bg-elevated, #1e1533);
+  border: 1px solid rgba(139, 95, 191, 0.3);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  min-width: 200px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
+}
+
+.audio-control__mute-btn {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  color: var(--color-text-primary, #e2e8f0);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.audio-control__mute-btn--muted {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.audio-control__mute-btn--unmuted {
+  background: rgba(94, 58, 141, 0.3);
+}
+
+.audio-control__mute-wrapper {
+  margin-bottom: 12px;
+}
+
+.audio-control__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.audio-control__slider {
+  width: 100%;
+  accent-color: var(--color-brand-primary, #8b5fbf);
+}
+
+.audio-control__slider--master {
+  margin-bottom: 12px;
+}

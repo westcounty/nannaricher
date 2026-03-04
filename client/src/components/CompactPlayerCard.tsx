@@ -19,15 +19,6 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
     player.isInHospital && 'compact-player--hospital',
   ].filter(Boolean).join(' ');
 
-  const getStatusText = () => {
-    if (player.isBankrupt) return '已破产';
-    if (player.isInHospital) return '校医院';
-    if (player.isAtDing) return '在鼎';
-    if (isCurrentTurn) return '当前回合';
-    return '';
-  };
-
-  const statusText = getStatusText();
   const initial = player.name.charAt(0);
 
   return (
@@ -41,11 +32,6 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
 
       <div className="compact-player__info">
         <span className="compact-player__name">{player.name}</span>
-        {statusText && (
-          <span className={`compact-player__status-text ${isCurrentTurn ? 'compact-player__status-text--turn' : ''}`}>
-            {statusText}
-          </span>
-        )}
       </div>
 
       <div className="compact-player__stats">

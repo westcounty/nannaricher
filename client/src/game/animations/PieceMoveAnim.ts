@@ -37,7 +37,7 @@ export async function animatePieceMove(
     );
 
     // Landing ripple at each step
-    createRipple(effectLayer, target.x, target.y);
+    createRipple(effectLayer, target.x, target.y, tweenEngine);
     playSound('piece_step');
   }
 
@@ -47,7 +47,7 @@ export async function animatePieceMove(
   }
 }
 
-function createRipple(layer: Container, x: number, y: number): void {
+function createRipple(layer: Container, x: number, y: number, tweenEngine: TweenEngine): void {
   const ripple = new Graphics();
   ripple.circle(0, 0, 5);
   ripple.fill({ color: 0xffffff, alpha: 0.5 });
@@ -55,19 +55,10 @@ function createRipple(layer: Container, x: number, y: number): void {
   ripple.y = y;
   layer.addChild(ripple);
 
-  // Expand and fade out over ~20 frames
-  let frame = 0;
-  const animate = () => {
-    frame++;
-    const progress = frame / 20;
-    ripple.scale.set(1 + progress * 2);
-    ripple.alpha = 0.5 * (1 - progress);
-    if (progress >= 1) {
-      layer.removeChild(ripple);
-      ripple.destroy();
-    } else {
-      requestAnimationFrame(animate);
-    }
-  };
-  requestAnimationFrame(animate);
+  // Expand and fade out using tweenEngine for consistency
+  tweenEngine.to(ripple, { alpha: 0 }, 333, EASINGS.easeOut).then(() => {
+    layer.removeChild(ripple);
+    ripple.destroy();
+  });
+  tweenEngine.to(ripple.scale, { x: 3, y: 3 }, 333, EASINGS.easeOut);
 }

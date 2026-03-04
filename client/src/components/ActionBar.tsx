@@ -2,7 +2,6 @@
 // Bottom action hub: stats + cards + dice button (desktop layout)
 
 import type { Player } from '@nannaricher/shared';
-import { useGameState } from '../context/GameContext';
 import { CardHand } from './CardHand';
 import { playSound } from '../audio/AudioManager';
 import '../styles/action-bar.css';
@@ -13,25 +12,18 @@ interface ActionBarProps {
   currentPlayerName?: string;
   useCard: (cardId: string, targetPlayerId?: string) => void;
   players?: Player[];
+  canRollDice: boolean;
+  isRolling: boolean;
+  onRollDice: () => void;
 }
 
-export function ActionBar({ myPlayer, isMyTurn, currentPlayerName, useCard, players }: ActionBarProps) {
-  const { rollDice, isRolling, gameState } = useGameState();
-
-  // Determine if player can roll dice
-  const canRollDice = isMyTurn &&
-    myPlayer &&
-    !myPlayer.isBankrupt &&
-    !isRolling &&
-    gameState?.phase === 'playing' &&
-    (!gameState?.pendingAction || gameState?.pendingAction?.type === 'roll_dice');
-
+export function ActionBar({ myPlayer, isMyTurn, currentPlayerName, useCard, players, canRollDice, isRolling, onRollDice }: ActionBarProps) {
   const needsToRoll = myPlayer && (myPlayer.isInHospital || myPlayer.isAtDing);
 
   const handleRollDice = () => {
     if (canRollDice || (isMyTurn && needsToRoll)) {
       playSound('button_click');
-      rollDice();
+      onRollDice();
     }
   };
 

@@ -131,11 +131,101 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-danger);
+  background: var(--color-accent);
   color: white;
   font-size: 0.6rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ============================================
+   MorePanel - tabbed chat/log in mobile sheet
+   ============================================ */
+
+.more-panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-bg-surface);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.more-panel-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s ease;
+}
+
+.more-panel-tab--active {
+  background: var(--color-bg-elevated);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================
+   MiniPlayerOverlay - opponent dots on mobile board
+   ============================================ */
+
+.mini-player-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.mini-player-dot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 16px;
+  background: rgba(26, 26, 46, 0.8);
+  border: 2px solid transparent;
+  backdrop-filter: blur(4px);
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.mini-player-dot.active {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 6px rgba(201, 162, 39, 0.3);
+}
+
+.mini-player-dot.bankrupt {
+  opacity: 0.4;
+}
+
+.mini-player-initial {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--player-color, #888);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.mini-player-money {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-size: 0.65rem;
 }

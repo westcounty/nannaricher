@@ -45,6 +45,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const container = containerRef.current;
     if (!container || appRef.current) return;
 
+    let cancelled = false;
+
     const rect = container.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
@@ -58,6 +60,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     }).then(() => {
+      if (cancelled) { app.destroy(true); return; }
       container.appendChild(app.canvas);
       appRef.current = app;
 
@@ -117,6 +120,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     });
 
     return () => {
+      cancelled = true;
       // Destroy ViewportController
       viewportRef.current?.destroy();
       viewportRef.current = null;
@@ -259,5 +263,3 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     />
   );
 };
-
-export default GameCanvas;

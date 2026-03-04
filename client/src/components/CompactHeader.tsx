@@ -1,6 +1,7 @@
 // client/src/components/CompactHeader.tsx
 // Slim 48px header replacing StatusBar for commercial-grade UI
 
+import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '@nannaricher/shared';
 import { AudioControl } from './AudioControl';
 import '../styles/compact-header.css';
@@ -16,8 +17,21 @@ export function CompactHeader({ gameState, playerId: _playerId, isMyTurn, curren
   const statusText = getStatusText(gameState, isMyTurn, currentPlayerName);
   const statusVariant = isMyTurn ? 'action' : 'waiting';
 
+  // Show a brief "your turn" banner when turn starts
+  const [showBanner, setShowBanner] = useState(false);
+  const prevMyTurn = useRef(isMyTurn);
+  useEffect(() => {
+    if (isMyTurn && !prevMyTurn.current) {
+      setShowBanner(true);
+      const timer = setTimeout(() => setShowBanner(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    prevMyTurn.current = isMyTurn;
+  }, [isMyTurn]);
+
   return (
-    <div className="compact-header">
+    <div className={`compact-header ${isMyTurn ? 'compact-header--my-turn' : ''}`}>
+      {showBanner && <div className="compact-header__turn-banner">轮到你了!</div>}
       <div className="compact-header__brand">
         <span className="compact-header__title">菜根人生</span>
       </div>

@@ -29,12 +29,17 @@ export function MobileBottomNav({
   const diceDisabled = !canRollDice || isRolling;
   const diceText = isRolling ? '掷骰中...' : '🎲 掷骰子';
 
+  const handleDiceClick = () => {
+    if ('vibrate' in navigator) navigator.vibrate(50);
+    onRollDice();
+  };
+
   return (
     <div className="mobile-bottom-nav">
       {/* Dice button (2x width) */}
       <button
         className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--dice ${isMyTurn ? 'mobile-bottom-nav__btn--my-turn' : ''}`}
-        onClick={onRollDice}
+        onClick={handleDiceClick}
         disabled={diceDisabled}
       >
         {diceText}

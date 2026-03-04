@@ -2,7 +2,7 @@
 // Three-layout responsive game screen: desktop (>=1024), tablet (768-1023), mobile (<768)
 // Redesigned with CompactHeader, ActionBar, CompactPlayerCard, MobileStatusBar, MobileBottomNav
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useGameState } from '../context/GameContext';
 import { CompactHeader } from './CompactHeader';
 import { CompactPlayerCard } from './CompactPlayerCard';
@@ -53,12 +53,19 @@ function useLayout(): LayoutMode {
   const [layout, setLayout] = useState<LayoutMode>(() => getLayout(window.innerWidth));
 
   useEffect(() => {
+    let rafId: number;
     const handleResize = () => {
-      setLayout(getLayout(window.innerWidth));
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setLayout(getLayout(window.innerWidth));
+      });
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return layout;
@@ -195,9 +202,7 @@ export function GameScreen() {
                   gameState={gameState}
                   currentPlayerId={currentPlayer?.id || null}
                   diceResult={diceResult}
-                  onCellClick={(cellId, position) => {
-                    console.log('Cell clicked:', cellId, position);
-                  }}
+                  onCellClick={() => {}}
                 />
               </div>
             </div>
@@ -261,6 +266,9 @@ export function GameScreen() {
             currentPlayerName={currentPlayer?.name}
             useCard={useCard}
             players={allPlayers}
+            canRollDice={canRollDice || (isMyTurn && !!needsToRoll)}
+            isRolling={isRolling}
+            onRollDice={rollDice}
           />
         </>
       )}
@@ -269,7 +277,7 @@ export function GameScreen() {
       {(layout === 'tablet' || layout === 'mobile') && (
         <>
           {/* Board area */}
-          <div className="board-area">
+          <div className="board-area" style={{ position: 'relative' }}>
             <div className="board-canvas-container">
               <GameCanvas
                 gameState={gameState}
@@ -280,6 +288,11 @@ export function GameScreen() {
                 }}
               />
             </div>
+            <MiniPlayerOverlay
+              players={allPlayers}
+              currentPlayerId={currentPlayer?.id || null}
+              localPlayerId={playerId}
+            />
           </div>
 
           {/* Mobile status bar */}
@@ -518,19 +531,90 @@ function MobileSheetContent({
 
     case 'more':
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>💬 聊天</h4>
-            <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
-          </div>
-          <div>
-            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>📜 游戏日志</h4>
-            <GameLog entries={gameState.log} players={gameState.players} />
-          </div>
-        </div>
+        <MorePanel
+          chatMessages={chatMessages}
+          sendChatMessage={sendChatMessage}
+          gameState={gameState}
+        />
       );
 
     default:
       return null;
   }
+}
+
+// ============================================
+// MorePanel — tabbed chat/log for mobile
+// ============================================
+
+type MoreTab = 'chat' | 'log';
+
+function MorePanel({
+  chatMessages,
+  sendChatMessage,
+  gameState,
+}: {
+  chatMessages: Array<{ id: string; playerName: string; playerColor: string; text: string; timestamp: number }>;
+  sendChatMessage: (message: string) => void;
+  gameState: NonNullable<ReturnType<typeof useGameState>['gameState']>;
+}) {
+  const [tab, setTab] = useState<MoreTab>('chat');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="more-panel-tabs">
+        <button
+          className={`more-panel-tab ${tab === 'chat' ? 'more-panel-tab--active' : ''}`}
+          onClick={() => setTab('chat')}
+        >
+          聊天
+        </button>
+        <button
+          className={`more-panel-tab ${tab === 'log' ? 'more-panel-tab--active' : ''}`}
+          onClick={() => setTab('log')}
+        >
+          日志
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {tab === 'chat' ? (
+          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+        ) : (
+          <GameLog entries={gameState.log} players={gameState.players} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// MiniPlayerOverlay — small opponent indicators on mobile board
+// ============================================
+
+function MiniPlayerOverlay({
+  players,
+  currentPlayerId,
+  localPlayerId,
+}: {
+  players: Player[];
+  currentPlayerId: string | null;
+  localPlayerId: string | null;
+}) {
+  const others = players.filter((p) => p.id !== localPlayerId);
+  if (others.length === 0) return null;
+
+  return (
+    <div className="mini-player-overlay">
+      {others.map((p) => (
+        <div
+          key={p.id}
+          className={`mini-player-dot ${p.id === currentPlayerId ? 'active' : ''} ${p.isBankrupt ? 'bankrupt' : ''}`}
+          style={{ borderColor: p.color, '--player-color': p.color } as React.CSSProperties}
+        >
+          <span className="mini-player-initial">{p.name.charAt(0)}</span>
+          <span className="mini-player-money">{p.money}</span>
+        </div>
+      ))}
+    </div>
+  );
 }

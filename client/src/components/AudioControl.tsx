@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AudioManager, playSound } from '../audio/AudioManager';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import '../styles/audio-control.css';
 
 export function AudioControl() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,65 +39,37 @@ export function AudioControl() {
   }, []);
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={containerRef} className="audio-control">
       <button
         onClick={() => { setIsOpen(prev => !prev); if (!isOpen) playSound('button_click'); }}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: DESIGN_TOKENS.color.text.primary,
-          fontSize: '1.2rem',
-          cursor: 'pointer',
-          padding: '4px 8px',
-          borderRadius: DESIGN_TOKENS.radius.sm,
-        }}
+        className="audio-control__toggle"
         title="音量控制"
       >
         {isMuted ? '🔇' : '🔊'}
       </button>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          background: DESIGN_TOKENS.color.bg.elevated,
-          border: '1px solid rgba(139, 95, 191, 0.3)',
-          borderRadius: DESIGN_TOKENS.radius.lg,
-          padding: '16px',
-          minWidth: '200px',
-          zIndex: 1000,
-          boxShadow: DESIGN_TOKENS.shadow.lg,
-        }}>
-          <div style={{ marginBottom: '12px' }}>
+        <div className="audio-control__panel">
+          <div className="audio-control__mute-wrapper">
             <button
               onClick={toggleMute}
-              style={{
-                width: '100%',
-                padding: '8px',
-                background: isMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(94, 58, 141, 0.3)',
-                border: 'none',
-                borderRadius: DESIGN_TOKENS.radius.md,
-                color: DESIGN_TOKENS.color.text.primary,
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-              }}
+              className={`audio-control__mute-btn ${isMuted ? 'audio-control__mute-btn--muted' : 'audio-control__mute-btn--unmuted'}`}
             >
               {isMuted ? '🔇 取消静音' : '🔊 静音'}
             </button>
           </div>
 
-          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: DESIGN_TOKENS.color.text.secondary }}>
+          <label className="audio-control__label">
             主音量: {Math.round(masterVol * 100)}%
           </label>
           <input type="range" min="0" max="1" step="0.05" value={masterVol} onChange={handleMasterChange}
-            style={{ width: '100%', marginBottom: '12px', accentColor: DESIGN_TOKENS.color.brand.primary }} />
+            className="audio-control__slider audio-control__slider--master" />
 
-          <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: DESIGN_TOKENS.color.text.secondary }}>
+          <label className="audio-control__label">
             音效: {Math.round(sfxVol * 100)}%
           </label>
           <input type="range" min="0" max="1" step="0.05" value={sfxVol} onChange={handleSfxChange}
-            style={{ width: '100%', accentColor: DESIGN_TOKENS.color.brand.primary }} />
+            className="audio-control__slider" />
         </div>
       )}
     </div>

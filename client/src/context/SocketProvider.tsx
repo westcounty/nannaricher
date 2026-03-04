@@ -80,6 +80,7 @@ function diffAndPlaySounds(
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<GameSocket | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
+  const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const store = useGameStore;
 
   useEffect(() => {
@@ -184,9 +185,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       // Play sound based on announcement type
       if (data.type === 'success') playSound('event_positive');
       else if (data.type === 'warning') playSound('event_negative');
+      // Clear previous timer before setting a new one
+      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
       // Auto-clear announcement after 5 seconds
-      setTimeout(() => {
+      announcementTimerRef.current = setTimeout(() => {
         store.getState().setAnnouncement(null);
+        announcementTimerRef.current = null;
       }, 5000);
     });
 
@@ -199,6 +203,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     // ------ Cleanup ------
     return () => {
+      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
       store.getState().setSocketActions(null);
       socket.disconnect();
       socketRef.current = null;
@@ -206,18 +211,4 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return <>{children}</>;
-}
-
-/**
- * Hook to access the raw socket ref (for advanced use cases like
- * room:create / room:join that are not part of standard game actions).
- *
- * NOTE: For normal game actions (roll, choose, use card, etc.),
- * prefer `useGameStore().socketActions` instead.
- */
-export function useSocketRef(): React.MutableRefObject<GameSocket | null> {
-  // This is a simplified implementation. In production you'd use a context
-  // or module-level ref for the socket instance.
-  const ref = useRef<GameSocket | null>(null);
-  return ref;
 }
