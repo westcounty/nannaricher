@@ -37,6 +37,8 @@ export class GameEngine implements IGameEngine {
   private stateTracker: StateTracker;
   private votingSystem: VotingSystem;
   private chainSystem: ChainActionSystem;
+  /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
+  private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
 
   constructor(roomId: string) {
     this.state = this.createInitialState(roomId);
@@ -116,6 +118,8 @@ export class GameEngine implements IGameEngine {
   addPlayer(player: Player): void {
     this.state.players.push(player);
     this.state.turnOrder.push(this.state.players.length - 1);
+    // StateTracker: initialize player history
+    this.stateTracker.initPlayerHistory(player.id, player.position);
     this.log(`玩家 ${player.name} 加入游戏`);
   }
 
@@ -138,12 +142,28 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
 
+    // Check plan abilities for money loss protection
+    if (delta < 0) {
+      const abilityResult = this.planAbilities.applyPassiveAbility({
+        player,
+        state: this.state,
+        event: 'money_loss',
+      });
+
+      if (abilityResult.modified && abilityResult.effects?.customEffect === 'faxue_shield') {
+        this.log('法学院护盾：免除本次金钱损失', playerId);
+        return; // Cancel the money loss
+      }
+    }
+
     const oldMoney = player.money;
     player.money += delta;
 
     // Track money zero count for achievements
     if (player.money === 0 && oldMoney !== 0) {
       player.moneyZeroCount++;
+      // StateTracker: record money reaching zero
+      this.stateTracker.recordMoneyZero(playerId);
     }
 
     this.log(`金钱 ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.money})`, playerId);
@@ -158,7 +178,16 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
 
-    player.gpa = Math.max(0, Math.min(5.0, player.gpa + delta));
+    const oldGpa = player.gpa;
+    let newGpa = player.gpa + delta;
+
+    // Check philosophy plan ability: GPA floor of 3.0
+    if (player.confirmedPlans.includes('plan_zhexue') && newGpa < 3.0 && oldGpa >= 3.0) {
+      newGpa = 3.0;
+      this.log('哲学系能力：GPA下限保持在3.0', playerId);
+    }
+
+    player.gpa = Math.max(0, Math.min(5.0, newGpa));
     this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa.toFixed(1)})`, playerId);
   }
 
@@ -190,6 +219,10 @@ export class GameEngine implements IGameEngine {
     }
 
     this.log(`移动到 ${this.getPositionName(position)}`, playerId);
+
+    // StateTracker: record position change and shared cells
+    this.stateTracker.recordPosition(playerId, position, this.state.turnNumber);
+    this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
   }
 
   movePlayerForward(playerId: string, steps: number): void {
@@ -213,6 +246,10 @@ export class GameEngine implements IGameEngine {
     player.position = { type: 'main', index: newIndex };
     this.log(`前进 ${steps} 步到 ${this.getPositionName(player.position)}`, playerId);
 
+    // StateTracker: record position change and shared cells
+    this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
+    this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
+
     // Execute cell event
     this.executeCellEvent(playerId);
   }
@@ -230,6 +267,10 @@ export class GameEngine implements IGameEngine {
 
     player.position = { type: 'main', index: newIndex };
     this.log(`后退 ${steps} 步到 ${this.getPositionName(player.position)}`, playerId);
+
+    // StateTracker: record position change and shared cells
+    this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
+    this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
 
     // Execute cell event
     this.executeCellEvent(playerId);
@@ -254,10 +295,27 @@ export class GameEngine implements IGameEngine {
 
     player.position = { type: 'line', lineId, index: newIndex };
 
+    // StateTracker: record position change and shared cells
+    this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
+    this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
+
     // Execute line cell event
     const cell = line.cells[newIndex];
     if (cell) {
+      // StateTracker: record line event trigger
+      this.stateTracker.recordLineEvent(playerId, lineId, newIndex);
+
       this.eventHandler.execute(cell.handlerId, playerId);
+
+      // StateTracker: update food line streak if applicable
+      if (lineId === 'food') {
+        // Check if the event had a negative effect (simplified: check if money decreased)
+        const playerAfter = this.getPlayer(playerId);
+        // For food line, we track negative-free streaks; the event handler may have caused negative effects
+        // We use a heuristic: if the cell handler ID contains 'negative' or similar, mark as negative
+        const hadNegative = cell.handlerId.includes('negative') || cell.handlerId.includes('bad');
+        this.stateTracker.updateFoodLineStreak(playerId, hadNegative);
+      }
     }
   }
 
@@ -302,14 +360,35 @@ export class GameEngine implements IGameEngine {
       player.lineEventsTriggered[lineId] = [];
     }
 
+    // StateTracker: record line visit and save entry resource snapshot
+    this.stateTracker.recordLineVisit(playerId, lineId);
+    this.lineEntrySnapshots.set(`${playerId}:${lineId}`, {
+      money: player.money,
+      gpa: player.gpa,
+      exploration: player.exploration,
+      turn: this.state.turnNumber,
+    });
+
     // Move player to line start
     player.position = { type: 'line', lineId, index: 0 };
     this.log(`进入 ${line.name}`, playerId);
 
+    // StateTracker: record position change
+    this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
+    this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
+
     // Execute first cell event if exists
     if (line.cells[0]) {
       player.lineEventsTriggered[lineId].push(0);
+      // StateTracker: record line event for first cell
+      this.stateTracker.recordLineEvent(playerId, lineId, 0);
       this.eventHandler.execute(line.cells[0].handlerId, playerId);
+
+      // StateTracker: update food line streak if applicable
+      if (lineId === 'food') {
+        const hadNegative = line.cells[0].handlerId.includes('negative') || line.cells[0].handlerId.includes('bad');
+        this.stateTracker.updateFoodLineStreak(playerId, hadNegative);
+      }
     }
 
     return true;
@@ -323,6 +402,45 @@ export class GameEngine implements IGameEngine {
 
     const lineId = player.position.lineId;
     const line = boardData.lines[lineId];
+
+    // StateTracker: record line exit with resource snapshots
+    const snapshotKey = `${playerId}:${lineId}`;
+    const entrySnapshot = this.lineEntrySnapshots.get(snapshotKey);
+    if (entrySnapshot) {
+      // Temporarily store current (pre-experience-card) values as exit snapshot
+      const exitMoney = player.money;
+      const exitGpa = player.gpa;
+      const exitExploration = player.exploration;
+
+      // We'll record after experience card, but use pre-card values for now
+      // Actually record with current values; experience card is a separate bonus
+      this.stateTracker.recordLineExit(
+        playerId,
+        lineId,
+        entrySnapshot.turn,
+        this.state.turnNumber,
+        {
+          ...player,
+          // Override with entry snapshot for "before" values — recordLineExit uses player for both
+          // so we need to call it with a patched player object
+        } as Player
+      );
+
+      // Patch: the StateTracker.recordLineExit currently uses player.gpa for both before/after
+      // We fix this by directly updating the lineExits record
+      const history = this.stateTracker.getPlayerHistory(playerId);
+      if (history && history.lineExits.length > 0) {
+        const lastExit = history.lineExits[history.lineExits.length - 1];
+        lastExit.gpaBefore = entrySnapshot.gpa;
+        lastExit.gpaAfter = exitGpa;
+        lastExit.explorationBefore = entrySnapshot.exploration;
+        lastExit.explorationAfter = exitExploration;
+        lastExit.moneyBefore = entrySnapshot.money;
+        lastExit.moneyAfter = exitMoney;
+      }
+
+      this.lineEntrySnapshots.delete(snapshotKey);
+    }
 
     // Give experience card at end of line
     if (line?.experienceCard && moveToMainBoard) {
@@ -392,6 +510,9 @@ export class GameEngine implements IGameEngine {
       player.cardsDrawnWithDigitStart.push(card.id);
     }
 
+    // StateTracker: record card draw
+    this.stateTracker.recordCardDraw(playerId, card, this.state.turnNumber);
+
     this.log(`抽取 ${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}`, playerId);
 
     // If holdable, add to player's hand; otherwise execute immediately
@@ -399,7 +520,7 @@ export class GameEngine implements IGameEngine {
       this.addCardToPlayer(playerId, card);
     } else {
       // Execute card effect immediately
-      this.eventHandler.execute(card.id, playerId);
+      this.eventHandler.execute(`card_${card.id}`, playerId);
 
       // Return to discard pile if needed
       if (card.returnToDeck) {
@@ -593,6 +714,13 @@ export class GameEngine implements IGameEngine {
     // Process effects at turn start
     this.processEffectsAtTurnStart(currentPlayer.id);
 
+    // StateTracker: record money snapshot at turn start for all players
+    for (const p of this.state.players) {
+      if (!p.isBankrupt) {
+        this.stateTracker.recordMoneyChange(p.id, p.money);
+      }
+    }
+
     this.log(`回合 ${this.state.turnNumber} 开始`, currentPlayer.id);
   }
 
@@ -614,6 +742,8 @@ export class GameEngine implements IGameEngine {
     player.isInHospital = inHospital;
     if (inHospital) {
       player.hospitalVisits++;
+      // StateTracker: record hospital visit
+      this.stateTracker.recordHospitalVisit(playerId);
       this.log(`进入校医院`, playerId);
     } else {
       this.log(`离开校医院`, playerId);
@@ -640,6 +770,9 @@ export class GameEngine implements IGameEngine {
 
     const cell = boardData.mainBoard[player.position.index];
     if (!cell) return;
+
+    // StateTracker: record main cell visit
+    this.stateTracker.recordMainCellVisit(playerId, cell.id || `main_${player.position.index}`);
 
     switch (cell.type) {
       case 'corner':
@@ -1064,6 +1197,9 @@ export class GameEngine implements IGameEngine {
     if (!player.confirmedPlans.includes(planId)) {
       player.confirmedPlans.push(planId);
     }
+
+    // StateTracker: record plan confirmation
+    this.stateTracker.recordPlanConfirm(playerId, this.state.turnNumber);
 
     this.log(`固定培养计划: ${plan.name}`, playerId);
   }
