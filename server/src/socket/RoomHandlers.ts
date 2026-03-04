@@ -61,14 +61,11 @@ export function registerRoomHandlers(
       if (room) {
         const coordinator = roomManager.getCoordinator(data.roomId);
         if (coordinator) {
-          // Add new player to the engine
+          // Add new player to the engine (this pushes to state.players and inits turnOrder/tracker)
           const newPlayer = room.players.find(p => p.id === playerId);
           if (newPlayer) {
             coordinator.getEngine().addPlayer(newPlayer);
           }
-          // Sync state players and broadcast
-          const state = coordinator.getState();
-          state.players = room.players;
           coordinator.broadcastState();
         }
         socket.to(data.roomId).emit('room:player-joined', {

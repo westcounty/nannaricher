@@ -217,45 +217,41 @@ const allLines: Record<string, BoardLine> = {
   food: foodLine,
 };
 
-// 棋盘数据
+// 棋盘数据 - 与服务端 board.ts 保持一致
 export const boardData: BoardData = {
   mainBoard: [
-    // Corner 1: 起点/低保日
+    // 底边（索引 0-6，起点 → 校医院方向）
     { index: 0, id: 'start', name: '起点/低保日', type: 'corner', cornerType: 'start' },
-    // Side 1: Start → Hospital
-    { index: 1, id: 'tuition', name: '所有人交学费', type: 'event' },
-    { index: 2, id: 'chance_1', name: '机会/命运', type: 'chance' },
-    { index: 3, id: 'jiang_gong', name: '蒋公的面子', type: 'event' },
+    { index: 1, id: 'chance_1', name: '机会/命运', type: 'chance' },
+    { index: 2, id: 'tuition', name: '所有人交学费', type: 'event' },
+    { index: 3, id: 'chance_2', name: '机会/命运', type: 'chance' },
     { index: 4, id: 'line_pukou', name: '浦口线入口', type: 'line_entry', lineId: 'pukou', forceEntry: true, entryFee: 0 },
-    { index: 5, id: 'retake', name: '重修', type: 'event' },
-    { index: 6, id: 'chance_2', name: '机会/命运', type: 'chance' },
-    { index: 7, id: 'society', name: '社团', type: 'event' },
-    // Corner 2: 校医院
-    { index: 8, id: 'hospital', name: '校医院', type: 'corner', cornerType: 'hospital' },
-    // Side 2: Hospital → Ding
-    { index: 9, id: 'line_study', name: '学在南哪入口', type: 'line_entry', lineId: 'study', forceEntry: false, entryFee: 200 },
-    { index: 10, id: 'zijing', name: '紫荆站', type: 'event' },
-    { index: 11, id: 'chance_3', name: '机会/命运', type: 'chance' },
-    { index: 12, id: 'line_money', name: '赚在南哪入口', type: 'line_entry', lineId: 'money', forceEntry: false, entryFee: 200 },
-    { index: 13, id: 'nanna_cp', name: '南哪诚品', type: 'event' },
-    { index: 14, id: 'chance_4', name: '机会/命运', type: 'chance' },
-    { index: 15, id: 'line_suzhou', name: '苏州线入口', type: 'line_entry', lineId: 'suzhou', forceEntry: false, entryFee: 200 },
-    // Corner 3: 鼎
-    { index: 16, id: 'ding', name: '鼎', type: 'corner', cornerType: 'ding' },
-    // Side 3: Ding → Waiting Room
-    { index: 17, id: 'line_explore', name: '乐在南哪入口', type: 'line_entry', lineId: 'explore', forceEntry: false, entryFee: 200 },
-    { index: 18, id: 'kechuang', name: '科创赛事', type: 'event' },
-    { index: 19, id: 'chance_5', name: '机会/命运', type: 'chance' },
-    { index: 20, id: 'line_gulou', name: '鼓楼线入口', type: 'line_entry', lineId: 'gulou', forceEntry: false, entryFee: 200 },
-    { index: 21, id: 'chuangmen', name: '闯门', type: 'event' },
-    { index: 22, id: 'chance_6', name: '机会/命运', type: 'chance' },
-    { index: 23, id: 'line_xianlin', name: '仙林线入口', type: 'line_entry', lineId: 'xianlin', forceEntry: false, entryFee: 200 },
-    // Corner 4: 候车厅
-    { index: 24, id: 'waiting_room', name: '候车厅', type: 'corner', cornerType: 'waiting_room' },
-    // Side 4: Waiting Room → Start
+    { index: 5, id: 'zijing', name: '紫荆站', type: 'event' },
+    { index: 6, id: 'line_study', name: '学在南哪入口', type: 'line_entry', lineId: 'study', forceEntry: false, entryFee: 200 },
+    // 左边（索引 7-13，校医院 → 鼎方向）
+    { index: 7, id: 'hospital', name: '校医院', type: 'corner', cornerType: 'hospital' },
+    { index: 8, id: 'line_money', name: '赚在南哪入口', type: 'line_entry', lineId: 'money', forceEntry: false, entryFee: 200 },
+    { index: 9, id: 'qingong', name: '勤工助学', type: 'event' },
+    { index: 10, id: 'chance_3', name: '机会/命运', type: 'chance' },
+    { index: 11, id: 'line_suzhou', name: '苏州线入口', type: 'line_entry', lineId: 'suzhou', forceEntry: false, entryFee: 200 },
+    { index: 12, id: 'retake', name: '重修', type: 'event' },
+    { index: 13, id: 'chance_4', name: '机会/命运', type: 'chance' },
+    // 顶边（索引 14-20，鼎 → 候车厅方向）
+    { index: 14, id: 'ding', name: '鼎', type: 'corner', cornerType: 'ding' },
+    { index: 15, id: 'line_explore', name: '乐在南哪入口', type: 'line_entry', lineId: 'explore', forceEntry: false, entryFee: 200 },
+    { index: 16, id: 'jiang_gong', name: '蒋公的面子', type: 'event' },
+    { index: 17, id: 'chance_5', name: '机会/命运', type: 'chance' },
+    { index: 18, id: 'line_xianlin', name: '仙林线入口', type: 'line_entry', lineId: 'xianlin', forceEntry: false, entryFee: 200 },
+    { index: 19, id: 'society', name: '社团', type: 'event' },
+    { index: 20, id: 'chance_6', name: '机会/命运', type: 'chance' },
+    // 右边（索引 21-27，候车厅 → 起点方向）
+    { index: 21, id: 'waiting_room', name: '候车厅', type: 'corner', cornerType: 'waiting_room' },
+    { index: 22, id: 'line_gulou', name: '鼓楼线入口', type: 'line_entry', lineId: 'gulou', forceEntry: false, entryFee: 200 },
+    { index: 23, id: 'kechuang', name: '科创赛事', type: 'event' },
+    { index: 24, id: 'chance_7', name: '机会/命运', type: 'chance' },
     { index: 25, id: 'line_food', name: '食堂线入口', type: 'line_entry', lineId: 'food', forceEntry: true, entryFee: 0 },
-    { index: 26, id: 'qingong', name: '勤工助学', type: 'event' },
-    { index: 27, id: 'chance_7', name: '机会/命运', type: 'chance' },
+    { index: 26, id: 'nanna_cp', name: '南哪诚品', type: 'event' },
+    { index: 27, id: 'chuangmen', name: '闯门', type: 'event' },
   ],
   lines: allLines,
 };

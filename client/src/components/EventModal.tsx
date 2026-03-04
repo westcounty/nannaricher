@@ -118,7 +118,7 @@ export function EventModal({
     <div
       className={`event-modal-overlay ${isClosing ? 'closing' : ''}`}
       style={{ opacity: isClosing ? 0 : opacity }}
-      onClick={handleClose}
+      onClick={hasOptions ? undefined : handleClose}
     >
       <div
         className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''}`}

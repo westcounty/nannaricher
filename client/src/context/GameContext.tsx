@@ -5,7 +5,7 @@
  *   - `useGameStore()` for state
  *   - `useGameStore().socketActions` for actions
  */
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { GameState, PendingAction, Card } from '@nannaricher/shared';
 import { useSocket } from './SocketContext';
 
@@ -113,6 +113,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [winner, setWinner] = useState<WinnerInfo | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const playerIdRef = useRef<string | null>(null);
+  playerIdRef.current = playerId;
 
   useEffect(() => {
     if (!socket) return;
@@ -144,6 +146,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleEventTrigger = (data: { title: string; description: string; pendingAction: PendingAction }) => {
+      // Only show event modal if this event is for the current player
+      if (data.pendingAction?.playerId && data.pendingAction.playerId !== playerIdRef.current) {
+        return;
+      }
       setCurrentEvent({
         title: data.title,
         description: data.description,

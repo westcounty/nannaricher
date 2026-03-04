@@ -1,5 +1,6 @@
 // server/src/game/EventHandler.ts
 import { PendingAction, ACTION_TIMEOUT_MS, Player } from '@nannaricher/shared';
+import type { DelayedEffectManager } from './effects/DelayedEffectManager.js';
 import { registerCornerHandlers } from './handlers/corner-handlers.js';
 import { registerEventHandlers } from './handlers/event-handlers.js';
 import { registerLineHandlers } from './handlers/line-handlers.js';
@@ -48,6 +49,9 @@ export interface GameEngine {
     effect: import('@nannaricher/shared').ActiveEffect
   ): void;
   removeEffectFromPlayer(playerId: string, effectId: string): void;
+
+  // Delayed effects
+  getDelayedEffects(): DelayedEffectManager;
 
   // Turn control
   skipPlayerTurn(playerId: string, turns: number): void;

@@ -19,6 +19,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('pukou_sparse', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -2);
     engine.log('社团活动不足，超市关门早，探索值 -2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -32,6 +33,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('pukou_transport', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -1);
     engine.log('交通不便，实习困难，探索值 -1', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -70,6 +72,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('pukou_no_it', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
     engine.log('浦口没有IT侠营业，金钱 -100', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -163,6 +166,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('study_library_late', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, 0.2);
     engine.log('图书馆延迟闭馆，GPA +0.2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -175,12 +179,14 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('study_all_night', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, 0.2);
     engine.log('通宵教室，GPA +0.2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('study_group_work', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.2);
     engine.log('小组作业，GPA -0.2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -194,6 +200,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerGpa(playerId, 0.1);
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('急流勇退，GPA +0.1，探索值 +2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -204,6 +211,8 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     if (player.gpa >= 3.0) {
       engine.modifyPlayerGpa(playerId, 0.3);
       engine.log('毕业答辩成功，GPA +0.3', playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     } else {
       engine.log('毕业答辩失败（延毕），返回学习线起点', playerId);
       engine.enterLine(playerId, 'study', true);
@@ -275,6 +284,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     if (dice % 2 === 1) {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`校园卡丢失投出 ${dice}（奇数），找回了，探索值 +2`, playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     } else {
       const fee = dice * 20;
       engine.modifyPlayerMoney(playerId, -fee);
@@ -313,6 +323,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerMoney(playerId, 200);
     engine.modifyPlayerExploration(playerId, 3);
     engine.log('录取通知盒流水线，金钱 +200，探索值 +3', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -340,6 +351,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('suzhou_meaty', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('明明说好嚼菜根却开了荤，探索值 +2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -353,12 +365,14 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('suzhou_fancy_major', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('专业名高大上，探索值 +2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('suzhou_construction', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -1);
     engine.log('半壁江山竟仍是工地，探索值 -1', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -378,12 +392,15 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       engine.modifyPlayerGpa(playerId, 0.3);
       engine.log(`培养计划套娃盲盒投出 ${dice}（偶数），GPA +0.3`, playerId);
     }
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('suzhou_blank_slate', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, 0.1);
     engine.log('另起炉灶，学生组织和社团活动一片空白，GPA +0.1', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -406,6 +423,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       engine.log(`探索者投出 ${dice}（偶数），发布指南，探索值 +5`, playerId);
     } else {
       engine.log(`探索者投出 ${dice}（奇数），单打独斗`, playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     }
     return null;
   });
@@ -455,6 +473,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     if (player && player.exploration >= 10) {
       engine.modifyPlayerExploration(playerId, 4);
       engine.log('热心志愿（探索值 >= 10），探索值 +4', playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     } else {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log('热心志愿（探索值 < 10），探索值 +2', playerId);
@@ -471,12 +490,14 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       engine.modifyPlayerExploration(playerId, -3);
       engine.log(`学生组织留任投出 ${dice}（偶数），摸鱼躺平，探索值 -3`, playerId);
     }
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('explore_vip_visit', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 3);
     engine.log('著名人物到访，探索值 +3', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -510,6 +531,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
           engine.log(`120周年校庆，金钱 +${20 * dice}，探索值 +3`, playerId);
         } else {
           engine.log(`120周年校庆，金钱 +${20 * dice}`, playerId);
+          engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
         }
       }
     }
@@ -534,6 +556,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     } else {
       engine.modifyPlayerMoney(playerId, -100);
       engine.log('寻根计划（探索值 >= 10），金钱 -100', playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     }
     return null;
   });
@@ -569,12 +592,15 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('gulou_entertainment', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -200);
     engine.log('灯红酒绿，金钱 -200', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('gulou_wedding', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 3);
     engine.log('旁观集体婚礼，探索值 +3', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -588,6 +614,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('gulou_anniversary', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -2);
     engine.log('百廿校庆无鼓楼活动，探索值 -2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -600,6 +627,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('gulou_tour_guide', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('带同学游览鼓楼，探索值 +2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -627,6 +655,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('xianlin_wildlife', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('偶遇野猪学长和狐獴学弟，探索值 +2', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -660,6 +689,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       case 6:
         engine.modifyPlayerMoney(playerId, -300);
         engine.log('宿舍分配：专硕无宿舍，金钱 -300', playerId);
+        engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
         break;
     }
     return null;
@@ -673,6 +703,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     } else {
       engine.modifyPlayerMoney(playerId, -100);
       engine.log(`独立卫浴改造投出 ${dice}（偶数），失败，金钱 -100`, playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     }
     return null;
   });
@@ -687,6 +718,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     const dice = engine.rollDice(1)[0];
     if (dice % 2 === 0) {
       engine.log(`带高中同学游览仙林投出 ${dice}（偶数），被评价为恢弘`, playerId);
+      engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     } else {
       engine.modifyPlayerExploration(playerId, 2);
       engine.log(`带高中同学游览仙林投出 ${dice}（奇数），同学立志考研来南哪，探索值 +2`, playerId);
@@ -718,6 +750,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       engine.modifyPlayerMoney(playerId, -100);
       engine.log(`吃出蛋白质投出 ${dice}（偶数），不了了之，金钱 -100`, playerId);
     }
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -725,6 +758,7 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     const dice = engine.rollDice(1)[0];
     engine.modifyPlayerMoney(playerId, -dice * 50);
     engine.log(`尝试食堂新品，金钱 -${dice * 50}`, playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
@@ -751,17 +785,21 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('food_mooncake', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 4);
     engine.log('加入手手做月饼，探索值 +4', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('food_private_room', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, 1);
     engine.log('金陵小炒包间，探索值 +1', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('food_stainless_bowl', (engine, playerId) => {
     engine.log('不锈钢饭盆', playerId);
+    engine.drawCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 

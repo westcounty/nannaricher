@@ -54,6 +54,12 @@ export class GameCoordinator {
 
   broadcastState(): void {
     const state = this.engine.getState();
+    // Fix floating point precision before broadcasting
+    for (const player of state.players) {
+      player.gpa = parseFloat(player.gpa.toFixed(1));
+      player.exploration = Math.round(player.exploration);
+      player.money = Math.round(player.money);
+    }
     this.io.to(this.roomId).emit('game:state-update', state);
   }
 
@@ -174,79 +180,240 @@ export class GameCoordinator {
   }
 
   private checkPlanWinCondition(player: Player, planId: string, state: GameState): string | null {
+    const history = this.engine.getStateTracker().getPlayerHistory(player.id);
+
     switch (planId) {
-      case 'plan_shangxue':
+      // === 正确实现的简单数值条件 ===
+      case 'plan_shangxue':  // 商学院：金钱达到5000
         if (player.money >= 5000) return '金钱达到5000';
         break;
-      case 'plan_huaxue':
+      case 'plan_huaxue':    // 化学化工学院：探索值达到45
         if (player.exploration >= 45) return '探索值达到45';
         break;
-      case 'plan_makesi':
+      case 'plan_makesi':    // 马克思主义学院：GPA达到4.5
         if (player.gpa >= 4.5) return 'GPA达到4.5';
         break;
-      case 'plan_jisuanji':
-        if (player.gpa >= 4.0 && player.exploration >= 30) return 'GPA≥4.0且探索值≥30';
-        break;
-      case 'plan_wenxue':
-        if (player.gpa >= 3.5 && player.exploration >= 35) return 'GPA≥3.5且探索值≥35';
-        break;
-      case 'plan_dianzi':
-        if (player.money >= 4000 && player.gpa >= 3.5) return '金钱≥4000且GPA≥3.5';
-        break;
-      case 'plan_shuxue':
-        if (player.gpa >= 4.2 && player.money >= 2000) return 'GPA≥4.2且金钱≥2000';
-        break;
-      case 'plan_wuli':
-        if (player.exploration >= 40 && player.gpa >= 3.8) return '探索值≥40且GPA≥3.8';
-        break;
-      case 'plan_dili':
-        if (player.linesVisited.length >= 4) return `游览${player.linesVisited.length}条线路`;
-        break;
-      case 'plan_lishi':
-        if (player.exploration >= 30 && player.heldCards.length >= 5) return '探索值≥30且持有5张卡';
-        break;
-      case 'plan_zhexue': {
-        const gpaChange = Math.abs(player.gpa - 3.0);
-        if (gpaChange <= 0.5 && player.exploration >= 20) return 'GPA稳定且探索值≥20';
+
+      // === 基于跟踪数据的条件 ===
+      case 'plan_wenxue': {  // 文学院：离开赚在南哪线时金钱未变化
+        if (history) {
+          const moneyExits = history.lineExits.filter(e => e.lineId === 'money');
+          for (const exit of moneyExits) {
+            if (exit.moneyBefore === exit.moneyAfter) return '离开赚在南哪线时金钱未变化';
+          }
+        }
         break;
       }
-      case 'plan_xinwen': {
-        const minExploration = Math.min(...state.players.map(p => p.exploration));
-        if (player.exploration >= minExploration + 20) return `探索值比最低玩家高20 (${player.exploration} vs ${minExploration})`;
+      case 'plan_lishi': {   // 历史学院：按顺序经过鼓楼、浦口、仙林、苏州
+        if (history) {
+          const order = history.campusLineOrder;
+          const required = ['gulou', 'pukou', 'xianlin', 'suzhou'];
+          let idx = 0;
+          for (const campus of order) {
+            if (campus === required[idx]) {
+              idx++;
+              if (idx >= required.length) return '按顺序经过鼓楼、浦口、仙林、苏州校区线';
+            }
+          }
+        }
         break;
       }
-      case 'plan_shehui': {
-        const minExp = Math.min(...state.players.map(p => p.exploration));
-        if (player.exploration >= minExp + 20) return `探索值比最低玩家高20 (${player.exploration} vs ${minExp})`;
+      case 'plan_zhexue': {  // 哲学系：完整进出某条线且探索值和GPA无变化
+        if (history) {
+          for (const exit of history.lineExits) {
+            if (Math.abs(exit.gpaBefore - exit.gpaAfter) < 0.01 &&
+                Math.abs(exit.explorationBefore - exit.explorationAfter) < 0.01) {
+              return `完整进出${exit.lineId}线，探索值和GPA无变化`;
+            }
+          }
+        }
         break;
       }
-      case 'plan_faxue':
-        if (player.money >= 3000 && player.exploration >= 25) return '金钱≥3000且探索值≥25';
+      case 'plan_faxue':     // 法学院：场上出现破产玩家且不是你
+        if (state.players.some(p => p.isBankrupt && p.id !== player.id)) {
+          return '场上出现破产玩家';
+        }
         break;
-      case 'plan_xinli': {
-        const avgGpa = state.players.reduce((sum, p) => sum + p.gpa, 0) / state.players.length;
-        const gpaDiff = Math.abs(player.gpa - avgGpa);
-        if (gpaDiff <= 0.3) return 'GPA最接近全场平均值';
+      case 'plan_waiguoyu':  // 外国语学院：抽到过两张包含英文字母的卡
+        if (player.cardsDrawnWithEnglish >= 2) return `抽到${player.cardsDrawnWithEnglish}张含英文卡`;
+        break;
+      case 'plan_xinwen': {  // 新闻传播学院：完整经过乐在南哪线且无探索值和GPA扣减
+        if (history) {
+          const exploreExits = history.lineExits.filter(e => e.lineId === 'explore');
+          for (const exit of exploreExits) {
+            if (exit.gpaAfter >= exit.gpaBefore && exit.explorationAfter >= exit.explorationBefore) {
+              return '完整经过乐在南哪线且无GPA和探索值扣减';
+            }
+          }
+        }
         break;
       }
-      case 'plan_yishu':
-        if (player.exploration >= 35 && player.heldCards.length >= 3) return '探索值≥35且持有3张卡';
+      case 'plan_zhengguan': {  // 政府管理学院：探索值、GPA、金钱均不与其他玩家一致
+        const others = state.players.filter(p => p.id !== player.id && !p.isBankrupt);
+        const allUnique = others.every(p =>
+          p.exploration !== player.exploration &&
+          Math.abs(p.gpa - player.gpa) >= 0.01 &&
+          p.money !== player.money
+        );
+        if (allUnique && others.length > 0) return '探索值、GPA、金钱均与其他玩家不同';
         break;
-      case 'plan_waiyu':
-        if (player.gpa >= 3.8 && player.exploration >= 25 && player.money >= 2500) return 'GPA≥3.8,探索值≥25,金钱≥2500';
+      }
+      case 'plan_guoji': {   // 国际关系学院：和至少两名其他玩家互相使用过机会卡
+        const usedOnCount = Object.keys(player.chanceCardsUsedOnPlayers).filter(pid => {
+          const other = state.players.find(p => p.id === pid);
+          return other && other.chanceCardsUsedOnPlayers[player.id] > 0;
+        }).length;
+        if (usedOnCount >= 2) return `与${usedOnCount}名玩家互相使用过机会卡`;
         break;
-      case 'plan_tiayu':
-        if (player.exploration >= 30 && player.gpa >= 3.0) return '探索值≥30且GPA≥3.0';
+      }
+      case 'plan_xinxiguanli':  // 信息管理学院：抽到过5个不重复的数字开头卡
+        if (player.cardsDrawnWithDigitStart.length >= 5) {
+          return `抽到${player.cardsDrawnWithDigitStart.length}张数字开头卡`;
+        }
         break;
-      case 'plan_huanjing':
-        if (player.exploration >= 35 && player.linesVisited.length >= 3) return '探索值≥35且游览3条线路';
+      case 'plan_shehuixue': {  // 社会学院：探索值比最低玩家高20（或经修改后高15）
+        const threshold = player.modifiedWinThresholds['plan_shehuixue'] ?? 20;
+        const minExp = Math.min(...state.players.filter(p => !p.isBankrupt).map(p => p.exploration));
+        if (player.exploration >= minExp + threshold) {
+          return `探索值比最低玩家高${threshold} (${player.exploration} vs ${minExp})`;
+        }
         break;
-      case 'plan_yixue':
-        if (player.gpa >= 4.3 && player.money >= 1500) return 'GPA≥4.3且金钱≥1500';
+      }
+      case 'plan_shuxue':   // 数学系：第三次到达鼓楼校区线终点
+        if (player.gulou_endpoint_count >= 3) return `第${player.gulou_endpoint_count}次到达鼓楼线终点`;
         break;
-      case 'plan_jianzhu':
-        if (player.exploration >= 30 && player.money >= 3000) return '探索值≥30且金钱≥3000';
+      case 'plan_wuli': {   // 物理学院：任选两项指标之和>=60
+        const moneyScore = player.money / 100;
+        const gpaScore = player.gpa * 10;
+        const expScore = player.exploration;
+        if (gpaScore + expScore >= 60 || gpaScore + moneyScore >= 60 || expScore + moneyScore >= 60) {
+          return `任意两项指标之和≥60 (GPA×10=${gpaScore.toFixed(0)}, 探索=${expScore}, 金钱/100=${moneyScore.toFixed(0)})`;
+        }
         break;
+      }
+      case 'plan_tianwen': { // 天文与空间科学学院：和每个其他玩家同格停留过
+        if (history) {
+          const otherIds = state.players.filter(p => p.id !== player.id && !p.isBankrupt).map(p => p.id);
+          const allShared = otherIds.every(pid =>
+            history.sharedCellsWith[pid] && history.sharedCellsWith[pid].length > 0
+          );
+          if (allShared && otherIds.length > 0) return '与每位其他玩家同格停留过';
+        }
+        break;
+      }
+      case 'plan_rengong': { // 人工智能学院：GPA比最低玩家高2.0（或修改后1.5）
+        const threshold = player.modifiedWinThresholds['plan_rengong'] ?? 2.0;
+        const minGpa = Math.min(...state.players.filter(p => !p.isBankrupt).map(p => p.gpa));
+        if (player.gpa >= minGpa + threshold) {
+          return `GPA比最低玩家高${threshold} (${player.gpa.toFixed(1)} vs ${minGpa.toFixed(1)})`;
+        }
+        break;
+      }
+      case 'plan_jisuanji': { // 计算机科学与技术系：探索值和金钱数字均只包含0或1
+        const moneyStr = String(Math.abs(player.money));
+        const expStr = String(player.exploration);
+        const onlyBinary = (s: string) => /^[01]+$/.test(s);
+        if (onlyBinary(moneyStr) && onlyBinary(expStr)) {
+          return `探索值(${expStr})和金钱(${moneyStr})均只含0和1`;
+        }
+        break;
+      }
+      case 'plan_ruanjian':  // 软件学院：到达交学费格支出3200金钱（需在event_tuition时特殊处理，此处仅检查标记）
+        // 此胜利条件在交学费事件中触发检查
+        break;
+      case 'plan_dianzi':   // 电子科学与工程学院：科创赛事投到6（在kechuang_join中标记）
+        // 此胜利条件在科创赛事handler中触发标记
+        break;
+      case 'plan_xiandai': { // 现代工程与应用科学学院：进入过除苏州校区外所有线
+        const requiredLines = ['pukou', 'study', 'money', 'explore', 'gulou', 'xianlin', 'food'];
+        const allVisited = requiredLines.every(l => player.linesVisited.includes(l));
+        if (allVisited) return '进入过除苏州外所有线路';
+        break;
+      }
+      case 'plan_huanjing': { // 环境学院：经历过仙林校区线每个事件
+        const xianlinEvents = player.lineEventsTriggered['xianlin'] || [];
+        // 仙林线有8个事件格(index 0-7)
+        if (xianlinEvents.length >= 8) return '经历过仙林线每个事件';
+        break;
+      }
+      case 'plan_diqiu': {   // 地球科学与工程学院：进入过每一条线
+        const allLines = ['pukou', 'study', 'money', 'suzhou', 'explore', 'gulou', 'xianlin', 'food'];
+        const allVisited = allLines.every(l => player.linesVisited.includes(l));
+        if (allVisited) return '进入过全部8条线路';
+        break;
+      }
+      case 'plan_dili': {    // 地理与海洋科学学院：执行过四个校区线的终点效果
+        const campusLines = ['pukou', 'suzhou', 'gulou', 'xianlin'];
+        const campusExits = history?.lineExits.filter(e => campusLines.includes(e.lineId)) || [];
+        const completedCampus = new Set(campusExits.map(e => e.lineId));
+        if (completedCampus.size >= 4) return '执行过四个校区线终点效果';
+        break;
+      }
+      case 'plan_daqi': {    // 大气科学学院：20回合内金钱始终不为唯一最多
+        if (history && state.turnNumber >= 20) {
+          const moneyHist = history.moneyHistory;
+          if (moneyHist.length >= 20) {
+            let neverRichest = true;
+            // 简化检查：当前金钱不是唯一最高
+            const maxMoney = Math.max(...state.players.filter(p => !p.isBankrupt).map(p => p.money));
+            const playersWithMax = state.players.filter(p => !p.isBankrupt && p.money === maxMoney);
+            if (player.money === maxMoney && playersWithMax.length === 1) {
+              neverRichest = false;
+            }
+            if (neverRichest) return '20回合内金钱始终不为唯一最多';
+          }
+        }
+        break;
+      }
+      case 'plan_shengming':  // 生命科学学院：食堂线连续三次无负面效果
+        if (player.cafeteriaNoNegativeStreak >= 3) {
+          return `食堂线连续${player.cafeteriaNoNegativeStreak}次无负面效果`;
+        }
+        break;
+      case 'plan_yixue':     // 医学院：进入过三次医院
+        if (player.hospitalVisits >= 3) return `进入${player.hospitalVisits}次医院`;
+        break;
+      case 'plan_gongguan':  // 工程管理学院：第二次金钱数为0
+        if (player.moneyZeroCount >= 2) return `第${player.moneyZeroCount}次金钱为0`;
+        break;
+      case 'plan_kuangyaming': { // 匡亚明学院：满足任意玩家的已固定培养计划
+        for (const other of state.players) {
+          if (other.id === player.id) continue;
+          for (const otherPlanId of other.confirmedPlans) {
+            const result = this.checkPlanWinCondition(player, otherPlanId, state);
+            if (result) return `满足${other.name}的${otherPlanId}条件: ${result}`;
+          }
+        }
+        break;
+      }
+      case 'plan_haiwai':    // 海外教育学院：有玩家获胜时，若你对其使用过至少两次机会卡
+        // 此条件在胜利判定时特殊处理（检查winner时对比）
+        break;
+      case 'plan_jianzhu': { // 建筑与城市规划学院：经历过起点、校医院、鼎、候车厅和闯门
+        if (history) {
+          const visited = history.mainCellVisited;
+          const required = ['corner_start', 'corner_hospital', 'corner_ding', 'corner_waiting_room', 'event_chuang_men'];
+          // 也检查position index对应的格子名
+          const requiredIndices = [0, 7, 14, 21]; // 起点、校医院、鼎、候车厅
+          const visitedIndices = new Set(visited);
+          const hasCorners = requiredIndices.every(i => visitedIndices.has(`main_${i}`));
+          const hasChuangMen = visited.some(v => v.includes('chuang_men'));
+          if (hasCorners && hasChuangMen) return '经历过起点、校医院、鼎、候车厅和闯门';
+        }
+        break;
+      }
+      case 'plan_yishu': {   // 艺术学院：经历过浦口线每个事件
+        const pukouEvents = player.lineEventsTriggered['pukou'] || [];
+        // 浦口线有12个事件格(index 0-11)
+        if (pukouEvents.length >= 12) return '经历过浦口线每个事件';
+        break;
+      }
+      case 'plan_suzhou': {  // 苏州校区：经历过苏州校区的每个事件
+        const suzhouEvents = player.lineEventsTriggered['suzhou'] || [];
+        // 苏州线有10个事件格(index 0-9)
+        if (suzhouEvents.length >= 10) return '经历过苏州线每个事件';
+        break;
+      }
       default:
         break;
     }
@@ -365,6 +532,154 @@ export class GameCoordinator {
             this.engine.modifyPlayerExploration(p.id, 1);
           });
           this.addLog('system', '出行方式：井然有序，所有玩家GPA+0.1, 探索值+1');
+        }
+        break;
+      }
+      case 'destiny_four_schools': {
+        // 四校联动 — 奇数：选人数>1的校区玩家各探索+2，偶数：选人数=1的校区玩家各探索+2
+        const dice = this.engine.rollDice(1)[0];
+        const isOdd = dice % 2 === 1;
+        for (const [campus, pids] of Object.entries(groups)) {
+          const qualifies = isOdd ? pids.length > 1 : pids.length === 1;
+          if (qualifies) {
+            for (const pid of pids) this.engine.modifyPlayerExploration(pid, 2);
+          }
+        }
+        this.addLog('system', `四校联动(${dice}${isOdd ? '奇' : '偶'})：${isOdd ? '人数>1' : '人数=1'}的校区玩家探索+2`);
+        break;
+      }
+      case 'chance_swimming_pool_regular': {
+        // 泳馆常客 — 骰子奇偶决定效果
+        const dice = this.engine.rollDice(1)[0];
+        if (dice % 2 === 1) {
+          // 闭馆不赔：年卡金钱-300，按次金钱+100
+          for (const pid of groups['annual'] || []) this.engine.modifyPlayerMoney(pid, -300);
+          for (const pid of groups['per_use'] || []) this.engine.modifyPlayerMoney(pid, 100);
+          this.addLog('system', `泳馆常客(${dice}奇)：闭馆不赔，年卡金钱-300，按次金钱+100`);
+        } else {
+          // 酷暑难耐：年卡探索+5，按次探索-1,GPA-0.1
+          for (const pid of groups['annual'] || []) this.engine.modifyPlayerExploration(pid, 5);
+          for (const pid of groups['per_use'] || []) {
+            this.engine.modifyPlayerExploration(pid, -1);
+            this.engine.modifyPlayerGpa(pid, -0.1);
+          }
+          this.addLog('system', `泳馆常客(${dice}偶)：酷暑难耐，年卡探索+5，按次探索-1,GPA-0.1`);
+        }
+        break;
+      }
+      case 'chance_meeting_is_fate': {
+        // 相逢是缘 — 骰子奇偶决定效果
+        const dice = this.engine.rollDice(1)[0];
+        if (dice % 2 === 1) {
+          // 纸条传情：图书馆GPA+0.2,金钱-100
+          for (const pid of groups['library'] || []) {
+            this.engine.modifyPlayerGpa(pid, 0.2);
+            this.engine.modifyPlayerMoney(pid, -100);
+          }
+          this.addLog('system', `相逢是缘(${dice}奇)：纸条传情，图书馆GPA+0.2,金钱-100`);
+        } else {
+          // 热血青春：运动场探索+2,金钱-100
+          for (const pid of groups['sports'] || []) {
+            this.engine.modifyPlayerExploration(pid, 2);
+            this.engine.modifyPlayerMoney(pid, -100);
+          }
+          this.addLog('system', `相逢是缘(${dice}偶)：热血青春，运动场探索+2,金钱-100`);
+        }
+        break;
+      }
+      case 'chance_first_snow': {
+        // 初雪留痕 — 初雪告白人数决定效果
+        const confessionCount = (groups['confession'] || []).length;
+        if (confessionCount === 0) {
+          // 全选大雪无声：所有玩家GPA+0.1
+          this.engine.getAllPlayers().filter(p => !p.isBankrupt).forEach(p => this.engine.modifyPlayerGpa(p.id, 0.1));
+          this.addLog('system', '初雪留痕：风声雪声读书声，所有玩家GPA+0.1');
+        } else if (confessionCount % 2 === 1) {
+          // 奇数：初雪告白者探索-2
+          for (const pid of groups['confession'] || []) this.engine.modifyPlayerExploration(pid, -2);
+          this.addLog('system', '初雪留痕：错综复杂，初雪告白者探索值-2');
+        } else {
+          // 偶数且不为0：初雪告白者探索+3
+          for (const pid of groups['confession'] || []) this.engine.modifyPlayerExploration(pid, 3);
+          this.addLog('system', '初雪留痕：圆满顺遂，初雪告白者探索值+3');
+        }
+        break;
+      }
+      case 'chance_strange_tales': {
+        // 怪奇物谈 — 骰子奇偶
+        const dice = this.engine.rollDice(1)[0];
+        if (dice % 2 === 1) {
+          for (const pid of groups['ding'] || []) this.engine.modifyPlayerExploration(pid, 2);
+          this.addLog('system', `怪奇物谈(${dice}奇)：理论专家，选鼎里的探索值+2`);
+        } else {
+          for (const pid of groups['tianwenshan'] || []) this.engine.modifyPlayerGpa(pid, 0.2);
+          this.addLog('system', `怪奇物谈(${dice}偶)：流星许愿，选天文山的GPA+0.2`);
+        }
+        break;
+      }
+      case 'chance_delivery_theft': {
+        // 外卖贼盗 — 骰子vs选监控报警人数
+        const reportCount = (groups['report'] || []).length;
+        const dice = this.engine.rollDice(1)[0];
+        // Find the card drawer (the player who started the action)
+        const allPlayerIds = [...(groups['report'] || []), ...(groups['silent'] || [])];
+        // The drawer is the one NOT in allPlayerIds (since only others voted)
+        const drawerId = this.engine.getAllPlayers().find(p => !p.isBankrupt && !allPlayerIds.includes(p.id))?.id;
+        if (dice > reportCount) {
+          // 劳神费力
+          for (const pid of groups['report'] || []) this.engine.skipPlayerTurn(pid, 1);
+          if (drawerId) {
+            this.engine.skipPlayerTurn(drawerId, 1);
+            this.engine.modifyPlayerMoney(drawerId, -100);
+          }
+          this.addLog('system', `外卖贼盗(${dice}>${reportCount})：劳神费力，监控报警者和抽卡者暂停一回合`);
+        } else {
+          // 群策群力
+          for (const pid of groups['report'] || []) this.engine.modifyPlayerExploration(pid, 3);
+          if (drawerId) this.engine.modifyPlayerExploration(drawerId, 4);
+          this.addLog('system', `外卖贼盗(${dice}<=${reportCount})：群策群力，监控报警者探索+3，抽卡者探索+4`);
+        }
+        break;
+      }
+      case 'chance_root_finding_moment': {
+        // 寻根时刻 — 骰子奇偶
+        const dice = this.engine.rollDice(1)[0];
+        if (dice % 2 === 1) {
+          // 工期紧张：装潢暂停一回合，历史古迹金钱+200
+          for (const pid of groups['renovate'] || []) this.engine.skipPlayerTurn(pid, 1);
+          for (const pid of groups['historic'] || []) this.engine.modifyPlayerMoney(pid, 200);
+          this.addLog('system', `寻根时刻(${dice}奇)：装潢暂停一回合，历史古迹金钱+200`);
+        } else {
+          // 形象实际：装潢探索+1,GPA+0.1，历史古迹探索-1
+          for (const pid of groups['renovate'] || []) {
+            this.engine.modifyPlayerExploration(pid, 1);
+            this.engine.modifyPlayerGpa(pid, 0.1);
+          }
+          for (const pid of groups['historic'] || []) this.engine.modifyPlayerExploration(pid, -1);
+          this.addLog('system', `寻根时刻(${dice}偶)：装潢探索+1,GPA+0.1，历史古迹探索-1`);
+        }
+        break;
+      }
+      case 'chance_rest_moment': {
+        // 休憩时刻 — 多数决
+        const daqishan = counts['daqishan'] || 0;
+        const yangshanhu = counts['yangshanhu'] || 0;
+        const allPlayers = this.engine.getAllPlayers().filter(p => !p.isBankrupt);
+        if (daqishan > yangshanhu) {
+          allPlayers.forEach(p => {
+            this.engine.modifyPlayerMoney(p.id, 100);
+            this.engine.modifyPlayerExploration(p.id, 1);
+          });
+          this.addLog('system', '休憩时刻：免费赏花，所有玩家金钱+100,探索+1');
+        } else if (yangshanhu > daqishan) {
+          allPlayers.forEach(p => {
+            this.engine.modifyPlayerMoney(p.id, -100);
+            this.engine.modifyPlayerExploration(p.id, 3);
+          });
+          this.addLog('system', '休憩时刻：野餐时刻，所有玩家金钱-100,探索+3');
+        } else {
+          allPlayers.forEach(p => this.engine.modifyPlayerGpa(p.id, 0.2));
+          this.addLog('system', '休憩时刻：鸽以卷积，所有玩家GPA+0.2');
         }
         break;
       }
@@ -660,12 +975,24 @@ export class GameCoordinator {
         }
       }
     } else if (state.pendingAction.type === 'choose_player') {
-      // Target player selected
-      if (state.pendingAction.targetPlayerIds?.includes(choice)) {
+      // Target player selected — use callbackHandler if available
+      let pendingAction: import('@nannaricher/shared').PendingAction | null = null;
+      if (state.pendingAction.callbackHandler) {
+        pendingAction = this.engine.getEventHandler().execute(
+          state.pendingAction.callbackHandler, playerId, choice
+        );
+      } else if (state.pendingAction.targetPlayerIds?.includes(choice)) {
         const handlerId = `${pendingActionId}_${choice}`;
-        this.engine.getEventHandler().execute(handlerId, playerId);
+        pendingAction = this.engine.getEventHandler().execute(handlerId, playerId);
+      }
+      if (pendingAction) {
+        state.pendingAction = pendingAction;
+        this.broadcastState();
+      } else {
         state.pendingAction = null;
         this.broadcastState();
+        if (this.checkAndEmitWin()) return;
+        this.advanceTurn();
       }
     } else if (state.pendingAction.type === 'choose_line') {
       // Line selected for entry
@@ -693,6 +1020,8 @@ export class GameCoordinator {
       const totalVoters = state.pendingAction.targetPlayerIds?.length || state.players.length;
       const votedCount = Object.keys(state.pendingAction.responses).length;
 
+      console.log(`[VOTE] ${playerId} voted '${choice}' on ${state.pendingAction.cardId} | voted=${votedCount}/${totalVoters} | targetIds=${JSON.stringify(state.pendingAction.targetPlayerIds)} | responseKeys=${JSON.stringify(Object.keys(state.pendingAction.responses))}`);
+
       if (votedCount >= totalVoters) {
         // All votes collected — resolve based on card type
         const responses = state.pendingAction.responses;
@@ -712,8 +1041,12 @@ export class GameCoordinator {
           counts[option] = pids.length;
         }
 
-        if (cardId) {
-          this.resolveMultiVoteCard(cardId, groups, counts);
+        try {
+          if (cardId) {
+            this.resolveMultiVoteCard(cardId, groups, counts);
+          }
+        } catch (err) {
+          console.error(`[VOTE ERROR] resolveMultiVoteCard failed for ${cardId}:`, err);
         }
 
         state.pendingAction = null;

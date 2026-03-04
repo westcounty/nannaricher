@@ -250,8 +250,8 @@ export class GameEngine implements IGameEngine {
       this.log('哲学系能力：GPA下限保持在3.0', playerId);
     }
 
-    player.gpa = Math.max(0, Math.min(5.0, newGpa));
-    this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa.toFixed(1)})`, playerId);
+    player.gpa = parseFloat(Math.max(0, Math.min(5.0, newGpa)).toFixed(1));
+    this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa})`, playerId);
   }
 
   modifyPlayerExploration(playerId: string, delta: number): void {

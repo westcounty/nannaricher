@@ -126,33 +126,29 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // NanDa gift shop (南哪诚品) - registered with both names for compatibility
+  // NanDa gift shop (南哪诚品) - 交给场上其它玩家每人50金钱
   eventHandler.registerHandler('event_nanna_cp', (engine, playerId) => {
     const players = engine.getAllPlayers();
-    let totalPaid = 0;
-    players.forEach(p => {
-      if (p.id !== playerId) {
-        engine.modifyPlayerMoney(p.id, -50);
-        totalPaid += 50;
-      }
+    const others = players.filter(p => p.id !== playerId && !p.isBankrupt);
+    const totalCost = others.length * 50;
+    engine.modifyPlayerMoney(playerId, -totalCost);
+    others.forEach(p => {
+      engine.modifyPlayerMoney(p.id, 50);
     });
-    engine.modifyPlayerMoney(playerId, totalPaid);
-    engine.log(`南哪诚品，其他玩家各支付50金钱，共获得 ${totalPaid}`, playerId);
+    engine.log(`南哪诚品，给其他每位玩家50金钱，共支出 ${totalCost}`, playerId);
     return null;
   });
 
   // Alias
   eventHandler.registerHandler('event_nanda_cp', (engine, playerId) => {
     const players = engine.getAllPlayers();
-    let totalPaid = 0;
-    players.forEach(p => {
-      if (p.id !== playerId) {
-        engine.modifyPlayerMoney(p.id, -50);
-        totalPaid += 50;
-      }
+    const others = players.filter(p => p.id !== playerId && !p.isBankrupt);
+    const totalCost = others.length * 50;
+    engine.modifyPlayerMoney(playerId, -totalCost);
+    others.forEach(p => {
+      engine.modifyPlayerMoney(p.id, 50);
     });
-    engine.modifyPlayerMoney(playerId, totalPaid);
-    engine.log(`南哪诚品，其他玩家各支付50金钱，共获得 ${totalPaid}`, playerId);
+    engine.log(`南哪诚品，给其他每位玩家50金钱，共支出 ${totalCost}`, playerId);
     return null;
   });
 
@@ -178,8 +174,8 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // Chuang Men event (闯门)
-  eventHandler.registerHandler('event_chuang_men', (engine, playerId) => {
+  // Chuang Men event (闯门) — board cell id is "chuangmen"
+  eventHandler.registerHandler('event_chuangmen', (engine, playerId) => {
     return engine.createPendingAction(
       playerId,
       'choose_option',

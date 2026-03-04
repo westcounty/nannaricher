@@ -13,6 +13,7 @@
     "@nannaricher/shared": "*",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "puppeteer": "^24.38.0",
     "socket.io": "^4.8.0"
   },
   "devDependencies": {

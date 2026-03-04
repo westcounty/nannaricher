@@ -16,6 +16,7 @@ import { StatusIndicator } from './StatusIndicator';
 import { VotePanel } from './VotePanel';
 import { ChainActionPanel } from './ChainActionPanel';
 import { DiceRoller } from './DiceRoller';
+import { CardHand } from './CardHand';
 import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import type { Player } from '@nannaricher/shared';
@@ -84,6 +85,7 @@ export function GameScreen() {
     playerId,
     chooseAction,
     confirmPlan,
+    useCard,
     currentEvent,
     announcement,
     winner,
@@ -97,6 +99,8 @@ export function GameScreen() {
   // Tab state for tablet/mobile
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(false);
+  // Track if player finished plan selection (chose to skip additional plans)
+  const [planSelectionDone, setPlanSelectionDone] = useState(false);
 
   // Dice overlay state
   const [showDiceOverlay, setShowDiceOverlay] = useState(false);
@@ -223,16 +227,14 @@ export function GameScreen() {
                 />
               ))}
             </div>
-            <div className="side-panel-section">
-              <span className="section-title">手牌</span>
-              <div className="hand-cards">
-                {myPlayer?.heldCards?.map((card) => (
-                  <div key={card.id} className="hand-card" title={card.description}>
-                    {card.name}
-                  </div>
-                )) || <span className="empty-hand">无手牌</span>}
-              </div>
-            </div>
+            {myPlayer && (
+              <CardHand
+                player={myPlayer}
+                onUseCard={useCard}
+                isCurrentPlayer={isMyTurn}
+                players={gameState?.players}
+              />
+            )}
             <div className="side-panel-section">
               <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
             </div>
@@ -283,6 +285,7 @@ export function GameScreen() {
               otherPlayers={otherPlayers}
               currentPlayer={currentPlayer}
               isMyTurn={isMyTurn}
+              useCard={useCard}
               onClose={closeSheet}
             />
           </div>
@@ -342,6 +345,7 @@ export function GameScreen() {
                 otherPlayers={otherPlayers}
                 currentPlayer={currentPlayer}
                 isMyTurn={isMyTurn}
+                useCard={useCard}
                 onClose={closeSheet}
               />
             </div>
@@ -403,10 +407,11 @@ export function GameScreen() {
       {/* Event Modal */}
       {currentEvent && <GameEventModal />}
 
-      {/* Choice Dialog (standard choices, not vote/chain) */}
+      {/* Choice Dialog (standard choices, not vote/chain, not when event modal is showing) */}
       {hasPendingAction &&
         !isVoting &&
         !isChainAction &&
+        !currentEvent &&
         gameState.pendingAction?.options &&
         gameState.pendingAction.options.length > 0 && (
           <ChoiceDialog
@@ -425,24 +430,30 @@ export function GameScreen() {
       {/* Training Plan Multi-Select Dialog */}
       {gameState?.phase === 'setup_plans' &&
         myPlayer &&
-        myPlayer.trainingPlans.length > 0 && (
+        myPlayer.trainingPlans.length > 0 &&
+        myPlayer.confirmedPlans.length < 2 &&
+        !planSelectionDone && (
           <MultiSelectDialog
+            key={`plan-select-${myPlayer.confirmedPlans.length}`}
             title="选择培养计划"
-            prompt={`${myPlayer.name}，请选择1-2项培养计划确认（已确认 ${myPlayer.confirmedPlans.length}/2）`}
-            options={myPlayer.trainingPlans.map((plan) => ({
-              label: plan.name,
-              value: plan.id,
-              description: `胜利条件: ${plan.winCondition}${plan.passiveAbility ? `\n特殊能力: ${plan.passiveAbility}` : ''}`,
-              selected: myPlayer.confirmedPlans.includes(plan.id),
-            }))}
-            minSelections={1}
-            maxSelections={2}
+            prompt={`${myPlayer.name}，请选择${myPlayer.confirmedPlans.length === 0 ? '1-2' : '0-1'}项培养计划确认（已确认 ${myPlayer.confirmedPlans.length}/2）`}
+            options={myPlayer.trainingPlans
+              .filter((plan) => !myPlayer.confirmedPlans.includes(plan.id))
+              .map((plan) => ({
+                label: plan.name,
+                value: plan.id,
+                description: `胜利条件: ${plan.winCondition}${plan.passiveAbility ? `\n特殊能力: ${plan.passiveAbility}` : ''}`,
+              }))}
+            minSelections={myPlayer.confirmedPlans.length >= 1 ? 0 : 1}
+            maxSelections={2 - myPlayer.confirmedPlans.length}
             onConfirm={(selectedIds) => {
-              selectedIds.forEach((planId) => {
-                if (!myPlayer.confirmedPlans.includes(planId)) {
+              if (selectedIds.length === 0) {
+                setPlanSelectionDone(true);
+              } else {
+                selectedIds.forEach((planId) => {
                   confirmPlan(planId);
-                }
-              });
+                });
+              }
             }}
             timeout={120000}
           />
@@ -490,6 +501,7 @@ interface TabSheetContentProps {
   otherPlayers: Player[];
   currentPlayer: Player | undefined;
   isMyTurn: boolean;
+  useCard: (cardId: string, targetPlayerId?: string) => void;
   onClose: () => void;
 }
 
@@ -502,28 +514,19 @@ function TabSheetContent({
   otherPlayers,
   currentPlayer,
   isMyTurn,
+  useCard: onUseCard,
   onClose: _onClose,
 }: TabSheetContentProps) {
   switch (activeTab) {
     case 'hand':
-      return (
-        <div className="mobile-hand-cards">
-          {myPlayer?.heldCards && myPlayer.heldCards.length > 0 ? (
-            myPlayer.heldCards.map((card) => (
-              <div key={card.id} className="mobile-hand-card" title={card.description}>
-                <div style={{ fontWeight: 600, marginBottom: '4px' }}>{card.name}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                  {card.description}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '12px' }}>
-              无手牌
-            </div>
-          )}
-        </div>
-      );
+      return myPlayer ? (
+        <CardHand
+          player={myPlayer}
+          onUseCard={onUseCard}
+          isCurrentPlayer={isMyTurn}
+          players={gameState?.players}
+        />
+      ) : null;
 
     case 'plans':
       return (

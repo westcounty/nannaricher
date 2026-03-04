@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+/* Use China-accessible CDN mirror for Noto Sans SC */
+@import url('https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 @import "tailwindcss";
 
 /* Custom theme using CSS custom properties */

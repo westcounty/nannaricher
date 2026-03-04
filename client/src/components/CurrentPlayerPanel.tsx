@@ -63,8 +63,7 @@ export function CurrentPlayerPanel({
     !player.isBankrupt &&
     !isRolling &&
     gameState?.phase === 'playing' &&
-    !gameState?.pendingAction ||
-    gameState?.pendingAction?.type === 'roll_dice';
+    (!gameState?.pendingAction || gameState?.pendingAction?.type === 'roll_dice');
 
   // For hospital/ding, player still needs to roll
   const needsToRoll = player.isInHospital || player.isAtDing;
@@ -218,7 +217,7 @@ export function CurrentPlayerPanel({
         <button
           className="roll-dice-btn"
           onClick={handleRollDice}
-          disabled={!canRollDice && !(isMyTurn && needsToRoll) || isRolling}
+          disabled={(!canRollDice && !(isMyTurn && needsToRoll)) || isRolling}
         >
           {getRollButtonText()}
         </button>

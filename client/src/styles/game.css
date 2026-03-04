@@ -959,10 +959,22 @@
 
 /* In desktop left-column, fill available width, constrain height */
 .left-column .board-canvas-container {
+  /* Override height:100% from base rule so aspect-ratio can compute height from width */
+  height: auto;
   width: 100%;
+  aspect-ratio: 1;
   max-height: calc(100vh - 200px);
+  max-width: 100%;
+  margin: 0 auto;
   overflow: hidden;
   border: 1px solid var(--game-border);
+}
+
+/* Constrain the PixiJS canvas element to fill its container exactly */
+.board-canvas-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .board-canvas {

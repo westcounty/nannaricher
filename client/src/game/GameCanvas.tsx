@@ -60,6 +60,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       container.appendChild(app.canvas);
       appRef.current = app;
 
+      // Re-read dimensions after async init (CSS layout may have settled)
+      const finalRect = container.getBoundingClientRect();
+      const w = finalRect.width > 0 ? finalRect.width : rect.width;
+      const h = finalRect.height > 0 ? finalRect.height : rect.height;
+      app.renderer.resize(w, h);
+
       // Create TweenEngine (driven by PixiJS ticker)
       const tweenEngine = new TweenEngine(app.ticker);
       tweenRef.current = tweenEngine;
@@ -75,7 +81,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       stage.addLayer(playerLayer);
       playerLayerRef.current = playerLayer;
 
-      stage.init(app, rect.width, rect.height);
+      stage.init(app, w, h);
 
       // Create effect layer ON TOP of everything (after stage.init so it's above all layers)
       const effectContainer = new Container();
@@ -91,6 +97,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const mainContainer = stage.getMainContainer();
       const vc = new ViewportController(mainContainer, app.canvas as HTMLCanvasElement);
       viewportRef.current = vc;
+
+      // Deferred resize: wait for next frame so CSS layout fully settles after
+      // canvas element insertion. This catches race conditions where the initial
+      // getBoundingClientRect() ran before flex recalculation completed.
+      requestAnimationFrame(() => {
+        const settledRect = container.getBoundingClientRect();
+        if (settledRect.width > 0 && settledRect.height > 0 &&
+            (Math.abs(settledRect.width - w) > 1 || Math.abs(settledRect.height - h) > 1)) {
+          app.renderer.resize(settledRect.width, settledRect.height);
+          stage.resize(settledRect.width, settledRect.height);
+        }
+      });
 
       console.log('[GameCanvas] PixiJS initialized with animations + viewport');
     }).catch(err => {
@@ -189,20 +207,33 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     );
   }, [diceResult]);
 
-  // Handle viewport resize
+  // Handle viewport resize using ResizeObserver for accurate container tracking
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const handleResize = () => {
       const app = appRef.current;
-      const container = containerRef.current;
       if (!app || !container) return;
 
       const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
       app.renderer.resize(rect.width, rect.height);
       stageRef.current?.resize(rect.width, rect.height);
     };
 
+    // Use ResizeObserver to detect container size changes (CSS layout settling, flex recalc, etc.)
+    const ro = new ResizeObserver(() => {
+      handleResize();
+    });
+    ro.observe(container);
+
+    // Also handle window resize as fallback
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return (
@@ -211,7 +242,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '400px',
         backgroundColor: '#0F0A1A',
         borderRadius: DESIGN_TOKENS.radius.lg,
         overflow: 'hidden',

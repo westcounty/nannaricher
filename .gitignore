@@ -54,3 +54,4 @@ temp/
 *.png
 *.jpg
 *.jpeg
+balance-test/report/*.json

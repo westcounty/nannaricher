@@ -421,7 +421,7 @@ export function MultiSelectDialog({
             onClick={handleConfirm}
             disabled={!canConfirm || isClosing}
           >
-            确认选择
+            {selectedValues.size === 0 && minSelections === 0 ? '跳过' : '确认选择'}
           </button>
         </div>
       </div>

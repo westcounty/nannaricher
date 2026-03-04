@@ -114,10 +114,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 物理学院：任选两项达到60分
+      // 物理学院：任意两项属性分数之和≥90
       case 'plan_wuli':
         if (this.checkPhysicsWin(player)) {
-          return { won: true, condition: '物理学院：两项属性分数达到60', planId };
+          return { won: true, condition: '物理学院：任意两项属性分数之和≥90', planId };
         }
         break;
 
@@ -316,15 +316,14 @@ export class WinConditionChecker {
       player.gpa * 10,
       player.money / 100,
     ];
-    let pairsCount = 0;
     for (let i = 0; i < scores.length; i++) {
       for (let j = i + 1; j < scores.length; j++) {
-        if (scores[i] >= 60 && scores[j] >= 60) {
-          pairsCount++;
+        if (scores[i] + scores[j] >= 90) {
+          return true;
         }
       }
     }
-    return pairsCount >= 1;
+    return false;
   }
 
   private checkBinaryWin(player: Player): boolean {
