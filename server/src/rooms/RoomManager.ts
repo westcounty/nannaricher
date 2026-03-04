@@ -1,5 +1,6 @@
 // server/src/rooms/RoomManager.ts
 import { Player, PLAYER_COLORS, MAX_PLAYERS, Position, TrainingPlan, Card, ActiveEffect } from '@nannaricher/shared';
+import type { GameCoordinator } from '../game/GameCoordinator.js';
 
 export interface Room {
   roomId: string;
@@ -52,8 +53,15 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
   };
 }
 
+/** Interval for cleanup timer (5 minutes) */
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+/** Max idle time before a room is removed (2 hours) */
+const MAX_IDLE_MS = 2 * 60 * 60 * 1000;
+
 export class RoomManager {
   private rooms = new Map<string, Room>();
+  private coordinators = new Map<string, GameCoordinator>();
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   createRoom(playerName: string, socketId: string, diceOption: 1 | 2) {
     let roomId: string;
@@ -85,7 +93,10 @@ export class RoomManager {
   }
 
   getRoom(roomId: string) { return this.rooms.get(roomId); }
-  removeRoom(roomId: string) { this.rooms.delete(roomId); }
+  removeRoom(roomId: string) {
+    this.rooms.delete(roomId);
+    this.coordinators.delete(roomId);
+  }
 
   findRoomBySocket(socketId: string) {
     for (const room of this.rooms.values()) {
@@ -97,5 +108,74 @@ export class RoomManager {
   updateActivity(roomId: string) {
     const room = this.rooms.get(roomId);
     if (room) room.lastActivity = Date.now();
+  }
+
+  // --------------------------------------------------
+  // Coordinator Management
+  // --------------------------------------------------
+
+  setCoordinator(roomId: string, coordinator: GameCoordinator): void {
+    this.coordinators.set(roomId, coordinator);
+  }
+
+  getCoordinator(roomId: string): GameCoordinator | undefined {
+    return this.coordinators.get(roomId);
+  }
+
+  // --------------------------------------------------
+  // Disconnect Handling
+  // --------------------------------------------------
+
+  handleDisconnect(socketId: string): void {
+    const room = this.findRoomBySocket(socketId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socketId);
+    if (!player) return;
+
+    const coordinator = this.coordinators.get(room.roomId);
+    if (coordinator) {
+      const state = coordinator.getState();
+      player.isDisconnected = true;
+      state.log.push({
+        turn: state.turnNumber,
+        playerId: player.id,
+        message: `${player.name} 断开连接`,
+        timestamp: Date.now(),
+      });
+      coordinator.broadcastState();
+
+      // If in game, notify remaining players
+      if (state.phase === 'playing') {
+        // Use io reference from coordinator to emit announcement
+        coordinator.broadcastState(); // ensures latest state is sent
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // Periodic Cleanup
+  // --------------------------------------------------
+
+  startCleanup(): void {
+    if (this.cleanupTimer) return;
+    this.cleanupTimer = setInterval(() => {
+      const now = Date.now();
+      for (const [roomId, room] of this.rooms.entries()) {
+        const isFinished = room.phase === 'finished';
+        const isIdle = now - room.lastActivity > MAX_IDLE_MS;
+        if (isFinished || isIdle) {
+          console.log(`[Cleanup] Removing room ${roomId} (finished=${isFinished}, idle=${isIdle})`);
+          this.removeRoom(roomId);
+        }
+      }
+    }, CLEANUP_INTERVAL_MS);
+  }
+
+  stopCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
   }
 }
