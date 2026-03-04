@@ -36,6 +36,17 @@ export function ActionBar({ myPlayer, isMyTurn, currentPlayerName, useCard, play
 
   const diceDisabled = (!canRollDice && !(isMyTurn && needsToRoll)) || isRolling;
 
+  // Bankrupt spectator mode
+  if (myPlayer?.isBankrupt) {
+    return (
+      <div className="action-bar action-bar--spectator">
+        <span className="action-bar__spectator-text">
+          {'\uD83D\uDC41\uFE0F \u89C2\u6218\u6A21\u5F0F \u2014 \u4F60\u5DF2\u7834\u4EA7\uFF0C\u53EF\u7EE7\u7EED\u89C2\u770B\u5176\u4ED6\u73A9\u5BB6\u7684\u6E38\u620F'}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="action-bar">
       {/* Left: my stats */}

@@ -1,0 +1,107 @@
+/* SettingsPanel - dropdown from header */
+
+.settings-panel-container {
+  position: relative;
+  display: inline-block;
+}
+
+.settings-panel__toggle {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary, #e2e8f0);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.settings-panel__toggle:hover {
+  background: rgba(139, 95, 191, 0.15);
+}
+
+.settings-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--color-bg-elevated, #1e1533);
+  border: 1px solid rgba(139, 95, 191, 0.3);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  min-width: 240px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
+}
+
+.settings-panel__title {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-accent, #c9a227);
+}
+
+.settings-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.settings-panel__row--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 4px;
+}
+
+.settings-panel__row--clickable:hover {
+  background: rgba(139, 95, 191, 0.1);
+}
+
+.settings-panel__label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.settings-panel__value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #e2e8f0);
+}
+
+.settings-panel__divider {
+  height: 1px;
+  background: rgba(139, 95, 191, 0.15);
+  margin: 8px 0;
+}
+
+.settings-panel__group {
+  padding: 6px 0;
+}
+
+.settings-panel__slider {
+  width: 100%;
+  accent-color: var(--color-brand-primary, #8b5fbf);
+  margin-top: 4px;
+}
+
+.settings-panel__toggle-indicator {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 100, 100, 0.3);
+  color: var(--color-text-muted, #64748b);
+}
+
+.settings-panel__toggle-indicator--on {
+  background: rgba(94, 58, 141, 0.3);
+  color: var(--color-accent, #c9a227);
+}
+
+/* Reduced motion global rule */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

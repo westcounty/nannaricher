@@ -8,11 +8,13 @@ interface MobileBottomNavProps {
   isRolling: boolean;
   canRollDice: boolean;
   cardCount: number;
+  isBankrupt?: boolean;
   onRollDice: () => void;
   onOpenCards: () => void;
   onOpenPlayers: () => void;
   onOpenMore: () => void;
   activePanel?: string | null;
+  hasUnreadChat?: boolean;
 }
 
 export function MobileBottomNav({
@@ -20,14 +22,18 @@ export function MobileBottomNav({
   isRolling,
   canRollDice,
   cardCount,
+  isBankrupt = false,
   onRollDice,
   onOpenCards,
   onOpenPlayers,
   onOpenMore,
   activePanel,
+  hasUnreadChat = false,
 }: MobileBottomNavProps) {
-  const diceDisabled = !canRollDice || isRolling;
-  const diceText = isRolling ? '掷骰中...' : '🎲 掷骰子';
+  const diceDisabled = isBankrupt || !canRollDice || isRolling;
+  const diceText = isBankrupt
+    ? '\uD83D\uDC41\uFE0F \u89C2\u6218\u4E2D'
+    : isRolling ? '掷骰中...' : '🎲 掷骰子';
 
   const handleDiceClick = () => {
     if ('vibrate' in navigator) navigator.vibrate(50);
@@ -38,7 +44,7 @@ export function MobileBottomNav({
     <div className="mobile-bottom-nav">
       {/* Dice button (2x width) */}
       <button
-        className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--dice ${isMyTurn ? 'mobile-bottom-nav__btn--my-turn' : ''}`}
+        className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--dice ${isMyTurn && !isBankrupt ? 'mobile-bottom-nav__btn--my-turn' : ''} ${isBankrupt ? 'mobile-bottom-nav__btn--bankrupt' : ''}`}
         onClick={handleDiceClick}
         disabled={diceDisabled}
       >
@@ -70,6 +76,7 @@ export function MobileBottomNav({
         onClick={onOpenMore}
       >
         <span className="mobile-bottom-nav__icon">⋯</span>
+        {hasUnreadChat && <span className="mobile-bottom-nav__unread-dot" />}
       </button>
     </div>
   );

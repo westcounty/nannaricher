@@ -179,6 +179,18 @@
   border-top: 1px solid var(--game-border);
 }
 
+/* Card effect summary in thumbnail */
+.card-effect-summary {
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #888);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
 /* Player Panel */
 .player-panel {
   background: var(--color-bg-elevated);

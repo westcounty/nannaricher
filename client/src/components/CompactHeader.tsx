@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '@nannaricher/shared';
 import { AudioControl } from './AudioControl';
+import { SettingsPanel } from './SettingsPanel';
 import '../styles/compact-header.css';
 
 interface CompactHeaderProps {
@@ -52,6 +53,7 @@ export function CompactHeader({ gameState, playerId: _playerId, isMyTurn, curren
 
       <div className="compact-header__right">
         <AudioControl />
+        <SettingsPanel />
       </div>
     </div>
   );

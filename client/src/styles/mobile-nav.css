@@ -101,6 +101,15 @@
   }
 }
 
+/* Bankrupt / spectator dice button */
+.mobile-bottom-nav__btn--bankrupt.mobile-bottom-nav__btn--dice:disabled {
+  opacity: 0.6;
+  background: rgba(60, 60, 80, 0.5);
+  color: var(--color-text-muted);
+  text-shadow: none;
+  font-size: 0.75rem;
+}
+
 /* Regular nav buttons */
 .mobile-bottom-nav__btn--nav {
   flex: 1;
@@ -199,6 +208,8 @@
   font-size: 0.65rem;
   color: var(--color-text-secondary);
   transition: all 0.2s ease;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .mini-player-dot.active {
@@ -228,4 +239,44 @@
   font-weight: 700;
   color: var(--color-text-primary);
   font-size: 0.65rem;
+}
+
+/* Expanded mini-player dot */
+.mini-player-dot--expanded {
+  padding-right: 10px;
+  background: rgba(26, 26, 46, 0.92);
+  transition: all 0.25s ease;
+}
+
+.mini-player-stats-expanded {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 2px;
+}
+
+.mini-player-stat {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Unread chat dot on more button */
+.mobile-bottom-nav__unread-dot {
+  position: absolute;
+  top: 6px;
+  right: 22%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger, #e74c3c);
+  border: 1.5px solid var(--color-bg-elevated);
+  pointer-events: none;
+  animation: unread-pulse 2s ease-in-out infinite;
+}
+
+@keyframes unread-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

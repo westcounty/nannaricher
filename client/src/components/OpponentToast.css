@@ -1,0 +1,39 @@
+/* OpponentToast — brief opponent event notifications */
+
+.opponent-toast-container {
+  position: fixed;
+  top: 56px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1000;
+  pointer-events: none;
+  max-width: 260px;
+}
+
+.opponent-toast {
+  padding: 8px 14px;
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: opponent-toast-in 0.3s ease-out;
+}
+
+@keyframes opponent-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

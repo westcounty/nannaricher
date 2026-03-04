@@ -26,7 +26,11 @@ import { MobileSheetContent } from './MobileSheetContent';
 import { MiniPlayerOverlay } from './MiniPlayerOverlay';
 import { ActionPromptBar } from './ActionPromptBar';
 import { TurnOverlay } from './TurnOverlay';
+import { MissedEventsPanel } from './MissedEventsPanel';
+import { ZoomHint } from './ZoomHint';
+import { SettingsPanel } from './SettingsPanel';
 import { SettlementScreen } from './SettlementScreen';
+import { OpponentToast } from './OpponentToast';
 import { playSound } from '../audio/AudioManager';
 import './ChatPanel.css';
 import '../styles/game.css';
@@ -67,6 +71,13 @@ export function GameScreen() {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chat');
   // Track if player finished plan selection
   const [planSelectionDone, setPlanSelectionDone] = useState(false);
+
+  // Unread chat tracking
+  const lastSeenChatCountRef = useRef(0);
+  const hasUnreadChat =
+    (layout === 'mobile' || layout === 'tablet') &&
+    activePanel !== 'more' &&
+    chatMessages.length > lastSeenChatCountRef.current;
 
   // Dice overlay state
   const [showDiceOverlay, setShowDiceOverlay] = useState(false);
@@ -131,6 +142,9 @@ export function GameScreen() {
   // Mobile panel toggle
   const handlePanelToggle = (panelId: PanelId) => {
     playSound('tab_switch');
+    if (panelId === 'more') {
+      lastSeenChatCountRef.current = chatMessages.length;
+    }
     setActivePanel((prev) => (prev === panelId ? null : panelId));
   };
 
@@ -262,6 +276,7 @@ export function GameScreen() {
               currentPlayerId={currentPlayer?.id || null}
               localPlayerId={playerId}
             />
+            <ZoomHint />
           </div>
 
           {/* Action Prompt Bar (above mobile status bar) */}
@@ -314,11 +329,13 @@ export function GameScreen() {
             isRolling={isRolling}
             canRollDice={canRollDice || (isMyTurn && !!needsToRoll)}
             cardCount={myPlayer?.heldCards.length || 0}
+            isBankrupt={myPlayer?.isBankrupt}
             onRollDice={handleMobileRollDice}
             onOpenCards={() => handlePanelToggle('hand')}
             onOpenPlayers={() => handlePanelToggle('players')}
             onOpenMore={() => handlePanelToggle('more')}
             activePanel={activePanel}
+            hasUnreadChat={hasUnreadChat}
           />
         </>
       )}
@@ -425,6 +442,9 @@ export function GameScreen() {
         </div>
       )}
 
+      {/* Opponent event toasts */}
+      <OpponentToast />
+
       {/* Settlement Screen (replaces old Winner Modal) */}
       {winner && (
         <SettlementScreen
@@ -436,6 +456,9 @@ export function GameScreen() {
           }}
         />
       )}
+
+      {/* Missed Events Panel */}
+      <MissedEventsPanel />
 
       {/* Tutorial System */}
       <TutorialSystem />

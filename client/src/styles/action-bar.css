@@ -142,3 +142,16 @@
   color: var(--color-text-muted);
   white-space: nowrap;
 }
+
+/* Spectator mode (bankrupt player) */
+.action-bar--spectator {
+  justify-content: center;
+  background: rgba(15, 10, 26, 0.6);
+}
+
+.action-bar__spectator-text {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  letter-spacing: 0.3px;
+}

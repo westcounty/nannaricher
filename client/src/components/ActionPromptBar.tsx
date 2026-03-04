@@ -24,10 +24,17 @@ export function ActionPromptBar({
     pendingAction &&
     (pendingAction.playerId === playerId || pendingAction.playerId === 'all');
 
+  // Check if local player is bankrupt
+  const myPlayer = playerId
+    ? gameState.players.find((p) => p.id === playerId)
+    : null;
+
   let text: string;
   let isActive = false;
 
-  if (gameState.phase === 'setup_plans') {
+  if (myPlayer?.isBankrupt) {
+    text = '\u{1F441}\uFE0F \u89C2\u6218\u6A21\u5F0F \u2014 \u7EE7\u7EED\u89C2\u770B\u6BD4\u8D5B';
+  } else if (gameState.phase === 'setup_plans') {
     text = '\u{1F4CB} \u8BF7\u9009\u62E9\u57F9\u517B\u8BA1\u5212';
     isActive = true;
   } else if (gameState.phase === 'finished') {
@@ -54,7 +61,7 @@ export function ActionPromptBar({
     text = '\u23F3 \u7B49\u5F85\u7ED3\u7B97...';
     isActive = true;
   } else if (!isMyTurn) {
-    text = `\u{1F440} ${currentPlayerName ?? '...'} \u6B63\u5728\u64CD\u4F5C...`;
+    text = `\u{1F440} ${currentPlayerName ?? '...'} \u6B63\u5728\u64CD\u4F5C... \u2014 \u53EF\u6D4F\u89C8\u68CB\u76D8\u548C\u5361\u724C`;
   } else {
     text = '\u23F3 \u7B49\u5F85\u4E2D...';
   }

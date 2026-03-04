@@ -46,10 +46,54 @@ export function TrainingPlanView({
     );
   }
 
+  /**
+   * Best-effort progress estimation by parsing numeric targets from winCondition text.
+   * Returns { current, target, pct } if parseable, or null otherwise.
+   */
+  const parseProgress = (plan: TrainingPlan): { label: string; current: number; target: number; pct: number } | null => {
+    const text = plan.winCondition;
+
+    // Pattern: 金钱数达到N / 金钱达到N
+    const moneyMatch = text.match(/金钱[数]?达到(\d+)/);
+    if (moneyMatch) {
+      const target = parseInt(moneyMatch[1], 10);
+      const current = player.money;
+      return { label: '金钱', current, target, pct: Math.min(100, Math.round((current / target) * 100)) };
+    }
+
+    // Pattern: 探索值达到N
+    const expMatch = text.match(/探索值达到(\d+)/);
+    if (expMatch) {
+      const target = parseInt(expMatch[1], 10);
+      const current = player.exploration;
+      return { label: '探索值', current, target, pct: Math.min(100, Math.round((current / target) * 100)) };
+    }
+
+    // Pattern: GPA达到N
+    const gpaMatch = text.match(/GPA达到([\d.]+)/);
+    if (gpaMatch) {
+      const target = parseFloat(gpaMatch[1]);
+      const current = player.gpa;
+      return { label: 'GPA', current, target, pct: Math.min(100, Math.round((current / target) * 100)) };
+    }
+
+    // Pattern: 进入过N次医院
+    const hospitalMatch = text.match(/进入过(\d+)次医院/);
+    if (hospitalMatch) {
+      const target = parseInt(hospitalMatch[1], 10);
+      // We don't have hospital visit count, so skip
+      return null;
+    }
+
+    return null;
+  };
+
   const getProgressPercentage = (plan: TrainingPlan): number => {
-    // Progress is based on whether the plan is confirmed
-    // In a more complex implementation, this would track actual progress toward win condition
-    return plan.confirmed ? 100 : 50;
+    if (!player.confirmedPlans.includes(plan.id)) return 0;
+    const progress = parseProgress(plan);
+    if (progress) return progress.pct;
+    // Confirmed but unparseable — show as indeterminate
+    return 50;
   };
 
   return (
@@ -98,7 +142,14 @@ export function TrainingPlanView({
                   />
                 </div>
                 <span className="progress-text">
-                  {isConfirmed ? '已确认' : '待确认'}
+                  {isConfirmed
+                    ? (() => {
+                        const p = parseProgress(plan);
+                        return p
+                          ? `${p.label}: ${p.current}/${p.target} (${p.pct}%)`
+                          : '已确认';
+                      })()
+                    : '待确认'}
                 </span>
               </div>
 
@@ -108,7 +159,7 @@ export function TrainingPlanView({
                 </div>
               )}
 
-              {isConfirmed && (
+              {isConfirmed && !parseProgress(plan) && (
                 <div className="plan-progress-hint">
                   当前进度: {plan.winCondition}
                 </div>

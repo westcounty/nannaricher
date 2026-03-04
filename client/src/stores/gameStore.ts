@@ -67,6 +67,7 @@ interface GameStore {
   isLoading: boolean;
   error: string | null;
   isRolling: boolean;
+  missedEvents: string[];
 
   // === Computed Properties (function form) ===
   isMyTurn: () => boolean;
@@ -75,6 +76,11 @@ interface GameStore {
   myPlayer: () => Player | null;
   myHandCards: () => Card[];
   otherPlayers: () => Player[];
+
+  // === Opponent Notifications ===
+  opponentNotifications: string[];
+  addOpponentNotification: (msg: string) => void;
+  removeOpponentNotification: (msg: string) => void;
 
   // === State Setters ===
   setGameState: (state: GameState) => void;
@@ -88,6 +94,8 @@ interface GameStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
+  addMissedEvent: (event: string) => void;
+  clearMissedEvents: () => void;
   resetToLobby: () => void;
 
   // === Socket Actions (injected by SocketProvider) ===
@@ -114,6 +122,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isLoading: true,
   error: null,
   isRolling: false,
+  missedEvents: [],
+  opponentNotifications: [],
 
   // --- Computed Properties ---
   isMyTurn: () => {
@@ -183,6 +193,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setRolling: (rolling) => set({ isRolling: rolling }),
 
+  addMissedEvent: (event) => set((state) => ({
+    missedEvents: [...state.missedEvents, event].slice(-20),
+  })),
+
+  clearMissedEvents: () => set({ missedEvents: [] }),
+
+  addOpponentNotification: (msg) => set((state) => ({
+    opponentNotifications: [...state.opponentNotifications, msg],
+  })),
+
+  removeOpponentNotification: (msg) => set((state) => ({
+    opponentNotifications: state.opponentNotifications.filter((n) => n !== msg),
+  })),
+
   resetToLobby: () => set({
     gameState: null,
     roomId: null,
@@ -194,6 +218,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isRolling: false,
     isLoading: false,
     error: null,
+    missedEvents: [],
+    opponentNotifications: [],
   }),
 
   // --- Socket Actions ---
