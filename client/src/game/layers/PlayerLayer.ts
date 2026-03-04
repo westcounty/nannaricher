@@ -1,0 +1,182 @@
+// client/src/game/layers/PlayerLayer.ts
+// Renders player pieces on the board.
+// KEY FIX: Uses differential updates instead of removeChildren() + full redraw.
+// Maintains a Map of player pieces; only updates when position/highlight changes.
+
+import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import type { GameState, Player, Position } from '@nannaricher/shared';
+import type { RenderLayer } from '../GameStage';
+import {
+  BOARD_SIZE,
+  getCellPosition,
+  getLineCellPosition,
+  PLAYER_COLORS_HEX,
+} from '../layout/BoardLayout';
+
+// Internal representation of a rendered player piece
+interface PlayerPiece {
+  container: Container;  // group: piece graphic + name label
+  lastPosition: Position;
+  lastIsCurrent: boolean;
+}
+
+export class PlayerLayer implements RenderLayer {
+  private layerContainer: Container | null = null;
+  private playerPieces: Map<string, PlayerPiece> = new Map();
+
+  init(stage: Container): void {
+    this.layerContainer = new Container();
+    this.layerContainer.x = BOARD_SIZE / 2;
+    this.layerContainer.y = BOARD_SIZE / 2;
+    stage.addChild(this.layerContainer);
+  }
+
+  update(state: GameState, currentPlayerId: string | null): void {
+    if (!this.layerContainer) return;
+
+    const seenPlayerIds = new Set<string>();
+
+    state.players.forEach((player, idx) => {
+      seenPlayerIds.add(player.id);
+      const isCurrent = player.id === currentPlayerId;
+
+      const existing = this.playerPieces.get(player.id);
+
+      if (existing) {
+        // Check if anything changed
+        const posChanged = !positionsEqual(existing.lastPosition, player.position);
+        const highlightChanged = existing.lastIsCurrent !== isCurrent;
+
+        if (posChanged || highlightChanged) {
+          // Rebuild the piece (simpler than granular updates for the small number of players)
+          this.removePiece(player.id);
+          this.createPiece(player, idx, isCurrent);
+        }
+        // else: no change, skip
+      } else {
+        // New player — create piece
+        this.createPiece(player, idx, isCurrent);
+      }
+    });
+
+    // Remove pieces for players no longer in the game
+    for (const [playerId] of this.playerPieces) {
+      if (!seenPlayerIds.has(playerId)) {
+        this.removePiece(playerId);
+      }
+    }
+  }
+
+  destroy(): void {
+    this.playerPieces.clear();
+    if (this.layerContainer) {
+      if (this.layerContainer.parent) {
+        this.layerContainer.parent.removeChild(this.layerContainer);
+      }
+      this.layerContainer.destroy({ children: true });
+      this.layerContainer = null;
+    }
+  }
+
+  // ------ Private ------
+
+  private createPiece(player: Player, playerIndex: number, isCurrent: boolean): void {
+    if (!this.layerContainer) return;
+
+    // Calculate position
+    let pos: { x: number; y: number };
+    let inLine = false;
+
+    if (player.position.type === 'main') {
+      pos = getCellPosition(player.position.index);
+    } else {
+      pos = getLineCellPosition(player.position.lineId, player.position.index);
+      inLine = true;
+    }
+
+    const color = PLAYER_COLORS_HEX[playerIndex % PLAYER_COLORS_HEX.length];
+    const offset = playerIndex * 5;
+
+    // Group container for this player's visuals
+    const group = new Container();
+    group.x = pos.x + offset;
+    group.y = pos.y + offset;
+
+    // Piece graphic
+    const piece = new Graphics();
+
+    // Shadow
+    piece.ellipse(0, 14, 12, 6);
+    piece.fill({ color: 0x333333, alpha: 0.2 });
+
+    // Body
+    piece.circle(0, 0, 10);
+    piece.fill({ color });
+
+    // Highlight
+    piece.circle(-3, -3, 3);
+    piece.fill({ color: 0xffffff, alpha: 0.4 });
+
+    // Current player ring
+    if (isCurrent) {
+      piece.circle(0, 0, 14);
+      piece.stroke({ width: 3, color: 0xC9A227 });
+    }
+
+    // In-line indicator
+    if (inLine) {
+      piece.circle(0, 0, 12);
+      piece.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
+    }
+
+    group.addChild(piece);
+
+    // Name label
+    const nameText = new Text({
+      text: player.name.slice(0, 2),
+      style: new TextStyle({
+        fontSize: 9,
+        fill: 0x333333,
+        fontWeight: 'bold',
+      }),
+    });
+    nameText.anchor.set(0.5);
+    nameText.y = -18;
+    group.addChild(nameText);
+
+    this.layerContainer.addChild(group);
+
+    // Store reference
+    this.playerPieces.set(player.id, {
+      container: group,
+      lastPosition: { ...player.position } as Position,
+      lastIsCurrent: isCurrent,
+    });
+  }
+
+  private removePiece(playerId: string): void {
+    const piece = this.playerPieces.get(playerId);
+    if (piece) {
+      if (piece.container.parent) {
+        piece.container.parent.removeChild(piece.container);
+      }
+      piece.container.destroy({ children: true });
+      this.playerPieces.delete(playerId);
+    }
+  }
+}
+
+// ============================================
+// Helpers
+// ============================================
+
+function positionsEqual(a: Position, b: Position): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === 'main' && b.type === 'main') {
+    return a.index === b.index;
+  }
+  if (a.type === 'line' && b.type === 'line') {
+    return a.lineId === b.lineId && a.index === b.index;
+  }
+  return false;
+}

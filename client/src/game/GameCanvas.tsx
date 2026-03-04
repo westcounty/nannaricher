@@ -1,12 +1,17 @@
 // client/src/game/GameCanvas.tsx
-import React, { useRef, useEffect, useCallback } from 'react';
-import { Stage, Container } from '@pixi/react';
-import { GameState, Position } from '@nannaricher/shared';
+// Thin React wrapper (~90 lines) that manages PixiJS Application lifecycle
+// and delegates rendering to the layered GameStage architecture.
+
+import React, { useRef, useEffect } from 'react';
+import { Application } from 'pixi.js';
+import type { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
-// 占位组件 - 后续任务会实现
-const BoardRendererPlaceholder: React.FC<{ gameState: GameState; onCellClick?: (cellId: string, position: Position) => void }> = () => null;
-const PlayerPiecePlaceholder: React.FC<{ player: any; isCurrentPlayer: boolean }> = () => null;
+import { GameStage } from './GameStage';
+import { BackgroundLayer } from './layers/BackgroundLayer';
+import { BoardLayer } from './layers/BoardLayer';
+import { LineLayer } from './layers/LineLayer';
+import { PlayerLayer } from './layers/PlayerLayer';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -20,58 +25,89 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onCellClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = React.useState({ width: 800, height: 600 });
-  const [scale, setScale] = React.useState(1);
+  const appRef = useRef<Application | null>(null);
+  const stageRef = useRef<GameStage | null>(null);
 
-  // 响应式调整
+  // Initialize PixiJS Application + layered stage
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current;
-        setDimensions({ width: clientWidth, height: clientHeight });
-        // 计算缩放比例以适应容器
-        const minDim = Math.min(clientWidth, clientHeight);
-        setScale(minDim / 800);
+    const container = containerRef.current;
+    if (!container || appRef.current) return;
+
+    const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const app = new Application();
+
+    app.init({
+      width: rect.width,
+      height: rect.height,
+      backgroundColor: 0xf0f0f0,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+    }).then(() => {
+      container.appendChild(app.canvas);
+      appRef.current = app;
+
+      // Build the layered stage
+      const stage = new GameStage();
+      stage.addLayer(new BackgroundLayer());
+      stage.addLayer(new LineLayer());
+      stage.addLayer(new BoardLayer({ onCellClick }));
+      stage.addLayer(new PlayerLayer());
+      stage.init(app, rect.width, rect.height);
+
+      stageRef.current = stage;
+
+      console.log('[GameCanvas] PixiJS initialized with layered renderer');
+    }).catch(err => {
+      console.error('[GameCanvas] Init error:', err);
+    });
+
+    return () => {
+      stageRef.current?.destroy();
+      stageRef.current = null;
+      if (appRef.current) {
+        appRef.current.destroy(true);
+        appRef.current = null;
       }
     };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  const handleCellClick = useCallback((cellId: string, position: Position) => {
-    onCellClick?.(cellId, position);
-  }, [onCellClick]);
+  // Push state updates to the stage
+  useEffect(() => {
+    stageRef.current?.updateState(gameState, currentPlayerId);
+  }, [gameState, currentPlayerId]);
+
+  // Handle viewport resize
+  useEffect(() => {
+    const handleResize = () => {
+      const app = appRef.current;
+      const container = containerRef.current;
+      if (!app || !container) return;
+
+      const rect = container.getBoundingClientRect();
+      app.renderer.resize(rect.width, rect.height);
+      stageRef.current?.resize(rect.width, rect.height);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div
       ref={containerRef}
-      className="game-canvas-container"
       style={{
         width: '100%',
         height: '100%',
         minHeight: '400px',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f0f0f0',
         borderRadius: DESIGN_TOKENS.radius.lg,
         overflow: 'hidden',
       }}
-    >
-      <Stage
-        width={dimensions.width}
-        height={dimensions.height}
-        options={{
-          backgroundColor: 0xf5f5f5,
-          antialias: true,
-          resolution: window.devicePixelRatio || 1,
-          autoDensity: true,
-        }}
-      >
-        <Container scale={scale}>
-          {/* BoardRenderer 会在 Task 3.2 中实现 */}
-          {/* PlayerPiece 会在 Task 3.4 中实现 */}
-        </Container>
-      </Stage>
-    </div>
+    />
   );
 };
+
+export default GameCanvas;
