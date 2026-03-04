@@ -82,6 +82,13 @@ export class GameStage {
   }
 
   /**
+   * Expose the main container for external consumers (e.g. ViewportController).
+   */
+  getMainContainer(): Container {
+    return this.mainContainer;
+  }
+
+  /**
    * Destroy all layers and PixiJS objects.
    */
   destroy(): void {

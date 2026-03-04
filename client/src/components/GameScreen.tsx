@@ -16,6 +16,7 @@ import { StatusIndicator } from './StatusIndicator';
 import { VotePanel } from './VotePanel';
 import { ChainActionPanel } from './ChainActionPanel';
 import { useChat } from '../hooks/useChat';
+import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import type { Player } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 import './ChatPanel.css';
@@ -421,6 +422,9 @@ export function GameScreen() {
           </div>
         </div>
       )}
+
+      {/* Tutorial System */}
+      <TutorialSystem />
     </div>
   );
 }

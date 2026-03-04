@@ -3,7 +3,7 @@
 // and delegates rendering to the layered GameStage architecture.
 
 import React, { useRef, useEffect } from 'react';
-import { Application } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
 import type { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
@@ -12,6 +12,8 @@ import { BackgroundLayer } from './layers/BackgroundLayer';
 import { BoardLayer } from './layers/BoardLayer';
 import { LineLayer } from './layers/LineLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
+import { TweenEngine } from './animations/TweenEngine';
+import { ViewportController } from './interaction/ViewportController';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -27,6 +29,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const stageRef = useRef<GameStage | null>(null);
+  const playerLayerRef = useRef<PlayerLayer | null>(null);
+  const tweenRef = useRef<TweenEngine | null>(null);
+  const effectLayerRef = useRef<Container | null>(null);
+  const viewportRef = useRef<ViewportController | null>(null);
 
   // Initialize PixiJS Application + layered stage
   useEffect(() => {
@@ -49,22 +55,63 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       container.appendChild(app.canvas);
       appRef.current = app;
 
+      // Create TweenEngine (driven by PixiJS ticker)
+      const tweenEngine = new TweenEngine(app.ticker);
+      tweenRef.current = tweenEngine;
+
       // Build the layered stage
       const stage = new GameStage();
       stage.addLayer(new BackgroundLayer());
       stage.addLayer(new LineLayer());
       stage.addLayer(new BoardLayer({ onCellClick }));
-      stage.addLayer(new PlayerLayer());
+
+      // Create PlayerLayer with animation support
+      const playerLayer = new PlayerLayer();
+      stage.addLayer(playerLayer);
+      playerLayerRef.current = playerLayer;
+
       stage.init(app, rect.width, rect.height);
+
+      // Create effect layer ON TOP of everything (after stage.init so it's above all layers)
+      const effectContainer = new Container();
+      app.stage.addChild(effectContainer);
+      effectLayerRef.current = effectContainer;
+
+      // Inject animation dependencies into PlayerLayer
+      playerLayer.setAnimationDeps(tweenEngine, effectContainer);
 
       stageRef.current = stage;
 
-      console.log('[GameCanvas] PixiJS initialized with layered renderer');
+      // Create ViewportController for zoom/pan
+      const mainContainer = stage.getMainContainer();
+      const vc = new ViewportController(mainContainer, app.canvas as HTMLCanvasElement);
+      viewportRef.current = vc;
+
+      console.log('[GameCanvas] PixiJS initialized with animations + viewport');
     }).catch(err => {
       console.error('[GameCanvas] Init error:', err);
     });
 
     return () => {
+      // Destroy ViewportController
+      viewportRef.current?.destroy();
+      viewportRef.current = null;
+
+      // Destroy TweenEngine
+      tweenRef.current?.destroy();
+      tweenRef.current = null;
+
+      // Destroy effect layer
+      if (effectLayerRef.current) {
+        if (effectLayerRef.current.parent) {
+          effectLayerRef.current.parent.removeChild(effectLayerRef.current);
+        }
+        effectLayerRef.current.destroy({ children: true });
+        effectLayerRef.current = null;
+      }
+
+      playerLayerRef.current = null;
+
       stageRef.current?.destroy();
       stageRef.current = null;
       if (appRef.current) {

@@ -12,6 +12,8 @@ import {
   getLineCellPosition,
   PLAYER_COLORS_HEX,
 } from '../layout/BoardLayout';
+import type { TweenEngine } from '../animations/TweenEngine';
+import { animatePieceMove } from '../animations/PieceMoveAnim';
 
 // Internal representation of a rendered player piece
 interface PlayerPiece {
@@ -23,6 +25,17 @@ interface PlayerPiece {
 export class PlayerLayer implements RenderLayer {
   private layerContainer: Container | null = null;
   private playerPieces: Map<string, PlayerPiece> = new Map();
+  private tweenEngine: TweenEngine | null = null;
+  private effectLayer: Container | null = null;
+
+  /**
+   * Inject animation dependencies. When set, piece moves will be animated
+   * instead of instant destroy+recreate.
+   */
+  setAnimationDeps(tweenEngine: TweenEngine, effectLayer: Container): void {
+    this.tweenEngine = tweenEngine;
+    this.effectLayer = effectLayer;
+  }
 
   init(stage: Container): void {
     this.layerContainer = new Container();
@@ -47,8 +60,21 @@ export class PlayerLayer implements RenderLayer {
         const posChanged = !positionsEqual(existing.lastPosition, player.position);
         const highlightChanged = existing.lastIsCurrent !== isCurrent;
 
-        if (posChanged || highlightChanged) {
-          // Rebuild the piece (simpler than granular updates for the small number of players)
+        if (posChanged) {
+          if (this.tweenEngine && this.effectLayer) {
+            // Animate to new position
+            const newPos = this.calculatePosition(player);
+            const offset = idx * 5;
+            const path = [{ x: newPos.x + offset, y: newPos.y + offset }];
+            animatePieceMove(existing.container, path, this.tweenEngine, this.effectLayer);
+            existing.lastPosition = { ...player.position } as Position;
+          } else {
+            // Fallback: instant reposition
+            this.removePiece(player.id);
+            this.createPiece(player, idx, isCurrent);
+          }
+        } else if (highlightChanged) {
+          // Highlight change only — rebuild piece visuals
           this.removePiece(player.id);
           this.createPiece(player, idx, isCurrent);
         }
@@ -80,27 +106,30 @@ export class PlayerLayer implements RenderLayer {
 
   // ------ Private ------
 
+  /**
+   * Calculate the board position for a player (reusable for both creation and animation).
+   */
+  private calculatePosition(player: Player): { x: number; y: number; inLine: boolean } {
+    if (player.position.type === 'main') {
+      return { ...getCellPosition(player.position.index), inLine: false };
+    } else {
+      return { ...getLineCellPosition(player.position.lineId, player.position.index), inLine: true };
+    }
+  }
+
   private createPiece(player: Player, playerIndex: number, isCurrent: boolean): void {
     if (!this.layerContainer) return;
 
     // Calculate position
-    let pos: { x: number; y: number };
-    let inLine = false;
-
-    if (player.position.type === 'main') {
-      pos = getCellPosition(player.position.index);
-    } else {
-      pos = getLineCellPosition(player.position.lineId, player.position.index);
-      inLine = true;
-    }
+    const { x: posX, y: posY, inLine } = this.calculatePosition(player);
 
     const color = PLAYER_COLORS_HEX[playerIndex % PLAYER_COLORS_HEX.length];
     const offset = playerIndex * 5;
 
     // Group container for this player's visuals
     const group = new Container();
-    group.x = pos.x + offset;
-    group.y = pos.y + offset;
+    group.x = posX + offset;
+    group.y = posY + offset;
 
     // Piece graphic
     const piece = new Graphics();

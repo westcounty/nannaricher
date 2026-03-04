@@ -7,6 +7,7 @@ import React, { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useGameStore } from '../stores/gameStore';
 import type { ClientToServerEvents, ServerToClientEvents, PendingAction } from '@nannaricher/shared';
+import { playSound } from '../audio/AudioManager';
 
 type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -43,6 +44,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (store.getState().isMyTurn() && !store.getState().isRolling) {
           store.getState().setRolling(true);
           socket.emit('game:roll-dice');
+          playSound('dice_shake');
         }
       },
       chooseAction: (actionId: string, choice: string) => {
@@ -103,6 +105,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     socket.on('game:dice-result', (data) => {
       store.getState().setDiceResult(data);
+      playSound('dice_land');
     });
 
     socket.on('game:event-trigger', (data: { title: string; description: string; pendingAction: PendingAction }) => {
@@ -111,10 +114,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         description: data.description,
         pendingAction: data.pendingAction,
       });
+      playSound('event_trigger');
     });
 
     socket.on('game:card-drawn', (data) => {
       store.getState().setDrawnCard(data);
+      playSound('card_draw');
     });
 
     socket.on('game:announcement', (data) => {
@@ -122,6 +127,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         ...data,
         timestamp: Date.now(),
       });
+      // Play sound based on announcement type
+      if (data.type === 'success') playSound('event_positive');
+      else if (data.type === 'warning') playSound('event_negative');
       // Auto-clear announcement after 5 seconds
       setTimeout(() => {
         store.getState().setAnnouncement(null);
@@ -130,6 +138,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     socket.on('game:player-won', (data) => {
       store.getState().setWinner(data);
+      playSound('victory_fanfare');
     });
 
     // ------ Cleanup ------
