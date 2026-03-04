@@ -429,6 +429,98 @@
   align-self: stretch;
 }
 
+/* Desktop: CSS Grid layout */
+.game-screen.layout-desktop {
+  display: grid;
+  grid-template-rows: 48px 1fr 64px;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.game-main.layout-desktop {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.game-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--game-border);
+  overflow-y: auto;
+}
+
+.game-sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-sidebar__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.game-sidebar__tab {
+  flex: 1;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.game-sidebar__tab:hover {
+  color: var(--color-text-primary);
+}
+
+.game-sidebar__tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* Mobile / Tablet layout */
+.game-screen.layout-mobile,
+.game-screen.layout-tablet {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Desktop sidebar: board-canvas-container no longer inside left-column */
+.game-main.layout-desktop .board-area {
+  overflow: hidden;
+}
+
+.game-main.layout-desktop .board-canvas-container {
+  height: auto;
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: calc(100vh - 48px - 64px - 24px);
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--game-border);
+}
+
+/* Ultrawide sidebar */
+@media (min-width: 1440px) {
+  .game-main.layout-desktop {
+    grid-template-columns: 1fr 320px;
+  }
+}
+
 /* ============================================
    BOTTOM BAR (Cards, Chat, Log)
    ============================================ */

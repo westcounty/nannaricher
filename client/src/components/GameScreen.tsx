@@ -1,22 +1,24 @@
 // client/src/components/GameScreen.tsx
 // Three-layout responsive game screen: desktop (>=1024), tablet (768-1023), mobile (<768)
-// Integrates StatusIndicator, references VotePanel and ChainActionPanel.
+// Redesigned with CompactHeader, ActionBar, CompactPlayerCard, MobileStatusBar, MobileBottomNav
 
 import { useEffect, useRef, useState } from 'react';
 import { useGameState } from '../context/GameContext';
-import { StatusBar } from './StatusBar';
-import { PlayerPanel } from './PlayerPanel';
-import { CurrentPlayerPanel } from './CurrentPlayerPanel';
+import { CompactHeader } from './CompactHeader';
+import { CompactPlayerCard } from './CompactPlayerCard';
+import { ActionBar } from './ActionBar';
+import { MobileStatusBar } from './MobileStatusBar';
+import { MobileBottomNav } from './MobileBottomNav';
 import { ChatPanel } from './ChatPanel';
 import { GameLog } from './GameLog';
 import { GameCanvas } from '../game/GameCanvas';
 import { GameEventModal } from './EventModal';
 import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './ChoiceDialog';
-import { StatusIndicator } from './StatusIndicator';
 import { VotePanel } from './VotePanel';
 import { ChainActionPanel } from './ChainActionPanel';
 import { DiceRoller } from './DiceRoller';
 import { CardHand } from './CardHand';
+import { TrainingPlanView } from './TrainingPlanView';
 import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import { LoadingScreen } from './LoadingScreen';
@@ -26,6 +28,7 @@ import { playSound } from '../audio/AudioManager';
 import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
+import '../styles/training-plan.css';
 
 // ============================================
 // Layout Types & Breakpoints
@@ -36,21 +39,11 @@ type LayoutMode = 'desktop' | 'tablet' | 'mobile';
 const BREAKPOINT_MOBILE = DESIGN_TOKENS.breakpoint.mobile;  // 768
 const BREAKPOINT_TABLET = DESIGN_TOKENS.breakpoint.tablet;   // 1024
 
-// Mobile tab definitions
-type TabId = 'hand' | 'plans' | 'log' | 'chat';
+// Mobile panel definitions
+type PanelId = 'hand' | 'players' | 'more';
 
-interface TabDefinition {
-  id: TabId;
-  label: string;
-  icon: string;
-}
-
-const TABS: TabDefinition[] = [
-  { id: 'hand', label: '手牌', icon: '🃏' },
-  { id: 'plans', label: '计划', icon: '📋' },
-  { id: 'log', label: '日志', icon: '📜' },
-  { id: 'chat', label: '聊天', icon: '💬' },
-];
+// Sidebar tab for desktop
+type SidebarTab = 'chat' | 'log';
 
 // ============================================
 // Layout Detection Hook
@@ -94,14 +87,16 @@ export function GameScreen() {
     clearWinner,
     isRolling,
     diceResult,
+    rollDice,
   } = useGameState();
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
 
-  // Tab state for tablet/mobile
-  const [activeTab, setActiveTab] = useState<TabId | null>(null);
-  const [showSidePanel, setShowSidePanel] = useState(false);
-  // Track if player finished plan selection (chose to skip additional plans)
+  // Mobile/tablet panel state
+  const [activePanel, setActivePanel] = useState<PanelId | null>(null);
+  // Desktop sidebar tab
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chat');
+  // Track if player finished plan selection
   const [planSelectionDone, setPlanSelectionDone] = useState(false);
 
   // Dice overlay state
@@ -129,10 +124,9 @@ export function GameScreen() {
     };
   }, [diceResult]);
 
-  // Close sheets when switching layout
+  // Close panels when switching layout
   useEffect(() => {
-    setActiveTab(null);
-    setShowSidePanel(false);
+    setActivePanel(null);
   }, [layout]);
 
   // Loading state
@@ -142,8 +136,10 @@ export function GameScreen() {
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isMyTurn = currentPlayer?.id === playerId;
-  const otherPlayers = gameState.players.filter((p) => p.id !== playerId);
-  const myPlayer = gameState.players.find((p) => p.id === playerId);
+  const allPlayers = gameState.players;
+  // otherPlayers available if needed for future use
+  const _otherPlayers = allPlayers.filter((p) => p.id !== playerId);
+  const myPlayer = allPlayers.find((p) => p.id === playerId);
 
   // Pending action checks
   const hasPendingAction =
@@ -154,38 +150,46 @@ export function GameScreen() {
   const isVoting = gameState.pendingAction?.type === 'multi_vote';
   const isChainAction = gameState.pendingAction?.type === 'chain_action';
 
-  // Tab toggle handler
-  const handleTabClick = (tabId: TabId) => {
+  // Can roll dice check
+  const canRollDice = isMyTurn &&
+    myPlayer != null &&
+    !myPlayer.isBankrupt &&
+    !isRolling &&
+    gameState.phase === 'playing' &&
+    (!gameState.pendingAction || gameState.pendingAction.type === 'roll_dice');
+
+  const needsToRoll = myPlayer && (myPlayer.isInHospital || myPlayer.isAtDing);
+
+  // Mobile panel toggle
+  const handlePanelToggle = (panelId: PanelId) => {
     playSound('tab_switch');
-    setActiveTab((prev) => (prev === tabId ? null : tabId));
+    setActivePanel((prev) => (prev === panelId ? null : panelId));
   };
 
-  // Close sheet
-  const closeSheet = () => setActiveTab(null);
+  const closePanel = () => setActivePanel(null);
+
+  const handleMobileRollDice = () => {
+    if (canRollDice || (isMyTurn && needsToRoll)) {
+      playSound('button_click');
+      rollDice();
+    }
+  };
 
   return (
     <div className={`game-screen layout-${layout}`}>
-      {/* Status Bar */}
-      <StatusBar
-        roomId={gameState.roomId}
-        turnNumber={gameState.turnNumber}
-        roundNumber={gameState.roundNumber}
-        currentPlayerName={currentPlayer?.name}
-        phase={gameState.phase}
-      />
-
-      {/* Status Indicator (top-center contextual message) */}
-      <StatusIndicator
+      {/* ============ HEADER ============ */}
+      <CompactHeader
         gameState={gameState}
-        playerId={playerId || ''}
+        playerId={playerId}
         isMyTurn={isMyTurn}
+        currentPlayerName={currentPlayer?.name}
       />
 
-      {/* Main Content Area */}
-      <div className="game-main">
-        {/* Desktop: Left column (board + log) */}
-        {layout === 'desktop' ? (
-          <div className="left-column">
+      {/* ============ DESKTOP LAYOUT ============ */}
+      {layout === 'desktop' && (
+        <>
+          <div className="game-main layout-desktop">
+            {/* Board area */}
             <div className="board-area">
               <div className="board-canvas-container">
                 <GameCanvas
@@ -198,11 +202,74 @@ export function GameScreen() {
                 />
               </div>
             </div>
-            <div className="desktop-log-area">
-              <GameLog entries={gameState.log} players={gameState.players} />
+
+            {/* Sidebar */}
+            <div className="game-sidebar">
+              {/* Player cards */}
+              <div className="game-sidebar__section">
+                {allPlayers.map((player) => (
+                  <CompactPlayerCard
+                    key={player.id}
+                    player={player}
+                    isCurrentTurn={player.id === currentPlayer?.id}
+                    isLocalPlayer={player.id === playerId}
+                  />
+                ))}
+              </div>
+
+              {/* Training Plan */}
+              {myPlayer && myPlayer.trainingPlans.length > 0 && (
+                <div className="game-sidebar__section">
+                  <TrainingPlanView
+                    player={myPlayer}
+                    turnNumber={gameState.turnNumber}
+                    isCurrentPlayer={isMyTurn}
+                  />
+                </div>
+              )}
+
+              {/* Chat/Log tabs */}
+              <div className="game-sidebar__section" style={{ flex: 1, minHeight: 0 }}>
+                <div className="game-sidebar__tabs">
+                  <button
+                    className={`game-sidebar__tab ${sidebarTab === 'chat' ? 'game-sidebar__tab--active' : ''}`}
+                    onClick={() => setSidebarTab('chat')}
+                  >
+                    💬 聊天
+                  </button>
+                  <button
+                    className={`game-sidebar__tab ${sidebarTab === 'log' ? 'game-sidebar__tab--active' : ''}`}
+                    onClick={() => setSidebarTab('log')}
+                  >
+                    📜 日志
+                  </button>
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                  {sidebarTab === 'chat' ? (
+                    <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+                  ) : (
+                    <GameLog entries={gameState.log} players={gameState.players} />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        ) : (
+
+          {/* Action Bar (bottom) */}
+          <ActionBar
+            myPlayer={myPlayer}
+            isMyTurn={isMyTurn}
+            currentPlayerName={currentPlayer?.name}
+            useCard={useCard}
+            players={allPlayers}
+          />
+        </>
+      )}
+
+      {/* ============ TABLET / MOBILE LAYOUT ============ */}
+      {(layout === 'tablet' || layout === 'mobile') && (
+        <>
+          {/* Board area */}
           <div className="board-area">
             <div className="board-canvas-container">
               <GameCanvas
@@ -215,161 +282,54 @@ export function GameScreen() {
               />
             </div>
           </div>
-        )}
 
-        {/* Desktop: Side Panel (players + hand + chat) */}
-        {layout === 'desktop' && (
-          <div className="side-panel">
-            <CurrentPlayerPanel player={myPlayer} isMyTurn={isMyTurn} />
-            <div className="other-players">
-              {otherPlayers.map((player) => (
-                <PlayerPanel
-                  key={player.id}
-                  player={player}
-                  isCurrentTurn={player.id === currentPlayer?.id}
-                />
-              ))}
-            </div>
-            {myPlayer && (
-              <CardHand
-                player={myPlayer}
-                onUseCard={useCard}
-                isCurrentPlayer={isMyTurn}
-                players={gameState?.players}
-              />
-            )}
-            <div className="side-panel-section">
-              <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
-            </div>
-          </div>
-        )}
+          {/* Mobile status bar */}
+          <MobileStatusBar player={myPlayer} />
 
-        {/* Tablet: Collapsible Side Panel (overlay) */}
-        {layout === 'tablet' && (
-          <>
-            <div
-              className={`side-panel-backdrop ${showSidePanel ? 'side-panel-backdrop--visible' : ''}`}
-              onClick={() => setShowSidePanel(false)}
-            />
-            <div className={`side-panel ${showSidePanel ? 'side-panel--open' : ''}`}>
-              <div className="other-players">
-                {otherPlayers.map((player) => (
-                  <PlayerPanel
-                    key={player.id}
-                    player={player}
-                    isCurrentTurn={player.id === currentPlayer?.id}
-                  />
-                ))}
-              </div>
-              <CurrentPlayerPanel player={myPlayer} isMyTurn={isMyTurn} />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Tablet: Tab Bar + Sheet Panels */}
-      {layout === 'tablet' && (
-        <>
           {/* Sheet backdrop */}
           <div
-            className={`mobile-sheet-backdrop ${activeTab ? 'mobile-sheet-backdrop--visible' : ''}`}
-            onClick={closeSheet}
+            className={`mobile-sheet-backdrop ${activePanel ? 'mobile-sheet-backdrop--visible' : ''}`}
+            onClick={closePanel}
           />
 
-          {/* Tab content sheet */}
-          <div className={`tab-content-sheet ${activeTab ? 'tab-content-sheet--open' : ''}`}>
-            <div className="sheet-drag-handle" />
-            <TabSheetContent
-              activeTab={activeTab}
-              myPlayer={myPlayer}
-              gameState={gameState}
-              chatMessages={chatMessages}
-              sendChatMessage={sendChatMessage}
-              otherPlayers={otherPlayers}
-              currentPlayer={currentPlayer}
-              isMyTurn={isMyTurn}
-              useCard={useCard}
-              onClose={closeSheet}
-            />
-          </div>
-
-          {/* Tab bar */}
-          <div className="tablet-tab-bar">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={`tab-item ${activeTab === tab.id ? 'tab-item--active' : ''}`}
-                onClick={() => handleTabClick(tab.id)}
-              >
-                <span className="tab-icon">{tab.icon}</span>
-                <span className="tab-label">{tab.label}</span>
-                {tab.id === 'hand' && myPlayer?.heldCards && myPlayer.heldCards.length > 0 && (
-                  <span className="tab-badge" />
-                )}
-              </button>
-            ))}
-            <button
-              className="tab-item"
-              onClick={() => setShowSidePanel((prev) => !prev)}
-            >
-              <span className="tab-icon">👥</span>
-              <span className="tab-label">玩家</span>
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Mobile: Tab Bar + Sheet Panels */}
-      {layout === 'mobile' && (
-        <>
-          {/* Sheet backdrop */}
-          <div
-            className={`mobile-sheet-backdrop ${activeTab ? 'mobile-sheet-backdrop--visible' : ''}`}
-            onClick={closeSheet}
-          />
-
-          {/* Mobile sheet */}
-          <div className={`mobile-sheet ${activeTab ? 'mobile-sheet--open' : ''}`}>
+          {/* Bottom sheet for panels */}
+          <div className={`mobile-sheet ${activePanel ? 'mobile-sheet--open' : ''}`}>
             <div className="mobile-sheet-header">
               <h3 className="mobile-sheet-title">
-                {activeTab ? TABS.find((t) => t.id === activeTab)?.label || '' : ''}
+                {activePanel === 'hand' ? '手牌' : activePanel === 'players' ? '玩家' : '更多'}
               </h3>
-              <button className="mobile-sheet-close" onClick={closeSheet}>
+              <button className="mobile-sheet-close" onClick={closePanel}>
                 ✕
               </button>
             </div>
             <div className="mobile-sheet-body">
-              <TabSheetContent
-                activeTab={activeTab}
+              <MobileSheetContent
+                activePanel={activePanel}
                 myPlayer={myPlayer}
                 gameState={gameState}
                 chatMessages={chatMessages}
                 sendChatMessage={sendChatMessage}
-                otherPlayers={otherPlayers}
+                allPlayers={allPlayers}
                 currentPlayer={currentPlayer}
+                playerId={playerId}
                 isMyTurn={isMyTurn}
                 useCard={useCard}
-                onClose={closeSheet}
               />
             </div>
           </div>
 
-          {/* Mobile tab bar */}
-          <div className="mobile-tab-bar">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={`tab-item ${activeTab === tab.id ? 'tab-item--active' : ''}`}
-                onClick={() => handleTabClick(tab.id)}
-              >
-                <span className="tab-icon">{tab.icon}</span>
-                <span className="tab-label">{tab.label}</span>
-                {tab.id === 'hand' && myPlayer?.heldCards && myPlayer.heldCards.length > 0 && (
-                  <span className="tab-badge" />
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Mobile Bottom Nav */}
+          <MobileBottomNav
+            isMyTurn={isMyTurn}
+            isRolling={isRolling}
+            canRollDice={canRollDice || (isMyTurn && !!needsToRoll)}
+            cardCount={myPlayer?.heldCards.length || 0}
+            onRollDice={handleMobileRollDice}
+            onOpenCards={() => handlePanelToggle('hand')}
+            onOpenPlayers={() => handlePanelToggle('players')}
+            onOpenMore={() => handlePanelToggle('more')}
+            activePanel={activePanel}
+          />
         </>
       )}
 
@@ -410,7 +370,7 @@ export function GameScreen() {
       {/* Event Modal */}
       {currentEvent && <GameEventModal />}
 
-      {/* Choice Dialog (standard choices, not vote/chain, not when event modal is showing) */}
+      {/* Choice Dialog */}
       {hasPendingAction &&
         !isVoting &&
         !isChainAction &&
@@ -492,66 +452,84 @@ export function GameScreen() {
 }
 
 // ============================================
-// TabSheetContent — shared between tablet/mobile
+// MobileSheetContent — for tablet/mobile panels
 // ============================================
 
-interface TabSheetContentProps {
-  activeTab: TabId | null;
+interface MobileSheetContentProps {
+  activePanel: PanelId | null;
   myPlayer: Player | undefined;
   gameState: NonNullable<ReturnType<typeof useGameState>['gameState']>;
   chatMessages: Array<{ id: string; playerName: string; playerColor: string; text: string; timestamp: number }>;
   sendChatMessage: (message: string) => void;
-  otherPlayers: Player[];
+  allPlayers: Player[];
   currentPlayer: Player | undefined;
+  playerId: string | null;
   isMyTurn: boolean;
   useCard: (cardId: string, targetPlayerId?: string) => void;
-  onClose: () => void;
 }
 
-function TabSheetContent({
-  activeTab,
+function MobileSheetContent({
+  activePanel,
   myPlayer,
   gameState,
   chatMessages,
   sendChatMessage,
-  otherPlayers,
+  allPlayers,
   currentPlayer,
+  playerId,
   isMyTurn,
   useCard: onUseCard,
-  onClose: _onClose,
-}: TabSheetContentProps) {
-  switch (activeTab) {
+}: MobileSheetContentProps) {
+  switch (activePanel) {
     case 'hand':
       return myPlayer ? (
-        <CardHand
-          player={myPlayer}
-          onUseCard={onUseCard}
-          isCurrentPlayer={isMyTurn}
-          players={gameState?.players}
-        />
+        <div className="action-bar__cards">
+          <CardHand
+            player={myPlayer}
+            onUseCard={onUseCard}
+            isCurrentPlayer={isMyTurn}
+            players={gameState?.players}
+          />
+        </div>
       ) : null;
 
-    case 'plans':
+    case 'players':
       return (
         <div className="mobile-players-list">
-          {myPlayer && (
-            <CurrentPlayerPanel player={myPlayer} isMyTurn={isMyTurn} />
-          )}
-          {otherPlayers.map((player) => (
-            <PlayerPanel
+          {allPlayers.map((player) => (
+            <CompactPlayerCard
               key={player.id}
               player={player}
               isCurrentTurn={player.id === currentPlayer?.id}
+              isLocalPlayer={player.id === playerId}
             />
           ))}
+          {/* Training plan in players panel for mobile */}
+          {myPlayer && myPlayer.trainingPlans.length > 0 && (
+            <div style={{ marginTop: '12px' }}>
+              <TrainingPlanView
+                player={myPlayer}
+                turnNumber={gameState.turnNumber}
+                isCurrentPlayer={isMyTurn}
+              />
+            </div>
+          )}
         </div>
       );
 
-    case 'log':
-      return <GameLog entries={gameState.log} players={gameState.players} />;
-
-    case 'chat':
-      return <ChatPanel messages={chatMessages} onSend={sendChatMessage} />;
+    case 'more':
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>💬 聊天</h4>
+            <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+          </div>
+          <div>
+            <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>📜 游戏日志</h4>
+            <GameLog entries={gameState.log} players={gameState.players} />
+          </div>
+        </div>
+      );
 
     default:
       return null;
