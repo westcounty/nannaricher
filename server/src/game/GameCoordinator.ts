@@ -29,11 +29,17 @@ export class GameCoordinator {
   private engine: GameEngine;
   private io: GameServer;
   private roomId: string;
+  private onFinishedCallback: (() => void) | null = null;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
     this.io = io;
     this.roomId = roomId;
+  }
+
+  /** Register a callback to be invoked when the game finishes (e.g. to sync room phase). */
+  onFinished(callback: () => void): void {
+    this.onFinishedCallback = callback;
   }
 
   // --------------------------------------------------
@@ -707,6 +713,7 @@ export class GameCoordinator {
         condition: condition || 'Unknown condition',
       });
       this.broadcastState();
+      this.onFinishedCallback?.();
       return true;
     }
     return false;
@@ -1235,6 +1242,7 @@ export class GameCoordinator {
         playerName: winner?.name || 'Unknown',
         condition: condition || 'Unknown condition',
       });
+      this.onFinishedCallback?.();
     }
 
     return {};

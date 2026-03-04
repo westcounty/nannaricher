@@ -24,6 +24,9 @@ import { TutorialSystem } from '../features/tutorial/TutorialSystem';
 import { LoadingScreen } from './LoadingScreen';
 import { MobileSheetContent } from './MobileSheetContent';
 import { MiniPlayerOverlay } from './MiniPlayerOverlay';
+import { ActionPromptBar } from './ActionPromptBar';
+import { TurnOverlay } from './TurnOverlay';
+import { SettlementScreen } from './SettlementScreen';
 import { playSound } from '../audio/AudioManager';
 import './ChatPanel.css';
 import '../styles/game.css';
@@ -218,6 +221,15 @@ export function GameScreen() {
             </div>
           </div>
 
+          {/* Action Prompt Bar (above action bar) */}
+          <ActionPromptBar
+            gameState={gameState}
+            playerId={playerId}
+            isMyTurn={isMyTurn}
+            canRollDice={canRollDice || (isMyTurn && !!needsToRoll)}
+            currentPlayerName={currentPlayer?.name}
+          />
+
           {/* Action Bar (bottom) */}
           <ActionBar
             myPlayer={myPlayer}
@@ -251,6 +263,15 @@ export function GameScreen() {
               localPlayerId={playerId}
             />
           </div>
+
+          {/* Action Prompt Bar (above mobile status bar) */}
+          <ActionPromptBar
+            gameState={gameState}
+            playerId={playerId}
+            isMyTurn={isMyTurn}
+            canRollDice={canRollDice || (isMyTurn && !!needsToRoll)}
+            currentPlayerName={currentPlayer?.name}
+          />
 
           {/* Mobile status bar */}
           <MobileStatusBar player={myPlayer} />
@@ -305,6 +326,9 @@ export function GameScreen() {
       {/* ============================================
          MODALS & OVERLAYS (all layouts)
          ============================================ */}
+
+      {/* Turn Overlay */}
+      <TurnOverlay isMyTurn={isMyTurn} />
 
       {/* Dice Roller Overlay */}
       {showDiceOverlay && (
@@ -374,7 +398,10 @@ export function GameScreen() {
               .map((plan) => ({
                 label: plan.name,
                 value: plan.id,
-                description: `胜利条件: ${plan.winCondition}${plan.passiveAbility ? `\n特殊能力: ${plan.passiveAbility}` : ''}`,
+                description: [
+                  `胜利条件: ${plan.winCondition}`,
+                  plan.passiveAbility ? `被动能力: ${plan.passiveAbility}` : null,
+                ].filter(Boolean).join('\n'),
               }))}
             minSelections={myPlayer.confirmedPlans.length >= 1 ? 0 : 1}
             maxSelections={2 - myPlayer.confirmedPlans.length}
@@ -398,20 +425,16 @@ export function GameScreen() {
         </div>
       )}
 
-      {/* Winner Modal */}
+      {/* Settlement Screen (replaces old Winner Modal) */}
       {winner && (
-        <div className="winner-modal-overlay" onClick={clearWinner}>
-          <div className="winner-modal" onClick={(e) => e.stopPropagation()}>
-            <h1 className="winner-title">🎉 游戏结束 🎉</h1>
-            <div className="winner-info">
-              <div className="winner-name">{winner.playerName}</div>
-              <div className="winner-condition">{winner.condition}</div>
-            </div>
-            <button className="winner-close-btn" onClick={clearWinner}>
-              确定
-            </button>
-          </div>
-        </div>
+        <SettlementScreen
+          winner={winner}
+          gameState={gameState}
+          playerId={playerId}
+          onReturnToLobby={() => {
+            useGameStore.getState().resetToLobby();
+          }}
+        />
       )}
 
       {/* Tutorial System */}

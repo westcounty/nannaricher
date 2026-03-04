@@ -102,6 +102,18 @@ export function TrainingPlanView({
                 </span>
               </div>
 
+              {isConfirmed && plan.passiveAbility && (
+                <div className="plan-passive-active">
+                  生效中: {plan.passiveAbility}
+                </div>
+              )}
+
+              {isConfirmed && (
+                <div className="plan-progress-hint">
+                  当前进度: {plan.winCondition}
+                </div>
+              )}
+
               {/* Confirm button for setup phase or during confirmation turns */}
               {!isConfirmed && isCurrentPlayer && canConfirmPlan && !hasReachedMaxPlans && (
                 <button

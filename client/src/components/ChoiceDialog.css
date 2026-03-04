@@ -313,6 +313,21 @@
 }
 
 .multi-select .option-content {
-  flex-direction: row;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.multi-select .option-top-row {
+  display: flex;
   align-items: center;
+  gap: 4px;
+}
+
+.multi-select .option-description {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-left: 32px;
+  white-space: pre-line;
 }

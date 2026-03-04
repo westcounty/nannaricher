@@ -173,6 +173,7 @@ export function pendingActionToChoices(pendingAction: PendingAction): {
     options: (pendingAction.options || []).map(opt => ({
       label: opt.label,
       value: opt.value,
+      description: (opt as { description?: string }).description,
     })),
   };
 }
@@ -394,8 +395,10 @@ export function MultiSelectDialog({
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <div className="option-content">
-                    <span className="option-checkbox">{isSelected ? '☑' : '☐'}</span>
-                    <span className="option-label">{option.label}</span>
+                    <div className="option-top-row">
+                      <span className="option-checkbox">{isSelected ? '☑' : '☐'}</span>
+                      <span className="option-label">{option.label}</span>
+                    </div>
                     {option.description && (
                       <span className="option-description">{option.description}</span>
                     )}

@@ -57,6 +57,8 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 /** Max idle time before a room is removed (2 hours) */
 const MAX_IDLE_MS = 2 * 60 * 60 * 1000;
+/** Grace period after game finishes before room is cleaned up (30 minutes) */
+const FINISHED_GRACE_MS = 30 * 60 * 1000;
 
 export class RoomManager {
   private rooms = new Map<string, Room>();
@@ -162,10 +164,12 @@ export class RoomManager {
     this.cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [roomId, room] of this.rooms.entries()) {
-        const isFinished = room.phase === 'finished';
         const isIdle = now - room.lastActivity > MAX_IDLE_MS;
-        if (isFinished || isIdle) {
-          console.log(`[Cleanup] Removing room ${roomId} (finished=${isFinished}, idle=${isIdle})`);
+        // Finished rooms get a grace period so players can view the settlement screen
+        const isFinishedAndExpired = room.phase === 'finished'
+          && now - room.lastActivity > FINISHED_GRACE_MS;
+        if (isFinishedAndExpired || isIdle) {
+          console.log(`[Cleanup] Removing room ${roomId} (finishedExpired=${isFinishedAndExpired}, idle=${isIdle})`);
           this.removeRoom(roomId);
         }
       }

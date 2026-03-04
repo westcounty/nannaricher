@@ -1,0 +1,382 @@
+/* ============================================
+   SETTLEMENT SCREEN — Full Game-End Overlay
+   ============================================ */
+
+.settlement-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: settlementFadeIn 0.5s ease-out;
+  backdrop-filter: blur(6px);
+}
+
+.settlement-container {
+  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-elevated) 100%);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-width: 700px;
+  width: 92%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 60px rgba(201, 162, 39, 0.2);
+  animation: settlementScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Title */
+.settlement-title {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 24px;
+  color: var(--color-accent);
+  text-shadow: 0 0 20px rgba(201, 162, 39, 0.5);
+}
+
+/* Winner Section */
+.settlement-winner {
+  text-align: center;
+  padding: 20px;
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  border: 2px solid var(--color-accent);
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(201, 162, 39, 0.05) 100%);
+  box-shadow: 0 0 30px rgba(201, 162, 39, 0.1);
+}
+
+.settlement-winner__label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.settlement-winner__name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-accent-light);
+  margin-bottom: 8px;
+}
+
+.settlement-winner__condition {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+/* Rankings Table */
+.settlement-rankings {
+  margin-bottom: 24px;
+}
+
+.settlement-rankings__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--game-border);
+}
+
+.settlement-rankings__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+}
+
+.settlement-rankings__header {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.settlement-rankings__header th {
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.settlement-rankings__header th:not(:first-child):not(:nth-child(2)) {
+  text-align: center;
+}
+
+.settlement-rankings__row {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.settlement-rankings__row:hover {
+  background: rgba(139, 95, 191, 0.08);
+}
+
+.settlement-rankings__row td {
+  padding: 10px 8px;
+  vertical-align: middle;
+}
+
+.settlement-rankings__row td:not(:first-child):not(:nth-child(2)) {
+  text-align: center;
+}
+
+/* Winner row highlight */
+.settlement-rankings__row--winner {
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+}
+
+.settlement-rankings__row--winner:hover {
+  background: rgba(201, 162, 39, 0.18);
+}
+
+/* Local player row highlight */
+.settlement-rankings__row--local {
+  background: rgba(94, 58, 141, 0.12);
+}
+
+.settlement-rankings__row--local:hover {
+  background: rgba(94, 58, 141, 0.18);
+}
+
+/* Winner + local (same player) */
+.settlement-rankings__row--winner.settlement-rankings__row--local {
+  background: rgba(201, 162, 39, 0.15);
+}
+
+/* Rank number */
+.settlement-rank {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  width: 32px;
+}
+
+.settlement-rank--1 {
+  color: #FFD700;
+  font-size: 1.1rem;
+}
+
+.settlement-rank--2 {
+  color: #C0C0C0;
+}
+
+.settlement-rank--3 {
+  color: #CD7F32;
+}
+
+/* Player cell */
+.settlement-player-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settlement-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settlement-player-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Stat cells */
+.settlement-stat {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status badges */
+.settlement-badges {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.settlement-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.settlement-badge--bankrupt {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.settlement-badge--hospital {
+  background: #42A5F5;
+  color: #fff;
+}
+
+.settlement-badge--winner {
+  background: var(--color-accent);
+  color: #000;
+  font-weight: 600;
+}
+
+/* Footer Stats */
+.settlement-footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  padding-top: 16px;
+  border-top: 1px solid var(--game-border);
+  margin-bottom: 20px;
+}
+
+/* Action Buttons */
+.settlement-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.settlement-btn {
+  padding: 12px 28px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 140px;
+}
+
+.settlement-btn--primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  color: var(--color-text-primary);
+  box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4);
+}
+
+.settlement-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(94, 58, 141, 0.5);
+}
+
+.settlement-btn--secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--game-border);
+}
+
+.settlement-btn--secondary:hover {
+  background: rgba(139, 95, 191, 0.15);
+  border-color: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.settlement-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Reopen button (when settlement is dismissed) */
+.settlement-reopen-btn {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--color-accent), rgba(201, 162, 39, 0.8));
+  color: #000;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: none;
+  cursor: pointer;
+  z-index: 450;
+  box-shadow: 0 2px 12px rgba(201, 162, 39, 0.3);
+  transition: all 0.2s ease;
+  animation: settlementReopenPulse 3s ease-in-out infinite;
+}
+
+.settlement-reopen-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 18px rgba(201, 162, 39, 0.5);
+}
+
+@keyframes settlementReopenPulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(201, 162, 39, 0.3); }
+  50% { box-shadow: 0 2px 20px rgba(201, 162, 39, 0.5); }
+}
+
+/* Animations */
+@keyframes settlementFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes settlementScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .settlement-container {
+    padding: 20px 16px;
+    width: 96%;
+    max-height: 92vh;
+  }
+
+  .settlement-title {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+
+  .settlement-winner {
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .settlement-winner__name {
+    font-size: 1.3rem;
+  }
+
+  .settlement-rankings__table {
+    font-size: 0.85rem;
+  }
+
+  .settlement-player-name {
+    max-width: 80px;
+  }
+
+  .settlement-actions {
+    flex-direction: column;
+  }
+
+  .settlement-btn {
+    width: 100%;
+  }
+
+  .settlement-reopen-btn {
+    top: 54px;
+    right: 8px;
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}

@@ -27,8 +27,9 @@ function GameRouter() {
     return <LoadingScreen type="connecting" />;
   }
 
-  // If we have game state with phase 'playing' or 'setup_plans', show the game screen
-  if (gameState && (gameState.phase === 'playing' || gameState.phase === 'setup_plans')) {
+  // If we have game state with phase 'playing', 'setup_plans', or 'finished', show the game screen
+  // 'finished' keeps the game screen visible so players can view the settlement screen
+  if (gameState && (gameState.phase === 'playing' || gameState.phase === 'setup_plans' || gameState.phase === 'finished')) {
     return (
       <Suspense fallback={<GameScreenFallback />}>
         <LazyGameScreen />

@@ -159,7 +159,14 @@ export function EventModal({
                   disabled={isClosing}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <span className="option-label">{option.label}</span>
+                  <div className="option-content">
+                    <span className="option-label">{option.label}</span>
+                    {'description' in option && (option as { description?: string }).description && (
+                      <span className="option-description">
+                        {(option as { description?: string }).description}
+                      </span>
+                    )}
+                  </div>
                   {selectedOption === option.value && (
                     <span className="option-checkmark">✓</span>
                   )}

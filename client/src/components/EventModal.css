@@ -246,9 +246,23 @@
   cursor: not-allowed;
 }
 
+.option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
 .option-label {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.9);
+}
+
+.option-description {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+  line-height: 1.4;
 }
 
 .option-checkmark {

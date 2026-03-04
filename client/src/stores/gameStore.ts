@@ -88,6 +88,7 @@ interface GameStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
+  resetToLobby: () => void;
 
   // === Socket Actions (injected by SocketProvider) ===
   socketActions: SocketActions | null;
@@ -181,6 +182,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setError: (error) => set({ error, isLoading: false }),
 
   setRolling: (rolling) => set({ isRolling: rolling }),
+
+  resetToLobby: () => set({
+    gameState: null,
+    roomId: null,
+    winner: null,
+    currentEvent: null,
+    diceResult: null,
+    drawnCard: null,
+    announcement: null,
+    isRolling: false,
+    isLoading: false,
+    error: null,
+  }),
 
   // --- Socket Actions ---
   socketActions: null,
