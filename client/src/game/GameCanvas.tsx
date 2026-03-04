@@ -14,16 +14,19 @@ import { LineLayer } from './layers/LineLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
+import { animateDiceResult } from './animations/DiceRollAnim';
 
 interface GameCanvasProps {
   gameState: GameState;
   currentPlayerId: string | null;
+  diceResult?: { playerId: string; values: number[]; total: number } | null;
   onCellClick?: (cellId: string, position: Position) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   gameState,
   currentPlayerId,
+  diceResult,
   onCellClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -125,6 +128,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
+
+  // Animate dice result on the effect layer
+  useEffect(() => {
+    if (!diceResult || !effectLayerRef.current || !tweenRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    animateDiceResult(
+      effectLayerRef.current,
+      diceResult.values,
+      diceResult.total,
+      tweenRef.current,
+      centerX,
+      centerY,
+    );
+  }, [diceResult]);
 
   // Handle viewport resize
   useEffect(() => {
