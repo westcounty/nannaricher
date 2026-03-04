@@ -77,10 +77,10 @@ export function CurrentPlayerPanel({
 
   // Get roll button text
   const getRollButtonText = () => {
-    if (isRolling) return '掷骰子中...';
-    if (player.isInHospital) return '投骰子出院';
-    if (player.isAtDing) return '投骰子移动';
-    return '掷骰子';
+    if (isRolling) return '🎲 掷骰子中...';
+    if (player.isInHospital) return '🎲 投骰子出院';
+    if (player.isAtDing) return '🎲 投骰子移动';
+    return '🎲 掷骰子';
   };
 
   return (
