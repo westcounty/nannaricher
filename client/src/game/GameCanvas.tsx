@@ -16,6 +16,7 @@ import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { animateDiceResult } from './animations/DiceRollAnim';
 import { showFloatingText } from './animations/FloatingText';
+import { playSound } from '../audio/AudioManager';
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -162,6 +163,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
           const color = delta > 0 ? '#4ade80' : '#ef4444';
           showFloatingText(effectLayerRef.current!, pos.x, pos.y - 30, text, color);
+          if (player.id === currentPlayerId) {
+            playSound(delta > 0 ? 'coin_gain' : 'coin_loss');
+          }
         }
 
         // GPA change
@@ -170,6 +174,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
           const color = '#60a5fa';
           showFloatingText(effectLayerRef.current!, pos.x, pos.y - 50, text, color);
+          if (player.id === currentPlayerId) {
+            playSound(delta > 0 ? 'gpa_up' : 'gpa_down');
+          }
         }
 
         // Exploration change
@@ -178,6 +185,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
           const color = '#fbbf24';
           showFloatingText(effectLayerRef.current!, pos.x, pos.y - 70, text, color);
+          if (player.id === currentPlayerId) {
+            playSound('explore_up');
+          }
         }
       }
     }
