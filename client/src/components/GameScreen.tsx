@@ -201,6 +201,7 @@ export function GameScreen() {
               <GameCanvas
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
+                diceResult={diceResult}
                 onCellClick={(cellId, position) => {
                   console.log('Cell clicked:', cellId, position);
                 }}
