@@ -45,11 +45,11 @@ export const MAIN_STATION_SIZE = 80;
 export const MAIN_STATION_HEIGHT = 100;
 export const CORNER_STATION_SIZE = 120;
 export const CORNER_STATION_HEIGHT = 140;
-// Branch line stations — compact but readable
-export const LINE_STATION_SIZE = 50;
-export const LINE_STATION_HEIGHT = 60;
-export const EXP_STATION_SIZE = 60;
-export const EXP_STATION_HEIGHT = 70;
+// Branch line stations — sized for readable Chinese text
+export const LINE_STATION_SIZE = 62;
+export const LINE_STATION_HEIGHT = 72;
+export const EXP_STATION_SIZE = 72;
+export const EXP_STATION_HEIGHT = 82;
 
 // Track widths — used by TrackLayer
 export const MAIN_TRACK_WIDTH = 6;
@@ -179,8 +179,8 @@ export function bezierArcLength(
 
 // Snake layout parameters
 const SNAKE_COLS = 4;           // max stations per row
-const SNAKE_STATION_GAP = 62;   // distance between stations in a row
-const SNAKE_ROW_GAP = 70;       // distance between rows
+const SNAKE_STATION_GAP = 74;   // distance between stations in a row
+const SNAKE_ROW_GAP = 82;       // distance between rows
 const SNAKE_FIRST_OFFSET = 55;  // offset from ring to first row
 
 /**

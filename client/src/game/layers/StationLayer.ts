@@ -26,13 +26,23 @@ import {
   EXP_STATION_HEIGHT,
 } from '../layout/MetroLayout';
 import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
+import type { TweenEngine } from '../animations/TweenEngine';
+import { AnimationConfig } from '../animations/AnimationConfig';
 
 // ============================================
 // Options
 // ============================================
 
+export interface CellHoverInfo {
+  cellId: string;
+  position: Position;
+  screenX: number;
+  screenY: number;
+}
+
 export interface StationLayerOptions {
   onCellClick?: (cellId: string, position: Position) => void;
+  onCellHover?: (info: CellHoverInfo | null) => void;
 }
 
 // ============================================
@@ -78,22 +88,40 @@ const EMOJI_BY_TYPE: Record<string, string> = {
 const DEFAULT_EMOJI = '\u{1F4CD}'; // 📍
 
 /**
- * Smooth scale animation for card hover using RAF.
- * Duration: 150ms, easeOut cubic. Cancels previous animation on same card.
+ * Smooth scale animation for card hover.
+ * Uses TweenEngine when available, falls back to RAF.
+ * Respects prefers-reduced-motion via AnimationConfig.
  */
 const scaleAnimMap = new WeakMap<Container, number>();
-function animateScale(card: Container, target: number, duration = 150): void {
+function animateScale(card: Container, target: number, tweenEngine?: TweenEngine | null, duration = 150): void {
+  const scaledDuration = AnimationConfig.scaleDuration(duration);
+  if (scaledDuration <= 0) {
+    card.scale.set(target);
+    return;
+  }
+
+  if (tweenEngine) {
+    // Use TweenEngine — cancel any previous tween on this card's scale
+    tweenEngine.cancelTarget(card.scale as unknown as Record<string, unknown>);
+    tweenEngine.to(
+      card.scale as unknown as Record<string, number>,
+      { x: target, y: target },
+      scaledDuration,
+    );
+    return;
+  }
+
+  // Fallback: RAF-based animation
   const start = card.scale.x;
   const diff = target - start;
   if (Math.abs(diff) < 0.001) return;
-  // Cancel any previous animation on this card
   const prevId = scaleAnimMap.get(card);
   if (prevId) cancelAnimationFrame(prevId);
   const startTime = performance.now();
   const step = (now: number) => {
     const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // easeOut cubic
+    const progress = Math.min(elapsed / scaledDuration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
     card.scale.set(start + diff * eased);
     if (progress < 1) {
       scaleAnimMap.set(card, requestAnimationFrame(step));
@@ -115,9 +143,18 @@ export class StationLayer implements RenderLayer {
   private stationCards: Map<string, Container> = new Map();
   // Badge references for player count
   private badges: Map<string, Container> = new Map();
+  // Highlight overlays for destination cells
+  private highlights: Map<string, Graphics> = new Map();
+  // TweenEngine for hover animations (injected after init)
+  private tweenEngine: TweenEngine | null = null;
 
   constructor(options: StationLayerOptions = {}) {
     this.options = options;
+  }
+
+  /** Inject TweenEngine for unified hover animations. */
+  setTweenEngine(engine: TweenEngine): void {
+    this.tweenEngine = engine;
   }
 
   init(stage: Container): void {
@@ -239,9 +276,10 @@ export class StationLayer implements RenderLayer {
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
       bg.fill({ color: 0x1A1230, alpha: 0.6 });
 
-      // 3. Border
+      // 3. Border (stronger for event stations)
+      const borderAlpha = cell.type === 'event' ? 0.8 : 0.6;
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.stroke({ width: borderWidth, color: colorLight, alpha: 0.6 });
+      bg.stroke({ width: borderWidth, color: colorLight, alpha: borderAlpha });
 
       // 4. Icon background circle
       const iconY = isCorner ? -cardH / 2 + 30 : -cardH / 2 + 24;
@@ -254,14 +292,58 @@ export class StationLayer implements RenderLayer {
         bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.text.danger), alpha: 0.85 });
       }
 
+      // 6. Type-specific visual enhancements
+      if (isCorner) {
+        // Corner glow: radial halo effect
+        const glowRadius = Math.max(cardW, cardH) * 0.8;
+        bg.circle(0, 0, glowRadius);
+        bg.fill({ color: colorLight, alpha: 0.08 });
+      } else if (cell.type === 'line_entry') {
+        // Line entry: left color bar indicator
+        bg.roundRect(-cardW / 2, -cardH / 2 + 4, 4, cardH - 8, 2);
+        bg.fill({ color: colorLight, alpha: 0.8 });
+      } else if (cell.type === 'event') {
+        // Event station: stronger border + larger emoji
+        bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, cardH - 2, cornerRadius - 1);
+        bg.stroke({ width: 1, color: colorLight, alpha: 0.3 });
+      } else if (cell.type === 'chance') {
+        // Chance station: dashed border effect (simulated with short segments)
+        const dashLen = 6;
+        const gapLen = 4;
+        const hw = cardW / 2 - 2;
+        const hh = cardH / 2 - 2;
+        // Top edge
+        for (let dx = -hw; dx < hw; dx += dashLen + gapLen) {
+          bg.moveTo(dx, -hh);
+          bg.lineTo(Math.min(dx + dashLen, hw), -hh);
+        }
+        // Bottom edge
+        for (let dx = -hw; dx < hw; dx += dashLen + gapLen) {
+          bg.moveTo(dx, hh);
+          bg.lineTo(Math.min(dx + dashLen, hw), hh);
+        }
+        // Left edge
+        for (let dy = -hh; dy < hh; dy += dashLen + gapLen) {
+          bg.moveTo(-hw, dy);
+          bg.lineTo(-hw, Math.min(dy + dashLen, hh));
+        }
+        // Right edge
+        for (let dy = -hh; dy < hh; dy += dashLen + gapLen) {
+          bg.moveTo(hw, dy);
+          bg.lineTo(hw, Math.min(dy + dashLen, hh));
+        }
+        bg.stroke({ width: 1.5, color: colorLight, alpha: 0.5 });
+      }
+
       card.addChild(bg);
 
       // --- Emoji icon ---
       const emoji = this.getCellEmoji(cell.id, cell.type);
+      const isEvent = cell.type === 'event';
       const emojiText = new Text({
         text: emoji,
         style: new TextStyle({
-          fontSize: isCorner ? 20 : 14,
+          fontSize: isCorner ? 20 : isEvent ? 16 : 14,
           align: 'center',
         }),
       });
@@ -318,7 +400,7 @@ export class StationLayer implements RenderLayer {
           text: transferLines.map(t => t.symbol).join(' '),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: 7,
+            fontSize: 9,
             fill: 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
@@ -333,16 +415,27 @@ export class StationLayer implements RenderLayer {
       card.eventMode = 'static';
       card.cursor = 'pointer';
       card.alpha = 0.95;
+      card.cullable = true; // enable off-screen culling for performance
 
       card.on('pointerdown', () => {
         this.options.onCellClick?.(cell.id, { type: 'main', index });
       });
-      card.on('pointerover', () => {
-        animateScale(card, 1.08);
+      card.on('pointerover', (e: import('pixi.js').FederatedPointerEvent) => {
+        animateScale(card, 1.08, this.tweenEngine);
+        if (this.options.onCellHover) {
+          const global = card.toGlobal({ x: 0, y: 0 });
+          this.options.onCellHover({
+            cellId: cell.id,
+            position: { type: 'main', index },
+            screenX: e.globalX,
+            screenY: e.globalY,
+          });
+        }
       });
       card.on('pointerout', () => {
-        animateScale(card, 1.0);
+        animateScale(card, 1.0, this.tweenEngine);
         card.alpha = 0.95;
+        this.options.onCellHover?.(null);
       });
 
       this.container!.addChild(card);
@@ -411,7 +504,7 @@ export class StationLayer implements RenderLayer {
           text: labelText,
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 12 : 10,
+            fontSize: isExperience ? 14 : 12,
             fill: isExperience ? 0xE0C55E : 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
@@ -426,7 +519,7 @@ export class StationLayer implements RenderLayer {
           text: this.getShortName(stationName),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 9 : 7,
+            fontSize: isExperience ? 12 : 10,
             fill: isExperience ? 0xE0C55E : 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
@@ -442,16 +535,26 @@ export class StationLayer implements RenderLayer {
         card.eventMode = 'static';
         card.cursor = 'pointer';
         card.alpha = 0.95;
+        card.cullable = true; // enable off-screen culling for performance
 
         card.on('pointerdown', () => {
           this.options.onCellClick?.(`${line.id}_${i}`, { type: 'line', lineId: line.id, index: i });
         });
-        card.on('pointerover', () => {
-          animateScale(card, 1.08);
+        card.on('pointerover', (e: import('pixi.js').FederatedPointerEvent) => {
+          animateScale(card, 1.08, this.tweenEngine);
+          if (this.options.onCellHover) {
+            this.options.onCellHover({
+              cellId: `${line.id}_${i}`,
+              position: { type: 'line', lineId: line.id, index: i },
+              screenX: e.globalX,
+              screenY: e.globalY,
+            });
+          }
         });
         card.on('pointerout', () => {
-          animateScale(card, 1.0);
+          animateScale(card, 1.0, this.tweenEngine);
           card.alpha = 0.95;
+          this.options.onCellHover?.(null);
         });
 
         this.container!.addChild(card);
@@ -486,6 +589,42 @@ export class StationLayer implements RenderLayer {
     label.y = mid.y;
     label.alpha = 0.7;
     this.container!.addChild(label);
+  }
+
+  // ============================================
+  // Highlight API (for destination preview)
+  // ============================================
+
+  /** Highlight specific station cards with a gold pulse border. */
+  highlightCells(keys: string[]): void {
+    this.clearHighlights();
+    for (const key of keys) {
+      const card = this.stationCards.get(key);
+      if (!card) continue;
+
+      // Determine card size from key
+      const isMain = key.startsWith('main:');
+      const mainIndex = isMain ? parseInt(key.split(':')[1]) : -1;
+      const isCorner = isMain && CORNER_INDICES.includes(mainIndex);
+      const cardW = isCorner ? CORNER_STATION_SIZE : isMain ? MAIN_STATION_SIZE : key.includes('exp') ? EXP_STATION_SIZE : LINE_STATION_SIZE;
+      const cardH = isCorner ? CORNER_STATION_HEIGHT : isMain ? MAIN_STATION_HEIGHT : key.includes('exp') ? EXP_STATION_HEIGHT : LINE_STATION_HEIGHT;
+      const cr = isCorner ? 12 : isMain ? 8 : 6;
+
+      const glow = new Graphics();
+      glow.roundRect(-cardW / 2 - 3, -cardH / 2 - 3, cardW + 6, cardH + 6, cr + 2);
+      glow.stroke({ width: 2.5, color: 0xE0C55E, alpha: 0.9 });
+      card.addChild(glow);
+      this.highlights.set(key, glow);
+    }
+  }
+
+  /** Remove all destination highlights. */
+  clearHighlights(): void {
+    for (const [key, glow] of this.highlights) {
+      if (glow.parent) glow.parent.removeChild(glow);
+      glow.destroy();
+    }
+    this.highlights.clear();
   }
 
   // ============================================

@@ -89,6 +89,16 @@ export class TweenEngine {
     }
   }
 
+  /** Cancel all tweens targeting a specific object. */
+  cancelTarget(target: Record<string, unknown>): void {
+    for (let i = this.tweens.length - 1; i >= 0; i--) {
+      if (this.tweens[i].target === target) {
+        this.tweens[i].resolve();
+        this.tweens.splice(i, 1);
+      }
+    }
+  }
+
   destroy(): void {
     this.ticker.remove(this.boundUpdate);
     // Resolve all pending tweens so awaiting code doesn't hang

@@ -14,6 +14,10 @@ export class MetroBackgroundLayer implements RenderLayer {
   private currentPlayerText: Text | null = null;
   private lastRound = '';
   private lastCurrentPlayerText = '';
+  private phaseText: Text | null = null;
+  private lastPhase = '';
+  private turnOverlay: Graphics | null = null;
+  private lastIsMyTurn: boolean | null = null;
 
   init(stage: Container): void {
     this.container = new Container();
@@ -24,10 +28,28 @@ export class MetroBackgroundLayer implements RenderLayer {
     this.drawDeepSpaceGradient();
     this.drawSubtleGrid();
     this.drawDecorativeBorder();
+    this.drawTurnOverlay();
     this.drawCenterPanel();
   }
 
-  update(state: GameState, _currentPlayerId: string | null): void {
+  update(state: GameState, currentPlayerId: string | null): void {
+    // Update turn overlay tint
+    const currentPlayer = state.players[state.currentPlayerIndex];
+    const isMyTurn = currentPlayer?.id === currentPlayerId;
+    if (this.turnOverlay && isMyTurn !== this.lastIsMyTurn) {
+      this.lastIsMyTurn = isMyTurn;
+      const hw = METRO_BOARD_WIDTH / 2;
+      const hh = METRO_BOARD_HEIGHT / 2;
+      this.turnOverlay.clear();
+      this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
+      if (isMyTurn) {
+        // Your turn: warm gold tint
+        this.turnOverlay.fill({ color: 0xC9A227, alpha: 0.05 });
+      } else {
+        // Waiting: cool blue-gray
+        this.turnOverlay.fill({ color: 0x1E1E32, alpha: 0.15 });
+      }
+    }
     if (this.roundText) {
       const totalRounds = (state as GameState & { totalRounds?: number }).totalRounds || 20;
       const roundStr = `第 ${state.roundNumber}/${totalRounds} 回合`;
@@ -46,11 +68,27 @@ export class MetroBackgroundLayer implements RenderLayer {
         }
       }
     }
+    // Update phase text
+    if (this.phaseText) {
+      const phaseLabels: Record<string, string> = {
+        waiting: '等待开始',
+        setup_plans: '选择培养计划',
+        playing: '进行中',
+        finished: '游戏结束',
+      };
+      const phaseStr = phaseLabels[state.phase] || state.phase;
+      if (phaseStr !== this.lastPhase) {
+        this.phaseText.text = phaseStr;
+        this.lastPhase = phaseStr;
+      }
+    }
   }
 
   destroy(): void {
     this.roundText = null;
     this.currentPlayerText = null;
+    this.phaseText = null;
+    this.turnOverlay = null;
     if (this.container) {
       if (this.container.parent) {
         this.container.parent.removeChild(this.container);
@@ -183,9 +221,18 @@ export class MetroBackgroundLayer implements RenderLayer {
     }
   }
 
+  private drawTurnOverlay(): void {
+    const hw = METRO_BOARD_WIDTH / 2;
+    const hh = METRO_BOARD_HEIGHT / 2;
+    this.turnOverlay = new Graphics();
+    this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
+    this.turnOverlay.fill({ color: 0x1E1E32, alpha: 0.15 }); // default: waiting
+    this.container!.addChild(this.turnOverlay);
+  }
+
   private drawCenterPanel(): void {
     const panelW = 280;
-    const panelH = 160;
+    const panelH = 200;
     const fontFamily = DESIGN_TOKENS.typography.fontFamily;
 
     // Panel background
@@ -254,5 +301,18 @@ export class MetroBackgroundLayer implements RenderLayer {
     this.currentPlayerText.anchor.set(0.5);
     this.currentPlayerText.y = -panelH / 2 + 120;
     this.container!.addChild(this.currentPlayerText);
+
+    // Dynamic phase text
+    this.phaseText = new Text({
+      text: '',
+      style: new TextStyle({
+        fontSize: 12,
+        fill: 0x8B8B8B,
+        fontFamily,
+      }),
+    });
+    this.phaseText.anchor.set(0.5);
+    this.phaseText.y = -panelH / 2 + 145;
+    this.container!.addChild(this.phaseText);
   }
 }

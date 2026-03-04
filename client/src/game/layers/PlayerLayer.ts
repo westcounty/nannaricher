@@ -19,6 +19,8 @@ import type { Point } from '../layout/MetroLayout';
 const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
 import type { TweenEngine } from '../animations/TweenEngine';
 import { animatePieceMove } from '../animations/PieceMoveAnim';
+import { playLandingEffect } from '../animations/LandingEffects';
+import { MAIN_BOARD_CELLS, CORNER_INDICES } from '@nannaricher/shared';
 
 // Internal representation of a rendered player piece
 interface PlayerPiece {
@@ -140,6 +142,9 @@ export class PlayerLayer implements RenderLayer {
               const finalCenter = this.calculatePosition(player);
               current.container.x = finalCenter.x + offset.x;
               current.container.y = finalCenter.y + offset.y;
+
+              // Play landing celebration on special stations
+              this.tryPlayLandingEffect(player.position, finalCenter, effectLayer, tweenEngine);
             });
             existing.lastPosition = { ...player.position } as Position;
           } else {
@@ -314,30 +319,40 @@ export class PlayerLayer implements RenderLayer {
     group.x = posX + offset.x;
     group.y = posY + offset.y;
 
+    // Shrink pieces on branch lines to avoid obscuring station names
+    const pieceRadius = inLine ? 11 : 16;
+    const shadowRx = inLine ? 13 : 18;
+    const shadowRy = inLine ? 6 : 8;
+    const shadowOffY = inLine ? 14 : 20;
+    if (inLine) {
+      group.y += 8; // shift down to avoid overlapping station label
+    }
+
     // Piece graphic
     const piece = new Graphics();
 
     // Shadow
-    piece.ellipse(0, 20, 18, 8);
+    piece.ellipse(0, shadowOffY, shadowRx, shadowRy);
     piece.fill({ color: 0x333333, alpha: 0.2 });
 
     // Body
-    piece.circle(0, 0, 16);
+    piece.circle(0, 0, pieceRadius);
     piece.fill({ color });
 
     // Highlight
-    piece.circle(-5, -5, 5);
+    const hlOff = inLine ? 3 : 5;
+    piece.circle(-hlOff, -hlOff, hlOff);
     piece.fill({ color: 0xffffff, alpha: 0.4 });
 
     // Current player ring
     if (isCurrent) {
-      piece.circle(0, 0, 20);
-      piece.stroke({ width: 3, color: 0xC9A227 });
+      piece.circle(0, 0, pieceRadius + 4);
+      piece.stroke({ width: inLine ? 2 : 3, color: 0xC9A227 });
     }
 
     // In-line indicator
     if (inLine) {
-      piece.circle(0, 0, 18);
+      piece.circle(0, 0, pieceRadius + 2);
       piece.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
     }
 
@@ -347,8 +362,8 @@ export class PlayerLayer implements RenderLayer {
     let pulseGlow: Graphics | undefined;
     if (isCurrent) {
       pulseGlow = new Graphics();
-      pulseGlow.circle(0, 0, 24);
-      pulseGlow.stroke({ width: 3, color: 0xC9A227, alpha: 0.8 });
+      pulseGlow.circle(0, 0, pieceRadius + 8);
+      pulseGlow.stroke({ width: inLine ? 2 : 3, color: 0xC9A227, alpha: 0.8 });
       pulseGlow.alpha = 0.3;
       // Insert behind the piece for glow effect
       group.addChildAt(pulseGlow, 0);
@@ -376,6 +391,30 @@ export class PlayerLayer implements RenderLayer {
       lastIsCurrent: isCurrent,
       pulseGlow,
     });
+  }
+
+  /** Play a celebratory landing effect for special station types. */
+  private tryPlayLandingEffect(
+    pos: Position,
+    center: { x: number; y: number },
+    effectLayer: Container,
+    tweenEngine: TweenEngine,
+  ): void {
+    if (pos.type === 'main') {
+      const cell = MAIN_BOARD_CELLS[pos.index];
+      if (!cell) return;
+      if (CORNER_INDICES.includes(pos.index)) {
+        playLandingEffect(effectLayer, center.x, center.y, 'corner', tweenEngine);
+      } else if (cell.type === 'line_entry') {
+        playLandingEffect(effectLayer, center.x, center.y, 'line_entry', tweenEngine);
+      }
+    } else {
+      // Branch line: check if this is the experience card (last station)
+      const line = LINE_CONFIGS.find(l => l.id === pos.lineId);
+      if (line && pos.index === line.cellCount - 1) {
+        playLandingEffect(effectLayer, center.x, center.y, 'experience', tweenEngine);
+      }
+    }
   }
 
   private removePiece(playerId: string): void {

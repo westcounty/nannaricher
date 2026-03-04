@@ -123,6 +123,24 @@ export function CellTooltip({ cell, lineData, position, visible }: CellTooltipPr
           停留时抽取机会卡
         </p>
       )}
+
+      {lineData && lineData.cells && (
+        <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+          <p style={{ margin: '0 0 4px 0', color: '#a78bfa', fontSize: '12px', fontWeight: 600 }}>
+            {lineData.name}
+          </p>
+          {lineData.experienceCard && cell.id === lineData.experienceCard.id && (
+            <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '12px' }}>
+              {lineData.experienceCard.description}
+            </p>
+          )}
+          {lineData.cells.find(c => c.id === cell.id)?.description && (
+            <p style={{ margin: '4px 0', color: '#ccc', fontSize: '12px' }}>
+              {lineData.cells.find(c => c.id === cell.id)!.description}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

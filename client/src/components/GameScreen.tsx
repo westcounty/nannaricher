@@ -10,6 +10,8 @@ import { CurrentPlayerPanel } from './CurrentPlayerPanel';
 import { ChatPanel } from './ChatPanel';
 import { GameLog } from './GameLog';
 import { GameCanvas } from '../game/GameCanvas';
+import type { CellHoverInfo } from '../game/layers/StationLayer';
+import { CellTooltip } from './CellTooltip';
 import { GameEventModal } from './EventModal';
 import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './ChoiceDialog';
 import { StatusIndicator } from './StatusIndicator';
@@ -19,7 +21,9 @@ import { DiceRoller } from './DiceRoller';
 import { CardHand } from './CardHand';
 import { useChat } from '../hooks/useChat';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
-import type { Player } from '@nannaricher/shared';
+import type { Player, BoardCell, BoardLine } from '@nannaricher/shared';
+import { boardData } from '../data/board';
+import { MAIN_BOARD_CELLS } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
 import './ChatPanel.css';
 import '../styles/game.css';
@@ -102,6 +106,9 @@ export function GameScreen() {
   // Track if player finished plan selection (chose to skip additional plans)
   const [planSelectionDone, setPlanSelectionDone] = useState(false);
 
+  // Tooltip hover state
+  const [hoveredCell, setHoveredCell] = useState<{ cell: BoardCell; lineData?: BoardLine | null; x: number; y: number } | null>(null);
+
   // Dice overlay state
   const [showDiceOverlay, setShowDiceOverlay] = useState(false);
   const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,6 +159,38 @@ export function GameScreen() {
   const isVoting = gameState.pendingAction?.type === 'multi_vote';
   const isChainAction = gameState.pendingAction?.type === 'chain_action';
 
+  // Cell hover handler for tooltip
+  const handleCellHover = (info: CellHoverInfo | null) => {
+    if (!info) {
+      setHoveredCell(null);
+      return;
+    }
+    const { cellId, position, screenX, screenY } = info;
+    if (position.type === 'main') {
+      const cell = boardData.mainBoard[position.index];
+      if (cell) {
+        const lineData = cell.lineId ? boardData.lines[cell.lineId] ?? null : null;
+        setHoveredCell({ cell: cell as BoardCell, lineData, x: screenX, y: screenY });
+      }
+    } else {
+      // Branch line station — build a synthetic BoardCell for the tooltip
+      const lineData = boardData.lines[position.lineId];
+      if (lineData) {
+        const isExperience = position.index === lineData.cells.length;
+        const lineCell = isExperience ? lineData.experienceCard : lineData.cells[position.index];
+        if (lineCell) {
+          const syntheticCell: BoardCell = {
+            index: position.index,
+            id: lineCell.id,
+            name: lineCell.name,
+            type: 'line_entry' as BoardCell['type'],
+          };
+          setHoveredCell({ cell: syntheticCell, lineData, x: screenX, y: screenY });
+        }
+      }
+    }
+  };
+
   // Tab toggle handler
   const handleTabClick = (tabId: TabId) => {
     setActiveTab((prev) => (prev === tabId ? null : tabId));
@@ -192,6 +231,7 @@ export function GameScreen() {
                   onCellClick={(cellId, position) => {
                     console.log('Cell clicked:', cellId, position);
                   }}
+                  onCellHover={handleCellHover}
                 />
               </div>
             </div>
@@ -481,6 +521,14 @@ export function GameScreen() {
           </div>
         </div>
       )}
+
+      {/* Cell Tooltip */}
+      <CellTooltip
+        cell={hoveredCell?.cell ?? null}
+        lineData={hoveredCell?.lineData}
+        position={{ x: hoveredCell?.x ?? 0, y: hoveredCell?.y ?? 0 }}
+        visible={!!hoveredCell}
+      />
 
       {/* Tutorial System */}
       <TutorialSystem />

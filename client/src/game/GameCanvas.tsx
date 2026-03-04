@@ -10,19 +10,21 @@ import { DESIGN_TOKENS } from '../styles/tokens';
 import { GameStage } from './GameStage';
 import { MetroBackgroundLayer } from './layers/MetroBackgroundLayer';
 import { TrackLayer } from './layers/TrackLayer';
-import { StationLayer } from './layers/StationLayer';
+import { StationLayer, type CellHoverInfo } from './layers/StationLayer';
 import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { animateDiceResult } from './animations/DiceRollAnim';
 import { showFloatingText } from './animations/FloatingText';
 import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
+import { MAIN_BOARD_SIZE, LINE_CONFIGS } from '@nannaricher/shared';
 
 interface GameCanvasProps {
   gameState: GameState;
   currentPlayerId: string | null;
   diceResult?: { playerId: string; values: number[]; total: number } | null;
   onCellClick?: (cellId: string, position: Position) => void;
+  onCellHover?: (info: CellHoverInfo | null) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -30,6 +32,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   currentPlayerId,
   diceResult,
   onCellClick,
+  onCellHover,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -39,6 +42,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const worldEffectLayerRef = useRef<Container | null>(null);
   const screenEffectLayerRef = useRef<Container | null>(null);
   const viewportRef = useRef<ViewportController | null>(null);
+  const stationLayerRef = useRef<StationLayer | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
 
   // Initialize PixiJS Application + layered stage
@@ -76,7 +80,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const stage = new GameStage();
       stage.addLayer(new MetroBackgroundLayer());
       stage.addLayer(new TrackLayer());
-      stage.addLayer(new StationLayer({ onCellClick }));
+      const stationLayer = new StationLayer({ onCellClick, onCellHover });
+      stage.addLayer(stationLayer);
+      stationLayerRef.current = stationLayer;
+      stationLayer.setTweenEngine(tweenEngine);
 
       // Create PlayerLayer with animation support
       const playerLayer = new PlayerLayer();
@@ -105,6 +112,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Create ViewportController for zoom/pan
       const mainContainer = stage.getMainContainer();
       const vc = new ViewportController(mainContainer, app.canvas as HTMLCanvasElement);
+      vc.onFocusRequest = () => {
+        // Focus on current player when Home key is pressed
+        if (playerLayerRef.current && gameState) {
+          const cp = gameState.players[gameState.currentPlayerIndex];
+          if (cp) {
+            const pos = playerLayerRef.current.getPlayerPosition(cp.id);
+            if (pos) vc.focusOnPlayer(pos.x, pos.y);
+          }
+        }
+      };
       viewportRef.current = vc;
 
       // Deferred resize: wait for next frame so CSS layout fully settles after
@@ -210,10 +227,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     prevStateRef.current = gameState;
 
+    // Clear destination highlights when state updates (player has moved)
+    stationLayerRef.current?.clearHighlights();
+
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
 
-  // Animate dice result on the effect layer
+  // Animate dice result on the effect layer + highlight destination
   useEffect(() => {
     if (!diceResult || !screenEffectLayerRef.current || !tweenRef.current) return;
 
@@ -221,8 +241,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    let centerX = rect.width / 2;
+    let centerY = rect.height / 2;
+
+    // Position dice animation near the rolling player's piece
+    if (playerLayerRef.current && stageRef.current) {
+      const playerPos = playerLayerRef.current.getPlayerPosition(diceResult.playerId);
+      if (playerPos) {
+        // Convert world coords to screen coords via mainContainer transform
+        const mc = stageRef.current.getMainContainer();
+        const screenX = mc.x + (METRO_BOARD_WIDTH / 2 + playerPos.x) * mc.scale.x;
+        const screenY = mc.y + (METRO_BOARD_HEIGHT / 2 + playerPos.y) * mc.scale.y;
+        // Clamp to stay within canvas bounds with margin
+        const margin = 50;
+        centerX = Math.max(margin, Math.min(rect.width - margin, screenX));
+        centerY = Math.max(margin, Math.min(rect.height - margin, screenY - 60));
+      }
+    }
 
     animateDiceResult(
       screenEffectLayerRef.current,
@@ -232,6 +267,30 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       centerX,
       centerY,
     );
+
+    // Highlight destination cell
+    if (stationLayerRef.current && gameState) {
+      const roller = gameState.players.find(p => p.id === diceResult.playerId);
+      if (roller) {
+        const destKeys: string[] = [];
+        if (roller.position.type === 'main') {
+          const destIndex = (roller.position.index + diceResult.total) % MAIN_BOARD_SIZE;
+          destKeys.push(`main:${destIndex}`);
+        } else {
+          // On branch line: advance within the line
+          const line = LINE_CONFIGS.find(l => l.id === roller.position.lineId);
+          if (line) {
+            const destIndex = roller.position.index + diceResult.total;
+            if (destIndex < line.cellCount) {
+              destKeys.push(`line:${roller.position.lineId}:${destIndex}`);
+            }
+          }
+        }
+        if (destKeys.length > 0) {
+          stationLayerRef.current.highlightCells(destKeys);
+        }
+      }
+    }
   }, [diceResult]);
 
   // Handle viewport resize using ResizeObserver for accurate container tracking
