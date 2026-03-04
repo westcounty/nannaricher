@@ -29,8 +29,8 @@ export interface BezierConfig {
 // ============================================
 // Board Dimensions
 // ============================================
-export const METRO_BOARD_WIDTH = 1200;
-export const METRO_BOARD_HEIGHT = 1000;
+export const METRO_BOARD_WIDTH = 1400;
+export const METRO_BOARD_HEIGHT = 1200;
 
 // ============================================
 // Station Size Constants
@@ -44,8 +44,8 @@ export const MAIN_STATION_SIZE = 80;
 export const MAIN_STATION_HEIGHT = 100;
 export const CORNER_STATION_SIZE = 120;
 export const CORNER_STATION_HEIGHT = 140;
-export const LINE_STATION_SIZE = 50;
-export const LINE_STATION_HEIGHT = 60;
+export const LINE_STATION_SIZE = 44;
+export const LINE_STATION_HEIGHT = 52;
 export const EXP_STATION_SIZE = 65;
 export const EXP_STATION_HEIGHT = 75;
 
@@ -253,11 +253,15 @@ export function getLineBezierConfig(lineId: string): BezierConfig | undefined {
   const entryPos = getMainStationPosition(line.entryIndex);
   const exitPos = getMainStationPosition(exitIndex);
 
-  // Arc depth proportional to cell count
-  const depth = clamp(line.cellCount * 25, 100, 350);
-
   // Determine arc direction based on which side of the ring
   const side = Math.floor(line.entryIndex / CELLS_PER_SIDE);
+
+  // Arc depth proportional to cell count, capped per-side to stay within board margins
+  // Vertical (top/bottom) margin: METRO_BOARD_HEIGHT/2 - HALF_HEIGHT = 220px
+  // Horizontal (left/right) margin: METRO_BOARD_WIDTH/2 - HALF_WIDTH = 260px
+  const isVerticalArc = side === 0 || side === 2;
+  const maxDepth = isVerticalArc ? 200 : 240;
+  const depth = clamp(line.cellCount * 18, 80, maxDepth);
 
   let cp1: Point;
   let cp2: Point;

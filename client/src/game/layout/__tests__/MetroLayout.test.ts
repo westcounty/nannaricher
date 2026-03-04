@@ -34,8 +34,8 @@ import { CORNER_INDICES, LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared
 // ============================================
 describe('Board dimensions', () => {
   it('exports correct board width and height', () => {
-    expect(METRO_BOARD_WIDTH).toBe(1200);
-    expect(METRO_BOARD_HEIGHT).toBe(1000);
+    expect(METRO_BOARD_WIDTH).toBe(1400);
+    expect(METRO_BOARD_HEIGHT).toBe(1200);
   });
 
   it('exports station size constants', () => {
@@ -49,8 +49,8 @@ describe('Board dimensions', () => {
     expect(MAIN_STATION_HEIGHT).toBe(100);
     expect(CORNER_STATION_SIZE).toBe(120);
     expect(CORNER_STATION_HEIGHT).toBe(140);
-    expect(LINE_STATION_SIZE).toBe(50);
-    expect(LINE_STATION_HEIGHT).toBe(60);
+    expect(LINE_STATION_SIZE).toBe(44);
+    expect(LINE_STATION_HEIGHT).toBe(52);
     expect(EXP_STATION_SIZE).toBe(65);
     expect(EXP_STATION_HEIGHT).toBe(75);
   });
