@@ -16,6 +16,16 @@ import {
   STATION_RADIUS,
   CORNER_STATION_RADIUS,
   LINE_STATION_RADIUS,
+  MAIN_STATION_SIZE,
+  MAIN_STATION_HEIGHT,
+  CORNER_STATION_SIZE,
+  CORNER_STATION_HEIGHT,
+  LINE_STATION_SIZE,
+  LINE_STATION_HEIGHT,
+  EXP_STATION_SIZE,
+  EXP_STATION_HEIGHT,
+  MAIN_TRACK_WIDTH,
+  LINE_TRACK_WIDTH,
 } from '../MetroLayout';
 import { CORNER_INDICES, LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared';
 
@@ -32,6 +42,22 @@ describe('Board dimensions', () => {
     expect(STATION_RADIUS).toBeGreaterThan(0);
     expect(CORNER_STATION_RADIUS).toBeGreaterThan(STATION_RADIUS);
     expect(LINE_STATION_RADIUS).toBeGreaterThan(0);
+  });
+
+  it('exports station card dimensions', () => {
+    expect(MAIN_STATION_SIZE).toBe(80);
+    expect(MAIN_STATION_HEIGHT).toBe(100);
+    expect(CORNER_STATION_SIZE).toBe(120);
+    expect(CORNER_STATION_HEIGHT).toBe(140);
+    expect(LINE_STATION_SIZE).toBe(50);
+    expect(LINE_STATION_HEIGHT).toBe(60);
+    expect(EXP_STATION_SIZE).toBe(65);
+    expect(EXP_STATION_HEIGHT).toBe(75);
+  });
+
+  it('exports track width constants', () => {
+    expect(MAIN_TRACK_WIDTH).toBe(6);
+    expect(LINE_TRACK_WIDTH).toBe(4);
   });
 });
 
@@ -191,10 +217,10 @@ describe('getLineBezierConfig', () => {
     for (const id of lineIds) {
       const config = getLineBezierConfig(id);
       expect(config).toBeDefined();
-      expect(config).toHaveProperty('p0');
-      expect(config).toHaveProperty('p1');
-      expect(config).toHaveProperty('p2');
-      expect(config).toHaveProperty('p3');
+      expect(config).toHaveProperty('start');
+      expect(config).toHaveProperty('cp1');
+      expect(config).toHaveProperty('cp2');
+      expect(config).toHaveProperty('end');
     }
   });
 
@@ -208,8 +234,8 @@ describe('getLineBezierConfig', () => {
       const config = getLineBezierConfig(line.id);
       if (!config) continue;
       const entryPos = getMainStationPosition(line.entryIndex);
-      expect(config.p0.x).toBeCloseTo(entryPos.x, 0);
-      expect(config.p0.y).toBeCloseTo(entryPos.y, 0);
+      expect(config.start.x).toBeCloseTo(entryPos.x, 0);
+      expect(config.start.y).toBeCloseTo(entryPos.y, 0);
     }
   });
 
@@ -220,8 +246,8 @@ describe('getLineBezierConfig', () => {
       const config = getLineBezierConfig(line.id);
       if (!config) continue;
       const exitPos = getMainStationPosition(exitIndex);
-      expect(config.p3.x).toBeCloseTo(exitPos.x, 0);
-      expect(config.p3.y).toBeCloseTo(exitPos.y, 0);
+      expect(config.end.x).toBeCloseTo(exitPos.x, 0);
+      expect(config.end.y).toBeCloseTo(exitPos.y, 0);
     }
   });
 
@@ -230,8 +256,8 @@ describe('getLineBezierConfig', () => {
       const config = getLineBezierConfig(id);
       if (!config) continue;
       // Control points should extend further in y (downward = positive y)
-      expect(config.p1.y).toBeGreaterThan(config.p0.y);
-      expect(config.p2.y).toBeGreaterThan(config.p3.y);
+      expect(config.cp1.y).toBeGreaterThan(config.start.y);
+      expect(config.cp2.y).toBeGreaterThan(config.end.y);
     }
   });
 
@@ -239,8 +265,8 @@ describe('getLineBezierConfig', () => {
     for (const id of ['explore', 'xianlin']) {
       const config = getLineBezierConfig(id);
       if (!config) continue;
-      expect(config.p1.y).toBeLessThan(config.p0.y);
-      expect(config.p2.y).toBeLessThan(config.p3.y);
+      expect(config.cp1.y).toBeLessThan(config.start.y);
+      expect(config.cp2.y).toBeLessThan(config.end.y);
     }
   });
 
@@ -248,8 +274,8 @@ describe('getLineBezierConfig', () => {
     for (const id of ['money', 'suzhou']) {
       const config = getLineBezierConfig(id);
       if (!config) continue;
-      expect(config.p1.x).toBeLessThan(config.p0.x);
-      expect(config.p2.x).toBeLessThan(config.p3.x);
+      expect(config.cp1.x).toBeLessThan(config.start.x);
+      expect(config.cp2.x).toBeLessThan(config.end.x);
     }
   });
 
@@ -257,8 +283,8 @@ describe('getLineBezierConfig', () => {
     for (const id of ['gulou', 'food']) {
       const config = getLineBezierConfig(id);
       if (!config) continue;
-      expect(config.p1.x).toBeGreaterThan(config.p0.x);
-      expect(config.p2.x).toBeGreaterThan(config.p3.x);
+      expect(config.cp1.x).toBeGreaterThan(config.start.x);
+      expect(config.cp2.x).toBeGreaterThan(config.end.x);
     }
   });
 });

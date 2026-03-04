@@ -20,10 +20,10 @@ export interface Point {
 }
 
 export interface BezierConfig {
-  p0: Point;
-  p1: Point;
-  p2: Point;
-  p3: Point;
+  start: Point;
+  cp1: Point;
+  cp2: Point;
+  end: Point;
 }
 
 // ============================================
@@ -38,6 +38,20 @@ export const METRO_BOARD_HEIGHT = 1000;
 export const STATION_RADIUS = 18;
 export const CORNER_STATION_RADIUS = 28;
 export const LINE_STATION_RADIUS = 14;
+
+// Station card dimensions (width × height) — used by StationLayer
+export const MAIN_STATION_SIZE = 80;
+export const MAIN_STATION_HEIGHT = 100;
+export const CORNER_STATION_SIZE = 120;
+export const CORNER_STATION_HEIGHT = 140;
+export const LINE_STATION_SIZE = 50;
+export const LINE_STATION_HEIGHT = 60;
+export const EXP_STATION_SIZE = 65;
+export const EXP_STATION_HEIGHT = 75;
+
+// Track widths — used by TrackLayer
+export const MAIN_TRACK_WIDTH = 6;
+export const LINE_TRACK_WIDTH = 4;
 
 // ============================================
 // Ring Geometry Constants
@@ -245,36 +259,36 @@ export function getLineBezierConfig(lineId: string): BezierConfig | undefined {
   // Determine arc direction based on which side of the ring
   const side = Math.floor(line.entryIndex / CELLS_PER_SIDE);
 
-  let p1: Point;
-  let p2: Point;
+  let cp1: Point;
+  let cp2: Point;
 
   switch (side) {
     case 0: // Bottom side -> arc downward (+y)
-      p1 = { x: entryPos.x, y: entryPos.y + depth };
-      p2 = { x: exitPos.x, y: exitPos.y + depth };
+      cp1 = { x: entryPos.x, y: entryPos.y + depth };
+      cp2 = { x: exitPos.x, y: exitPos.y + depth };
       break;
     case 1: // Left side -> arc leftward (-x)
-      p1 = { x: entryPos.x - depth, y: entryPos.y };
-      p2 = { x: exitPos.x - depth, y: exitPos.y };
+      cp1 = { x: entryPos.x - depth, y: entryPos.y };
+      cp2 = { x: exitPos.x - depth, y: exitPos.y };
       break;
     case 2: // Top side -> arc upward (-y)
-      p1 = { x: entryPos.x, y: entryPos.y - depth };
-      p2 = { x: exitPos.x, y: exitPos.y - depth };
+      cp1 = { x: entryPos.x, y: entryPos.y - depth };
+      cp2 = { x: exitPos.x, y: exitPos.y - depth };
       break;
     case 3: // Right side -> arc rightward (+x)
-      p1 = { x: entryPos.x + depth, y: entryPos.y };
-      p2 = { x: exitPos.x + depth, y: exitPos.y };
+      cp1 = { x: entryPos.x + depth, y: entryPos.y };
+      cp2 = { x: exitPos.x + depth, y: exitPos.y };
       break;
     default:
-      p1 = entryPos;
-      p2 = exitPos;
+      cp1 = entryPos;
+      cp2 = exitPos;
   }
 
   return {
-    p0: { x: entryPos.x, y: entryPos.y },
-    p1,
-    p2,
-    p3: { x: exitPos.x, y: exitPos.y },
+    start: { x: entryPos.x, y: entryPos.y },
+    cp1,
+    cp2,
+    end: { x: exitPos.x, y: exitPos.y },
   };
 }
 
@@ -294,8 +308,8 @@ export function getLineStationPosition(lineId: string, cellIndex: number): Point
   const line = LINE_CONFIGS.find(l => l.id === lineId);
   if (!line) return { x: 0, y: 0 };
 
-  const { p0, p1, p2, p3 } = config;
-  const table = buildArcLengthTable(p0, p1, p2, p3);
+  const { start, cp1, cp2, end } = config;
+  const table = buildArcLengthTable(start, cp1, cp2, end);
   const totalLen = table[table.length - 1].len;
 
   // Distribute cellCount stations evenly along the arc.
@@ -307,7 +321,7 @@ export function getLineStationPosition(lineId: string, cellIndex: number): Point
   const targetLen = segmentLen * (cellIndex + 1);
 
   const t = tAtArcLength(targetLen, table);
-  return getBezierPoint(t, p0, p1, p2, p3);
+  return getBezierPoint(t, start, cp1, cp2, end);
 }
 
 // ============================================
