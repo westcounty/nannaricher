@@ -31,6 +31,9 @@ export function registerRoomHandlers(
         room.players.forEach(player => engine.addPlayer(player));
         const coordinator = new GameCoordinator(engine, io, roomId);
         roomManager.setCoordinator(roomId, coordinator);
+
+        // Broadcast initial state (engine already has players from forEach above)
+        coordinator.broadcastState();
       }
 
       socket.emit('room:created', { roomId, playerId });

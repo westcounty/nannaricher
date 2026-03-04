@@ -313,8 +313,7 @@ export class GameEngine implements IGameEngine {
     this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
     this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
 
-    // Execute cell event
-    this.executeCellEvent(playerId);
+    // NOTE: Cell event execution is handled by GameCoordinator.handleCellLanding()
   }
 
   movePlayerBackward(playerId: string, steps: number): void {
@@ -335,8 +334,7 @@ export class GameEngine implements IGameEngine {
     this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
     this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
 
-    // Execute cell event
-    this.executeCellEvent(playerId);
+    // NOTE: Cell event execution is handled by GameCoordinator.handleCellLanding()
   }
 
   private movePlayerInLine(playerId: string, steps: number): void {
@@ -362,24 +360,19 @@ export class GameEngine implements IGameEngine {
     this.stateTracker.recordPosition(playerId, player.position, this.state.turnNumber);
     this.stateTracker.checkAndUpdateSharedCells(this.state.players, this.state.turnNumber);
 
-    // Execute line cell event
+    // StateTracker: record line event trigger
     const cell = line.cells[newIndex];
     if (cell) {
-      // StateTracker: record line event trigger
       this.stateTracker.recordLineEvent(playerId, lineId, newIndex);
-
-      this.eventHandler.execute(cell.handlerId, playerId);
 
       // StateTracker: update food line streak if applicable
       if (lineId === 'food') {
-        // Check if the event had a negative effect (simplified: check if money decreased)
-        const playerAfter = this.getPlayer(playerId);
-        // For food line, we track negative-free streaks; the event handler may have caused negative effects
-        // We use a heuristic: if the cell handler ID contains 'negative' or similar, mark as negative
         const hadNegative = cell.handlerId.includes('negative') || cell.handlerId.includes('bad');
         this.stateTracker.updateFoodLineStreak(playerId, hadNegative);
       }
     }
+
+    // NOTE: Line cell event execution is handled by GameCoordinator.handleCellLanding()
   }
 
   private getPositionName(position: Position): string {
@@ -522,8 +515,7 @@ export class GameEngine implements IGameEngine {
         player.position = { type: 'main', index: nextIndex };
         this.log(`离开 ${line?.name || lineId}，移动到 ${this.getPositionName(player.position)}`, playerId);
 
-        // Execute cell event at new position
-        this.executeCellEvent(playerId);
+        // NOTE: Cell event execution is handled by GameCoordinator.handleCellLanding()
       }
     } else {
       // Stay at line entry (for early exit)
@@ -578,18 +570,8 @@ export class GameEngine implements IGameEngine {
 
     this.log(`抽取 ${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}`, playerId);
 
-    // If holdable, add to player's hand; otherwise execute immediately
-    if (card.holdable) {
-      this.addCardToPlayer(playerId, card);
-    } else {
-      // Execute card effect immediately
-      this.eventHandler.execute(`card_${card.id}`, playerId);
-
-      // Return to discard pile if needed
-      if (card.returnToDeck) {
-        this.state.discardPiles[deckType].push(card);
-      }
-    }
+    // NOTE: Card effect execution (holdable add / non-holdable execute) is handled
+    // by GameCoordinator.handleCellLanding() to avoid duplicate processing.
 
     return card;
   }

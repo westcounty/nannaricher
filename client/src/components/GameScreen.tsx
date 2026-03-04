@@ -392,7 +392,7 @@ export function GameScreen() {
             options={myPlayer.trainingPlans.map((plan) => ({
               label: plan.name,
               value: plan.id,
-              description: `胜利条件: ${plan.winCondition}`,
+              description: `胜利条件: ${plan.winCondition}${plan.passiveAbility ? `\n特殊能力: ${plan.passiveAbility}` : ''}`,
               selected: myPlayer.confirmedPlans.includes(plan.id),
             }))}
             minSelections={1}

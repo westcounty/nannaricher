@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Player } from '@nannaricher/shared';
 import { PLAYER_COLORS } from '@nannaricher/shared';
+import { boardData } from '../data/board';
 
 interface PlayerPanelProps {
   player: Player;
@@ -24,9 +25,13 @@ export function PlayerPanel({ player, isCurrentTurn = false }: PlayerPanelProps)
 
   const getPositionText = () => {
     if (player.position.type === 'main') {
-      return `主路 ${player.position.index}`;
+      const cell = boardData.mainBoard[player.position.index];
+      return cell?.name || `主路 ${player.position.index}`;
     }
-    return `${player.position.lineId} ${player.position.index}`;
+    const line = boardData.lines[player.position.lineId];
+    const cell = line?.cells[player.position.index];
+    const lineName = line?.name?.split(' - ')[0] || player.position.lineId;
+    return cell?.name ? `${lineName} · ${cell.name}` : `${lineName} 第${player.position.index + 1}格`;
   };
 
   return (

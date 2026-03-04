@@ -185,8 +185,8 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '闯门：选择一项',
       [
-        { label: '停留一回合获得0.2 GPA', value: 'stay' },
-        { label: '失去0.1 GPA前进一格领取600低保', value: 'move' },
+        { label: '停留一回合获得0.2 GPA', value: 'event_chuang_men_stay' },
+        { label: '失去0.1 GPA前进一格领取600低保', value: 'event_chuang_men_move' },
       ]
     );
   });
@@ -237,6 +237,11 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerMoney(playerId, 240 + bonus);
     engine.skipPlayerTurn(playerId, 1);
     engine.log(`勤工助学获得240金钱${bonus > 0 ? '（额外240）' : ''}，暂停一回合`, playerId);
+    return null;
+  });
+
+  // Generic skip handler - does nothing (used by retake, society, kechuang, line entry, etc.)
+  eventHandler.registerHandler('skip', (_engine, _playerId) => {
     return null;
   });
 

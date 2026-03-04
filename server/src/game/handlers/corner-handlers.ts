@@ -22,15 +22,14 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
     if (!player) return null;
 
     engine.setPlayerHospitalStatus(playerId, true);
-    engine.log(`进入校医院`, playerId);
 
     return engine.createPendingAction(
       playerId,
       'choose_option',
       '选择出院方式：投骰子到3或支付250医药费',
       [
-        { label: '投骰子 (目标: 3)', value: 'roll_dice' },
-        { label: `支付医药费 (${HOSPITAL_FEE})`, value: 'pay_fee' },
+        { label: '投骰子 (目标: 3)', value: 'corner_hospital_roll' },
+        { label: `支付医药费 (${HOSPITAL_FEE})`, value: 'corner_hospital_pay' },
       ]
     );
   });
@@ -76,8 +75,8 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
       'choose_option',
       `是否支付 ${WAITING_ROOM_FEE} 金钱移动到任意格子？`,
       [
-        { label: `支付 ${WAITING_ROOM_FEE} 移动`, value: 'pay_move' },
-        { label: '不支付，停留', value: 'stay' },
+        { label: `支付 ${WAITING_ROOM_FEE} 移动`, value: 'corner_waiting_room_pay' },
+        { label: '不支付，停留', value: 'corner_waiting_room_stay' },
       ]
     );
   });
@@ -85,8 +84,8 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('corner_waiting_room_pay', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -WAITING_ROOM_FEE);
 
-    // Return a pending action for choosing destination
-    return engine.createPendingAction(
+    // Return a pending action for choosing destination with callbackHandler
+    const action = engine.createPendingAction(
       playerId,
       'choose_option',
       '选择移动目的地：',
@@ -105,6 +104,18 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
         { label: '食堂线入口', value: 'main_26' },
       ]
     );
+    if (action) action.callbackHandler = 'corner_waiting_room_move';
+    return action;
+  });
+
+  eventHandler.registerHandler('corner_waiting_room_move', (engine, playerId, destination) => {
+    if (destination && destination.startsWith('main_')) {
+      const index = parseInt(destination.replace('main_', ''), 10);
+      if (!isNaN(index)) {
+        engine.movePlayerTo(playerId, { type: 'main', index });
+      }
+    }
+    return null;
   });
 
   eventHandler.registerHandler('corner_waiting_room_stay', (engine, playerId) => {

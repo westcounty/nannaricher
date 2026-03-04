@@ -90,7 +90,7 @@ export function WaitingRoom({
 
       <div className="players-section">
         <h3>
-          玩家 ({players.length}/4)
+          玩家 ({players.length}/6)
         </h3>
         <ul className="player-list">
           {players.map((player, index) => (

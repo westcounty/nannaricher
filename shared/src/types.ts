@@ -92,6 +92,7 @@ export interface PendingAction {
   timeoutMs: number;
   cardId?: string;            // 触发此action的卡牌ID
   chainOrder?: string[];      // 连锁行动的玩家顺序
+  callbackHandler?: string;   // 回调handler ID，choice作为第三参数传入
 }
 
 // === Game State ===

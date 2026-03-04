@@ -254,6 +254,129 @@ export class GameCoordinator {
   }
 
   /**
+   * Resolve multi-vote card effects based on card type and player votes.
+   */
+  private resolveMultiVoteCard(
+    cardId: string,
+    groups: Record<string, string[]>,
+    counts: Record<string, number>,
+  ): void {
+    switch (cardId) {
+      case 'chance_light_shadow': {
+        // 光影变幻 — majority decides
+        const lizhaohu = counts['lizhaohu'] || 0;
+        const caigentan = counts['caigentan'] || 0;
+        if (lizhaohu > caigentan) {
+          this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerMoney(p.id, 200));
+          this.addLog('system', '光影变幻：日照金波，所有玩家金钱+200');
+        } else if (caigentan > lizhaohu) {
+          this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerExploration(p.id, 2));
+          this.addLog('system', '光影变幻：漆新牛塑，所有玩家探索值+2');
+        } else {
+          this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerGpa(p.id, 0.2));
+          this.addLog('system', '光影变幻：蒸蒸日上，所有玩家GPA+0.2');
+        }
+        break;
+      }
+      case 'chance_course_group': {
+        // 课程建群 — majority decides
+        const qq = counts['qq'] || 0;
+        const wechat = counts['wechat'] || 0;
+        if (qq > wechat) {
+          this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerGpa(p.id, 0.2));
+          this.addLog('system', '课程建群：文件管理，所有玩家GPA+0.2');
+        } else if (wechat > qq) {
+          this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerExploration(p.id, 2));
+          this.addLog('system', '课程建群：面对面建群，所有玩家探索值+2');
+        } else {
+          this.engine.getAllPlayers().forEach(p => {
+            this.engine.modifyPlayerGpa(p.id, 0.1);
+            this.engine.modifyPlayerExploration(p.id, 1);
+          });
+          this.addLog('system', '课程建群：平分秋色，所有玩家GPA+0.1, 探索值+1');
+        }
+        break;
+      }
+      case 'chance_transfer_moment': {
+        // 换乘时刻 — vote + dice
+        const dice = this.engine.rollDice(1)[0];
+        const isOdd = dice % 2 === 1;
+        if (isOdd) {
+          for (const pid of groups['xinjiekou'] || []) this.engine.modifyPlayerExploration(pid, -1);
+          for (const pid of groups['jinmalu'] || []) this.engine.modifyPlayerExploration(pid, 1);
+          this.addLog('system', `换乘时刻(${dice}奇数)：人满为患，新街口探索-1，金马路探索+1`);
+        } else {
+          for (const pid of groups['xinjiekou'] || []) this.engine.modifyPlayerMoney(pid, 100);
+          for (const pid of groups['jinmalu'] || []) this.engine.modifyPlayerMoney(pid, -100);
+          this.addLog('system', `换乘时刻(${dice}偶数)：仙林湖不是家，新街口金钱+100，金马路金钱-100`);
+        }
+        break;
+      }
+      case 'chance_wit_words': {
+        // 妙语连珠 — vote + dice
+        const dice = this.engine.rollDice(1)[0];
+        const isOdd = dice % 2 === 1;
+        if (isOdd) {
+          for (const pid of groups['debate'] || []) this.engine.modifyPlayerExploration(pid, 2);
+          this.addLog('system', `妙语连珠(${dice}奇数)：唇枪舌剑，选辩论赛的探索值+2`);
+        } else {
+          for (const pid of groups['speaker'] || []) {
+            this.engine.modifyPlayerExploration(pid, 1);
+            this.engine.modifyPlayerMoney(pid, 100);
+          }
+          this.addLog('system', `妙语连珠(${dice}偶数)：滔滔不绝，选演说家的探索值+1,金钱+100`);
+        }
+        break;
+      }
+      case 'chance_school_sports_meet': {
+        // 校运动会 — vote + dice
+        const dice = this.engine.rollDice(1)[0];
+        const isOdd = dice % 2 === 1;
+        if (isOdd) {
+          for (const pid of groups['exercise'] || []) {
+            this.engine.modifyPlayerExploration(pid, 3);
+            this.engine.modifyPlayerGpa(pid, -0.1);
+          }
+          this.addLog('system', `校运动会(${dice}奇数)：七彩阳光，选广播操的探索+3,GPA-0.1`);
+        } else {
+          for (const pid of groups['entrance'] || []) {
+            this.engine.modifyPlayerExploration(pid, 3);
+            this.engine.modifyPlayerMoney(pid, -100);
+          }
+          this.addLog('system', `校运动会(${dice}偶数)：才思泉涌，选入场式的探索+3,金钱-100`);
+        }
+        break;
+      }
+      case 'chance_travel_method': {
+        // 出行方式 — majority decides (simplified)
+        const shared = counts['shared'] || 0;
+        const walk = counts['walk'] || 0;
+        if (shared > walk) {
+          for (const pid of groups['walk'] || []) this.engine.modifyPlayerExploration(pid, 2);
+          for (const pid of groups['shared'] || []) this.engine.modifyPlayerMoney(pid, -100);
+          this.addLog('system', '出行方式：供不应求，丈量校园探索+2，共享出行金钱-100');
+        } else if (walk > shared) {
+          for (const pid of groups['shared'] || []) this.engine.modifyPlayerGpa(pid, 0.2);
+          for (const pid of groups['walk'] || []) this.engine.modifyPlayerExploration(pid, -1);
+          this.addLog('system', '出行方式：抢占先机，共享出行GPA+0.2，丈量校园探索-1');
+        } else {
+          this.engine.getAllPlayers().forEach(p => {
+            this.engine.modifyPlayerGpa(p.id, 0.1);
+            this.engine.modifyPlayerExploration(p.id, 1);
+          });
+          this.addLog('system', '出行方式：井然有序，所有玩家GPA+0.1, 探索值+1');
+        }
+        break;
+      }
+      default: {
+        // Fallback for unknown card types — just log
+        this.addLog('system', `投票完成`);
+        break;
+      }
+    }
+  }
+
+  /**
    * Check win condition and emit player-won if someone won. Returns true if game ended.
    */
   private checkAndEmitWin(): boolean {
@@ -303,20 +426,27 @@ export class GameCoordinator {
           handlerId = `event_${cell.id}`;
           break;
         case 'chance': {
-          // Draw a chance card
-          const card = this.engine.drawCard(playerId, 'chance');
+          // Draw one card: randomly chance or destiny
+          const cardType = Math.random() < 0.5 ? 'chance' : 'destiny';
+          const card = this.engine.drawCard(playerId, cardType);
           if (card) {
             if (card.holdable) {
               this.engine.addCardToPlayer(playerId, card);
-              this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到机会卡: ${card.name}`);
+              this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
             } else {
               // Execute card effect immediately
               const cardPendingAction = this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+
+              // Return to discard pile if needed
+              if (card.returnToDeck) {
+                state.discardPiles[cardType].push(card);
+              }
+
               if (cardPendingAction) {
                 state.pendingAction = cardPendingAction;
                 this.broadcastState();
                 this.io.to(this.roomId).emit('game:event-trigger', {
-                  title: '机会卡',
+                  title: cardType === 'chance' ? '机会卡' : '命运卡',
                   description: cardPendingAction.prompt,
                   pendingAction: cardPendingAction,
                 });
@@ -496,7 +626,26 @@ export class GameCoordinator {
 
     // Handle based on pending action type
     if (state.pendingAction.type === 'choose_option') {
-      const pendingAction = this.engine.getEventHandler().execute(choice, playerId);
+      let pendingAction: import('@nannaricher/shared').PendingAction | null = null;
+
+      // Handle line entry choices inline (enter_* patterns)
+      if (choice.startsWith('enter_')) {
+        const lineId = choice.replace('enter_', '');
+        const line = boardData.lines[lineId];
+        if (line) {
+          this.engine.enterLine(playerId, lineId, !line.forceEntry);
+          this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 进入 ${line.name}`);
+        }
+      } else if (state.pendingAction.callbackHandler) {
+        // Use callbackHandler: pass choice as the third parameter
+        pendingAction = this.engine.getEventHandler().execute(
+          state.pendingAction.callbackHandler, playerId, choice
+        );
+      } else {
+        // Default: choice is the handler ID
+        pendingAction = this.engine.getEventHandler().execute(choice, playerId);
+      }
+
       if (pendingAction) {
         state.pendingAction = pendingAction;
         this.broadcastState();
@@ -536,45 +685,40 @@ export class GameCoordinator {
         state.pendingAction.responses = {};
       }
       state.pendingAction.responses[playerId] = choice;
-      this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 投票: ${choice}`);
+
+      const optionLabel = state.pendingAction.options?.find(o => o.value === choice)?.label || choice;
+      this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 选择了: ${optionLabel}`);
 
       // Check if all players have voted
       const totalVoters = state.pendingAction.targetPlayerIds?.length || state.players.length;
       const votedCount = Object.keys(state.pendingAction.responses).length;
 
       if (votedCount >= totalVoters) {
-        // All votes collected — tally and execute
+        // All votes collected — resolve based on card type
         const responses = state.pendingAction.responses;
-        const counts: Record<string, number> = {};
-        for (const vote of Object.values(responses)) {
-          counts[vote as string] = (counts[vote as string] || 0) + 1;
-        }
-
-        // Find winner (most votes)
-        let winner = '';
-        let maxVotes = 0;
-        for (const [option, count] of Object.entries(counts)) {
-          if (count > maxVotes) {
-            maxVotes = count;
-            winner = option;
-          }
-        }
-
-        this.addLog('system', `投票结果: ${winner} (${maxVotes}票)`);
-
-        // Roll dice if needed for the effect
-        const diceValue = this.engine.rollDice(1)[0];
-        const isOdd = diceValue % 2 === 1;
-
-        // Apply effects based on vote result and dice
         const cardId = state.pendingAction.cardId;
+
+        // Group players by their vote
+        const groups: Record<string, string[]> = {};
+        for (const [pid, vote] of Object.entries(responses)) {
+          const v = vote as string;
+          if (!groups[v]) groups[v] = [];
+          groups[v].push(pid);
+        }
+
+        // Count votes per option
+        const counts: Record<string, number> = {};
+        for (const [option, pids] of Object.entries(groups)) {
+          counts[option] = pids.length;
+        }
+
         if (cardId) {
-          const effectHandlerId = `vote_${cardId}_${winner}_${isOdd ? 'odd' : 'even'}`;
-          this.engine.getEventHandler().execute(effectHandlerId, playerId);
+          this.resolveMultiVoteCard(cardId, groups, counts);
         }
 
         state.pendingAction = null;
         this.broadcastState();
+        if (this.checkAndEmitWin()) return;
         this.advanceTurn();
       } else {
         // Not all votes in yet

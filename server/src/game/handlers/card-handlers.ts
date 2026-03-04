@@ -690,45 +690,147 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 光影变幻
-  eventHandler.registerHandler('card_chance_light_shadow', (engine, playerId) => {
-    engine.log('光影变幻：选择藜照湖或菜根谭', playerId);
-    return null;
+  // 光影变幻 — 多数票决定效果
+  eventHandler.registerHandler('card_chance_light_shadow', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_light_shadow_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '光影变幻：选择藜照湖或菜根谭',
+      options: [
+        { label: '藜照湖', value: 'lizhaohu' },
+        { label: '菜根谭', value: 'caigentan' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_light_shadow',
+      timeoutMs: 30000,
+    };
   });
 
-  // 课程建群
-  eventHandler.registerHandler('card_chance_course_group', (engine, playerId) => {
-    engine.log('课程建群：查看最新消息记录的渠道来源', playerId);
-    return null;
+  // 课程建群 — 多数票决定效果
+  eventHandler.registerHandler('card_chance_course_group', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_course_group_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '课程建群：你课程群最新消息来自哪个平台？',
+      options: [
+        { label: 'QQ', value: 'qq' },
+        { label: '微信', value: 'wechat' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_course_group',
+      timeoutMs: 30000,
+    };
   });
 
-  // 换乘时刻
-  eventHandler.registerHandler('card_chance_transfer_moment', (engine, playerId) => {
-    engine.log('换乘时刻：选择新街口或金马路', playerId);
-    return null;
+  // 换乘时刻 — 投票+骰子决定效果
+  eventHandler.registerHandler('card_chance_transfer_moment', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_transfer_moment_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '换乘时刻：选择新街口或金马路',
+      options: [
+        { label: '新街口', value: 'xinjiekou' },
+        { label: '金马路', value: 'jinmalu' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_transfer_moment',
+      timeoutMs: 30000,
+    };
   });
 
-  // 妙语连珠
-  eventHandler.registerHandler('card_chance_wit_words', (engine, playerId) => {
-    engine.log('妙语连珠：选择南哪辩论赛或南哪演说家', playerId);
-    return null;
+  // 妙语连珠 — 投票+骰子决定效果
+  eventHandler.registerHandler('card_chance_wit_words', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_wit_words_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '妙语连珠：选择南哪辩论赛或南哪演说家',
+      options: [
+        { label: '南哪辩论赛', value: 'debate' },
+        { label: '南哪演说家', value: 'speaker' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_wit_words',
+      timeoutMs: 30000,
+    };
   });
 
-  // 校运动会
-  eventHandler.registerHandler('card_chance_school_sports_meet', (engine, playerId) => {
-    engine.log('校运动会：选择入场式或广播操', playerId);
-    return null;
+  // 校运动会 — 投票+骰子决定效果
+  eventHandler.registerHandler('card_chance_school_sports_meet', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_school_sports_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '校运动会：选择入场式或广播操',
+      options: [
+        { label: '入场式', value: 'entrance' },
+        { label: '广播操', value: 'exercise' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_school_sports_meet',
+      timeoutMs: 30000,
+    };
   });
 
-  // 出行方式
-  eventHandler.registerHandler('card_chance_travel_method', (engine, playerId) => {
-    engine.log('出行方式：查看共享单车/电动车/滑板车开卡情况', playerId);
-    return null;
+  // 出行方式 — 简化为多数票
+  eventHandler.registerHandler('card_chance_travel_method', (engine, _playerId) => {
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    return {
+      id: `vote_travel_method_${Date.now()}`,
+      playerId: 'all',
+      type: 'multi_vote' as const,
+      prompt: '出行方式：你的出行方式是？',
+      options: [
+        { label: '共享出行', value: 'shared' },
+        { label: '丈量校园', value: 'walk' },
+      ],
+      targetPlayerIds: players.map(p => p.id),
+      cardId: 'chance_travel_method',
+      timeoutMs: 30000,
+    };
   });
 
-  // 八卦秘闻
+  // 八卦秘闻 — 简化为抽卡者选择参与或放弃
   eventHandler.registerHandler('card_chance_gossip_secret', (engine, playerId) => {
-    engine.log('八卦秘闻：选择一位玩家悄悄告知', playerId);
+    return engine.createPendingAction(
+      playerId,
+      'choose_option',
+      '八卦秘闻：是否参与悄悄告知？参与则投骰子，点数>1获得奖励，否则受惩罚',
+      [
+        { label: '参与（投骰子）', value: 'card_gossip_participate' },
+        { label: '放弃', value: 'card_gossip_skip' },
+      ],
+    );
+  });
+
+  // 八卦秘闻 — 参与
+  eventHandler.registerHandler('card_gossip_participate', (engine, playerId) => {
+    const dice = engine.rollDice(1)[0];
+    if (dice > 1) {
+      engine.modifyPlayerMoney(playerId, 200);
+      engine.modifyPlayerGpa(playerId, 0.2);
+      engine.modifyPlayerExploration(playerId, 2);
+      engine.log(`八卦秘闻投出${dice}(>1)：金钱+200, GPA+0.2, 探索值+2`, playerId);
+    } else {
+      engine.modifyPlayerMoney(playerId, -200);
+      engine.modifyPlayerGpa(playerId, -0.2);
+      engine.modifyPlayerExploration(playerId, -2);
+      engine.log(`八卦秘闻投出${dice}(≤1)：金钱-200, GPA-0.2, 探索值-2`, playerId);
+    }
+    return null;
+  });
+
+  // 八卦秘闻 — 放弃
+  eventHandler.registerHandler('card_gossip_skip', (engine, playerId) => {
+    engine.log('八卦秘闻：放弃参与', playerId);
     return null;
   });
 

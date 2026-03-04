@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import type { Player } from '@nannaricher/shared';
 import { useGameState } from '../context/GameContext';
 import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
+import { boardData } from '../data/board';
 
 interface CurrentPlayerPanelProps {
   player: Player | undefined;
@@ -26,9 +27,13 @@ export function CurrentPlayerPanel({
 
   const getPositionText = () => {
     if (player.position.type === 'main') {
-      return `主路 ${player.position.index}`;
+      const cell = boardData.mainBoard[player.position.index];
+      return cell?.name || `主路 ${player.position.index}`;
     }
-    return `${player.position.lineId} ${player.position.index}`;
+    const line = boardData.lines[player.position.lineId];
+    const cell = line?.cells[player.position.index];
+    const lineName = line?.name?.split(' - ')[0] || player.position.lineId;
+    return cell?.name ? `${lineName} · ${cell.name}` : `${lineName} 第${player.position.index + 1}格`;
   };
 
   // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)
@@ -140,6 +145,9 @@ export function CurrentPlayerPanel({
                   </div>
                   <div className="plan-details">
                     <span className="plan-condition">胜利条件: {plan.winCondition}</span>
+                    {plan.passiveAbility && (
+                      <span className="plan-ability">特殊能力: {plan.passiveAbility}</span>
+                    )}
                   </div>
                   {!isConfirmed && canPlayerConfirm && canConfirmPlan && !hasReachedMaxPlans && (
                     <button

@@ -41,7 +41,7 @@ export function registerGameHandlers(
     state.log.push({
       turn: state.turnNumber,
       playerId: 'system',
-      message: 'Game started!',
+      message: '游戏开始！',
       timestamp: Date.now(),
     });
     coordinator.broadcastState();
