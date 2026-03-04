@@ -422,8 +422,11 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  width: 100vw;
   background: var(--color-bg-main);
   color: var(--color-text-primary);
+  text-align: left;
+  align-self: stretch;
 }
 
 /* ============================================
@@ -954,9 +957,10 @@
   border-radius: var(--radius-lg);
 }
 
-/* In desktop left-column, fill available space for maximum board area */
+/* In desktop left-column, fill available width, constrain height */
 .left-column .board-canvas-container {
-  max-height: 100%;
+  width: 100%;
+  max-height: calc(100vh - 200px);
   overflow: hidden;
   border: 1px solid var(--game-border);
 }

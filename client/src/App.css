@@ -11,6 +11,13 @@
   text-align: center;
 }
 
+/* When game screen is active, let it take full width */
+.app:has(.game-screen) {
+  align-items: stretch;
+  justify-content: stretch;
+  background: var(--color-bg-main, #0F0A1A);
+}
+
 .app h1 {
   font-size: 3rem;
   margin-bottom: 0.5rem;
