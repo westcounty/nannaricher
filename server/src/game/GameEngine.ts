@@ -21,6 +21,7 @@ import { WinConditionChecker } from './rules/WinConditionChecker.js';
 import { PlanAbilityHandler } from './rules/PlanAbilities.js';
 import { CardEffectHandler } from './rules/CardEffectHandler.js';
 import { StateTracker } from './history/StateTracker.js';
+import { DelayedEffectManager } from './effects/DelayedEffectManager.js';
 import { VotingSystem } from './interaction/VotingSystem.js';
 import { ChainActionSystem } from './interaction/ChainActionSystem.js';
 
@@ -35,6 +36,7 @@ export class GameEngine implements IGameEngine {
   private planAbilities: PlanAbilityHandler;
   private cardHandler: CardEffectHandler;
   private stateTracker: StateTracker;
+  private delayedEffects: DelayedEffectManager;
   private votingSystem: VotingSystem;
   private chainSystem: ChainActionSystem;
   /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
@@ -47,6 +49,7 @@ export class GameEngine implements IGameEngine {
     this.planAbilities = new PlanAbilityHandler();
     this.cardHandler = new CardEffectHandler();
     this.stateTracker = new StateTracker();
+    this.delayedEffects = new DelayedEffectManager();
     this.votingSystem = new VotingSystem();
     this.chainSystem = new ChainActionSystem();
   }
@@ -141,6 +144,12 @@ export class GameEngine implements IGameEngine {
   modifyPlayerMoney(playerId: string, delta: number): void {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
+
+    // DelayedEffectManager: check money freeze (block all money modifications)
+    if (this.delayedEffects.hasMoneyFreeze(playerId)) {
+      this.log('金钱冻结效果生效，金钱不变', playerId);
+      return;
+    }
 
     // Check plan abilities for money loss protection
     if (delta < 0) {
@@ -714,6 +723,18 @@ export class GameEngine implements IGameEngine {
     // Process effects at turn start
     this.processEffectsAtTurnStart(currentPlayer.id);
 
+    // DelayedEffectManager: process start-of-turn effects
+    const triggeredEffects = this.delayedEffects.processStartOfTurn(this.state.turnNumber, currentPlayer.id);
+    for (const effect of triggeredEffects) {
+      this.log(`延迟效果触发: ${effect.type}`, currentPlayer.id);
+    }
+
+    // DelayedEffectManager: check action order reversal
+    if (this.delayedEffects.hasReverseOrder()) {
+      this.state.turnOrderReversed = !this.state.turnOrderReversed;
+      this.log('行动顺序反转！', currentPlayer.id);
+    }
+
     // StateTracker: record money snapshot at turn start for all players
     for (const p of this.state.players) {
       if (!p.isBankrupt) {
@@ -722,6 +743,18 @@ export class GameEngine implements IGameEngine {
     }
 
     this.log(`回合 ${this.state.turnNumber} 开始`, currentPlayer.id);
+
+    // DelayedEffectManager: check delayed gratification at end of turn advance
+    const delayed = this.delayedEffects.getDelayedGratification(currentPlayer.id);
+    if (delayed && !currentPlayer.isBankrupt) {
+      const savedMoney = (delayed.data.savedMoney as number) || 0;
+      this.modifyPlayerMoney(currentPlayer.id, savedMoney + 500);
+      this.log(`延迟满足：恢复金钱 ${savedMoney} + 奖励 500`, currentPlayer.id);
+      this.delayedEffects.resolve(delayed.id);
+    }
+
+    // DelayedEffectManager: cleanup resolved effects
+    this.delayedEffects.cleanup();
   }
 
   /**
@@ -774,35 +807,45 @@ export class GameEngine implements IGameEngine {
     // StateTracker: record main cell visit
     this.stateTracker.recordMainCellVisit(playerId, cell.id || `main_${player.position.index}`);
 
-    switch (cell.type) {
-      case 'corner':
-        this.executeCornerEvent(playerId, cell.cornerType);
-        break;
+    // Check how many times to execute the event (double event delayed effect)
+    const doubleEvent = this.delayedEffects.hasDoubleEvent(playerId);
+    const execCount = doubleEvent ? 2 : 1;
 
-      case 'event':
-        this.eventHandler.execute(`event_${cell.id}`, playerId);
-        break;
+    for (let exec = 0; exec < execCount; exec++) {
+      if (exec > 0) {
+        this.log('双倍事件效果生效，再次执行格子事件', playerId);
+      }
 
-      case 'chance':
-        this.drawCard(playerId, Math.random() < 0.5 ? 'chance' : 'destiny');
-        break;
+      switch (cell.type) {
+        case 'corner':
+          this.executeCornerEvent(playerId, cell.cornerType);
+          break;
 
-      case 'line_entry':
-        if (cell.forceEntry && cell.lineId) {
-          this.enterLine(playerId, cell.lineId, false);
-        } else if (cell.lineId) {
-          // Ask player if they want to enter
-          this.state.pendingAction = this.createPendingAction(
-            playerId,
-            'choose_option',
-            `是否进入 ${boardData.lines[cell.lineId]?.name || cell.lineId}？`,
-            [
-              { label: `支付入场费 (${cell.entryFee || 0}) 进入`, value: 'enter' },
-              { label: '不进入', value: 'skip' },
-            ]
-          );
-        }
-        break;
+        case 'event':
+          this.eventHandler.execute(`event_${cell.id}`, playerId);
+          break;
+
+        case 'chance':
+          this.drawCard(playerId, Math.random() < 0.5 ? 'chance' : 'destiny');
+          break;
+
+        case 'line_entry':
+          if (cell.forceEntry && cell.lineId) {
+            this.enterLine(playerId, cell.lineId, false);
+          } else if (cell.lineId) {
+            // Ask player if they want to enter
+            this.state.pendingAction = this.createPendingAction(
+              playerId,
+              'choose_option',
+              `是否进入 ${boardData.lines[cell.lineId]?.name || cell.lineId}？`,
+              [
+                { label: `支付入场费 (${cell.entryFee || 0}) 进入`, value: 'enter' },
+                { label: '不进入', value: 'skip' },
+              ]
+            );
+          }
+          break;
+      }
     }
 
     // Check win conditions after cell event
@@ -1236,12 +1279,39 @@ export class GameEngine implements IGameEngine {
       return [];
     }
 
-    const diceCount = player.diceCount;
+    let diceCount = player.diceCount;
+
+    // Check delayed effect: double dice (always roll 2 dice)
+    const hasDoubleDice = this.delayedEffects.hasDoubleDice(playerId);
+    // Check delayed effect: double dice check (限量供应 — roll 2, if second > first then +2 exploration)
+    const hasDoubleDiceCheck = this.delayedEffects.hasDoubleDiceCheck(playerId);
+
+    if (hasDoubleDice || hasDoubleDiceCheck) {
+      diceCount = 2;
+    }
+
     const results = this.rollDice(diceCount);
     const total = results.reduce((sum, val) => sum + val, 0);
 
-    // Move player
-    this.movePlayerForward(playerId, total);
+    // If double dice check is active and second die > first die, award +2 exploration
+    if (hasDoubleDiceCheck && results.length >= 2 && results[1] > results[0]) {
+      this.modifyPlayerExploration(playerId, 2);
+      this.log('限量供应双骰：第二个骰子更大，探索值+2', playerId);
+    }
+
+    // Check delayed effect: reverse move
+    let steps = total;
+    if (this.delayedEffects.hasReverseMove(playerId)) {
+      steps = -steps;
+      this.log('反向移动效果生效，方向反转', playerId);
+    }
+
+    // Move player (forward or backward depending on reverse)
+    if (steps >= 0) {
+      this.movePlayerForward(playerId, steps);
+    } else {
+      this.movePlayerBackward(playerId, -steps);
+    }
 
     return results;
   }
@@ -1272,6 +1342,13 @@ export class GameEngine implements IGameEngine {
    */
   getCardHandler(): CardEffectHandler {
     return this.cardHandler;
+  }
+
+  /**
+   * Get delayed effects manager
+   */
+  getDelayedEffects(): DelayedEffectManager {
+    return this.delayedEffects;
   }
 }
 
