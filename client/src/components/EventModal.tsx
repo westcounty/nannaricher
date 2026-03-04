@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
 import { useGameState } from '../context/GameContext';
-import type { PendingAction } from '@nannaricher/shared';
 import './EventModal.css';
 
 interface EffectPreview {

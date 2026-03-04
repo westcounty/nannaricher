@@ -146,7 +146,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsRolling(false);
     };
 
-    const handleEventTrigger = (data: { title: string; description: string; pendingAction: PendingAction }) => {
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => {
       // Only show event modal if this event is for the current player
       if (data.pendingAction?.playerId && data.pendingAction.playerId !== playerIdRef.current) {
         return;

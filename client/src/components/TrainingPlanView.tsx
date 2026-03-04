@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
 import { useGameState } from '../context/GameContext';
 import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
@@ -14,7 +14,7 @@ export function TrainingPlanView({
   turnNumber,
   isCurrentPlayer
 }: TrainingPlanViewProps) {
-  const { confirmPlan, gameState, isMyTurn } = useGameState();
+  const { confirmPlan, gameState, isMyTurn: _isMyTurn } = useGameState();
   const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
 
   // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)
