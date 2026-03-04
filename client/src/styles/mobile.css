@@ -1,0 +1,523 @@
+/* client/src/styles/mobile.css
+   Tablet and mobile-specific responsive styles for GameScreen.
+   Works alongside game.css. Uses existing CSS custom properties.
+*/
+
+/* ============================================
+   THREE-LAYOUT RESPONSIVE SYSTEM
+   ============================================ */
+
+/* Layout mode data attribute driven — set via JS */
+
+/* ============================================
+   TABLET LAYOUT (768px - 1023px)
+   ============================================ */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .game-screen {
+    padding-bottom: 0;
+  }
+
+  .game-main {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Tablet: larger board ratio */
+  .board-area {
+    flex: 1;
+    padding: var(--spacing-sm);
+    min-height: 0;
+  }
+
+  /* Tablet: side panel becomes collapsible overlay */
+  .side-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 280px;
+    height: 100%;
+    z-index: var(--z-modal);
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
+    border-radius: 0;
+    border-right: none;
+    border-left: 1px solid var(--game-border);
+  }
+
+  .side-panel.side-panel--open {
+    transform: translateX(0);
+  }
+
+  .side-panel-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--z-modal) - 1);
+  }
+
+  .side-panel-backdrop.side-panel-backdrop--visible {
+    display: block;
+  }
+
+  /* Tablet bottom bar — hidden, replaced by tab bar */
+  .bottom-bar {
+    display: none;
+  }
+
+  /* Tablet tab navigation */
+  .tablet-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-bg-elevated);
+    border-top: 1px solid var(--game-border);
+    z-index: var(--z-sticky);
+    padding: 0;
+    height: 56px;
+    backdrop-filter: blur(12px);
+  }
+
+  .tablet-tab-bar .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--spacing-xs) 0;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast);
+    position: relative;
+  }
+
+  .tablet-tab-bar .tab-item:hover {
+    background: rgba(139, 95, 191, 0.08);
+  }
+
+  .tablet-tab-bar .tab-item.tab-item--active {
+    color: var(--color-accent);
+  }
+
+  .tablet-tab-bar .tab-item.tab-item--active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 25%;
+    right: 25%;
+    height: 2px;
+    background: var(--color-accent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .tab-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .tab-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Tablet: bottom sheet panel for tab content */
+  .tab-content-sheet {
+    position: fixed;
+    bottom: 56px;
+    left: 0;
+    right: 0;
+    max-height: 45vh;
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--game-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    z-index: var(--z-fixed);
+    overflow-y: auto;
+    padding: var(--spacing-md);
+    transform: translateY(100%);
+    transition: transform var(--transition-normal);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .tab-content-sheet.tab-content-sheet--open {
+    transform: translateY(0);
+  }
+
+  /* Adjust game screen for tab bar height */
+  .game-screen.layout-tablet {
+    padding-bottom: 56px;
+  }
+
+  /* Status bar: more compact on tablet */
+  .status-bar {
+    padding: 8px 16px;
+  }
+}
+
+/* ============================================
+   MOBILE LAYOUT (< 768px)
+   ============================================ */
+
+@media (max-width: 767px) {
+  .game-screen {
+    padding-bottom: 0;
+    min-height: 100dvh;
+  }
+
+  .game-screen.layout-mobile {
+    padding-bottom: 56px;
+  }
+
+  .game-main {
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Mobile: full-width board */
+  .board-area {
+    flex: 1;
+    padding: var(--spacing-xs);
+    min-height: 0;
+  }
+
+  .board-canvas-container {
+    border-radius: var(--radius);
+  }
+
+  /* Mobile: hide desktop side panel and bottom bar */
+  .side-panel {
+    display: none;
+  }
+
+  .bottom-bar {
+    display: none;
+  }
+
+  /* Mobile: compact status bar */
+  .status-bar {
+    padding: 6px 12px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .status-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .status-item {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .status-label {
+    font-size: 0.75rem;
+  }
+
+  .status-value {
+    font-size: 0.85rem;
+  }
+
+  /* Mobile tab bar */
+  .mobile-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-bg-elevated);
+    border-top: 1px solid var(--game-border);
+    z-index: var(--z-sticky);
+    padding: 0;
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    height: calc(56px + max(0px, env(safe-area-inset-bottom)));
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-tab-bar .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--spacing-xs) 0;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    position: relative;
+    min-height: 44px;
+  }
+
+  .mobile-tab-bar .tab-item.tab-item--active {
+    color: var(--color-accent);
+  }
+
+  .mobile-tab-bar .tab-item.tab-item--active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: var(--color-accent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* Mobile: sheet-style panels that slide up from bottom */
+  .mobile-sheet {
+    position: fixed;
+    bottom: calc(56px + max(0px, env(safe-area-inset-bottom)));
+    left: 0;
+    right: 0;
+    max-height: 60vh;
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--game-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    z-index: var(--z-fixed);
+    overflow-y: auto;
+    padding: 0;
+    transform: translateY(100%);
+    transition: transform var(--transition-normal);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .mobile-sheet.mobile-sheet--open {
+    transform: translateY(0);
+  }
+
+  .mobile-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--game-border);
+    position: sticky;
+    top: 0;
+    background: var(--color-bg-surface);
+    z-index: 1;
+  }
+
+  .mobile-sheet-title {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+
+  .mobile-sheet-close {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius);
+    border: 1px solid var(--game-border);
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .mobile-sheet-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+  }
+
+  /* Mobile: hand cards in sheet */
+  .mobile-hand-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+  }
+
+  .mobile-hand-card {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--game-border);
+    border-radius: var(--radius);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mobile-hand-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  }
+
+  .mobile-hand-card:active {
+    transform: scale(0.97);
+    background: rgba(139, 95, 191, 0.15);
+  }
+
+  /* Mobile overlay backdrop */
+  .mobile-sheet-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: calc(var(--z-fixed) - 1);
+  }
+
+  .mobile-sheet-backdrop.mobile-sheet-backdrop--visible {
+    display: block;
+  }
+
+  /* Mobile: player list in sheet */
+  .mobile-players-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .mobile-players-list .player-panel {
+    min-width: unset;
+    flex-shrink: unset;
+  }
+}
+
+/* ============================================
+   SHARED TAB/SHEET STYLES
+   (For both tablet and mobile)
+   ============================================ */
+
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 25%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+/* Sheet drag handle */
+.sheet-drag-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 8px auto;
+}
+
+/* ============================================
+   STATUS INDICATOR RESPONSIVE
+   ============================================ */
+
+@media (max-width: 767px) {
+  .status-indicator {
+    top: 48px;
+    font-size: var(--font-size-xs);
+    padding: 6px 14px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .status-indicator {
+    top: 56px;
+  }
+}
+
+/* ============================================
+   ANIMATION KEYFRAMES
+   ============================================ */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetSlideDown {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ============================================
+   LANDSCAPE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .mobile-sheet {
+    max-height: 50vh;
+  }
+
+  .board-area {
+    padding: 4px;
+  }
+
+  .status-bar {
+    padding: 4px 12px;
+  }
+
+  .mobile-tab-bar {
+    height: 48px;
+  }
+
+  .mobile-tab-bar .tab-item {
+    min-height: 40px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+  .tab-content-sheet {
+    max-height: 40vh;
+  }
+}
+
+/* ============================================
+   REDUCED MOTION SUPPORT
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet,
+  .tab-content-sheet,
+  .side-panel {
+    transition: none !important;
+  }
+}
