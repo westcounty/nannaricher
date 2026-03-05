@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CreateRoom } from './CreateRoom';
 import { JoinRoom } from './JoinRoom';
 import { WaitingRoom } from './WaitingRoom';
@@ -17,6 +18,17 @@ interface LobbyState {
   isHost: boolean;
   players: Player[];
 }
+
+const pageVariants = {
+  initial: { opacity: 0, y: 24, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -16, scale: 0.98 },
+};
+
+const pageTransition = {
+  duration: 0.35,
+  ease: [0.4, 0, 0.2, 1],
+};
 
 export function Lobby() {
   const { socket } = useSocket();
@@ -106,57 +118,107 @@ export function Lobby() {
   };
 
   const handleGameStart = () => {
-    // The parent component (App) handles transitioning to the game screen
-    // via the gameState.phase change detected in GameRouter
     console.log('Game starting...');
   };
 
   return (
     <div className="lobby">
-      <div className="lobby-header">
+      <motion.div
+        className="lobby-header"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      >
         <h1>菜根人生</h1>
         <p className="subtitle">南大版大富翁</p>
-      </div>
+      </motion.div>
 
-      {state.mode === 'select' && (
-        <div className="lobby-select">
-          <div className="lobby-buttons">
-            <button className="lobby-button create" onClick={handleCreateRoom}>
-              <span className="button-icon">+</span>
-              <span className="button-text">创建房间</span>
-            </button>
-            <button className="lobby-button join" onClick={handleJoinRoom}>
-              <span className="button-icon">&#916;</span>
-              <span className="button-text">加入房间</span>
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {state.mode === 'select' && (
+          <motion.div
+            key="select"
+            className="lobby-select"
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+          >
+            <div className="lobby-buttons">
+              <motion.button
+                className="lobby-button create"
+                onClick={handleCreateRoom}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="button-icon">+</span>
+                <span className="button-text">创建房间</span>
+              </motion.button>
+              <motion.button
+                className="lobby-button join"
+                onClick={handleJoinRoom}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="button-icon">▷</span>
+                <span className="button-text">加入房间</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
 
-      {state.mode === 'create' && (
-        <CreateRoom
-          onRoomCreated={handleRoomCreated}
-          onBack={handleBackToSelect}
-        />
-      )}
+        {state.mode === 'create' && (
+          <motion.div
+            key="create"
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+          >
+            <CreateRoom
+              onRoomCreated={handleRoomCreated}
+              onBack={handleBackToSelect}
+            />
+          </motion.div>
+        )}
 
-      {state.mode === 'join' && (
-        <JoinRoom
-          onRoomJoined={handleRoomJoined}
-          onBack={handleBackToSelect}
-        />
-      )}
+        {state.mode === 'join' && (
+          <motion.div
+            key="join"
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+          >
+            <JoinRoom
+              onRoomJoined={handleRoomJoined}
+              onBack={handleBackToSelect}
+            />
+          </motion.div>
+        )}
 
-      {state.mode === 'waiting' && state.roomId && state.playerId && state.playerName && (
-        <WaitingRoom
-          roomId={state.roomId}
-          playerId={state.playerId}
-          playerName={state.playerName}
-          isHost={state.isHost}
-          players={state.players}
-          onGameStart={handleGameStart}
-        />
-      )}
+        {state.mode === 'waiting' && state.roomId && state.playerId && state.playerName && (
+          <motion.div
+            key="waiting"
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+          >
+            <WaitingRoom
+              roomId={state.roomId}
+              playerId={state.playerId}
+              playerName={state.playerName}
+              isHost={state.isHost}
+              players={state.players}
+              onGameStart={handleGameStart}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

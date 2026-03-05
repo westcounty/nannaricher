@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 
 interface CreateRoomProps {
@@ -55,13 +56,18 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
   return (
     <div className="create-room">
       <button className="back-button" onClick={onBack}>
-        &larr; 返回
+        ← 返回
       </button>
 
       <h2>创建房间</h2>
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
+        <motion.div
+          className="form-group"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
           <label htmlFor="playerName">你的名字</label>
           <input
             id="playerName"
@@ -71,10 +77,16 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
             placeholder="请输入你的名字"
             maxLength={20}
             disabled={isLoading}
+            autoFocus
           />
-        </div>
+        </motion.div>
 
-        <div className="form-group">
+        <motion.div
+          className="form-group"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
           <label>骰子选项</label>
           <div className="dice-options">
             <button
@@ -98,17 +110,30 @@ export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
               <span className="dice-hint">初始资金 $2000</span>
             </button>
           </div>
-        </div>
+        </motion.div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <motion.div
+            className="error-message"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+          >
+            {error}
+          </motion.div>
+        )}
 
-        <button
+        <motion.button
           type="submit"
           className="submit-button"
           disabled={isLoading || !playerName.trim()}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+          whileHover={!isLoading && playerName.trim() ? { scale: 1.02 } : {}}
+          whileTap={!isLoading && playerName.trim() ? { scale: 0.98 } : {}}
         >
           {isLoading ? '创建中...' : '创建房间'}
-        </button>
+        </motion.button>
       </form>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 
 interface JoinRoomProps {
@@ -67,27 +68,38 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
   return (
     <div className="join-room">
       <button className="back-button" onClick={onBack}>
-        &larr; 返回
+        ← 返回
       </button>
 
       <h2>加入房间</h2>
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
+        <motion.div
+          className="form-group"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
           <label htmlFor="roomCode">房间码</label>
           <input
             id="roomCode"
             type="text"
             value={roomCode}
             onChange={handleRoomCodeChange}
-            placeholder="请输入6位房间码"
+            placeholder="输入6位房间码"
             maxLength={6}
             className="room-code-input"
             disabled={isLoading}
+            autoFocus
           />
-        </div>
+        </motion.div>
 
-        <div className="form-group">
+        <motion.div
+          className="form-group"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
           <label htmlFor="playerName">你的名字</label>
           <input
             id="playerName"
@@ -98,9 +110,14 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
             maxLength={20}
             disabled={isLoading}
           />
-        </div>
+        </motion.div>
 
-        <div className="form-group">
+        <motion.div
+          className="form-group"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
           <label>骰子选项</label>
           <div className="dice-options">
             <button
@@ -124,17 +141,30 @@ export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
               <span className="dice-hint">初始资金 $2000</span>
             </button>
           </div>
-        </div>
+        </motion.div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <motion.div
+            className="error-message"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+          >
+            {error}
+          </motion.div>
+        )}
 
-        <button
+        <motion.button
           type="submit"
           className="submit-button"
           disabled={isLoading || !playerName.trim() || roomCode.length !== 6}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+          whileHover={!isLoading && playerName.trim() && roomCode.length === 6 ? { scale: 1.02 } : {}}
+          whileTap={!isLoading && playerName.trim() && roomCode.length === 6 ? { scale: 0.98 } : {}}
         >
           {isLoading ? '加入中...' : '加入房间'}
-        </button>
+        </motion.button>
       </form>
     </div>
   );
