@@ -30,8 +30,8 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
   );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Check if current player has already voted
-  const hasVoted = pendingAction.responses
+  // Check if current player has already voted (server-confirmed)
+  const hasServerVoted = pendingAction.responses
     ? Object.prototype.hasOwnProperty.call(pendingAction.responses, playerId)
     : false;
 
@@ -58,16 +58,19 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
     };
   }, []);
 
+  // Combine local submit state with server confirmation
+  const hasVoted = isSubmitted || hasServerVoted;
+
   // Handle vote submission
   const handleVote = useCallback(
     (value: string) => {
-      if (isSubmitted || hasVoted) return;
+      if (isSubmitted || hasServerVoted) return;
+      setIsSubmitted(true);
+      setSelectedOption(value);
       onVote(pendingAction.id, value);
       playSound('vote_cast');
-      setSelectedOption(value);
-      setIsSubmitted(true);
     },
-    [isSubmitted, hasVoted, onVote, pendingAction.id]
+    [isSubmitted, hasServerVoted, onVote, pendingAction.id]
   );
 
   const timerPercentage = timeRemaining / Math.ceil((pendingAction.timeoutMs || 30000) / 1000);

@@ -448,6 +448,14 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
+/* PC端宽屏布局 */
+@media (min-width: 1024px) {
+  .waiting-room {
+    max-width: 720px;
+    padding: 40px 48px 40px;
+  }
+}
+
 /* Room code display */
 .room-code-section {
   text-align: center;

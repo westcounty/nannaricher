@@ -224,15 +224,21 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().setDrawnCard(data);
     };
 
-    const handleDiceResult = (data: { playerId: string; values: number[]; total: number }) => {
-      if (data.playerId === 'system') {
-        // Event dice (from resolveMultiVoteCard / server-side rolls)
-        store.getState().setEventDice({ values: data.values, total: data.total });
-        playSound('dice_land');
-        setTimeout(() => store.getState().setEventDice(null), 2500);
-      } else {
+    const handleDiceResult = (data: { playerId: string; values: number[]; total: number; isEventDice?: boolean }) => {
+      const gameState = store.getState().gameState;
+      const isMovementDice = data.playerId !== 'system'
+        && !data.isEventDice
+        && gameState?.pendingAction?.type === 'roll_dice';
+
+      if (isMovementDice) {
+        // Normal movement dice — show DiceRoller overlay
         store.getState().setDiceResult(data);
         playSound('dice_land');
+      } else {
+        // Event dice (card effects, vote results, etc.) — show EventDiceOverlay
+        store.getState().setEventDice({ values: data.values, total: data.total });
+        playSound('dice_land');
+        setTimeout(() => store.getState().setEventDice(null), 3500);
       }
     };
 

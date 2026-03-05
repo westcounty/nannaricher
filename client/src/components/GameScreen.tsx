@@ -65,7 +65,12 @@ export function GameScreen() {
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
   // confirmPlan removed — plan selection is now server-driven via pendingAction
-  const useCard = socketActions?.useCard ?? (() => {});
+  const rawUseCard = socketActions?.useCard ?? (() => {});
+  // Wrap useCard to close mobile sheet when card is used (prevents sheet blocking EventModal)
+  const useCard = (cardId: string, targetPlayerId?: string) => {
+    rawUseCard(cardId, targetPlayerId);
+    setActivePanel(null);
+  };
   const rollDice = socketActions?.rollDice ?? (() => {});
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();

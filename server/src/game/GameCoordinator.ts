@@ -2179,7 +2179,25 @@ export class GameCoordinator {
               this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
             } else {
               // Execute card effect immediately
-              const cardPendingAction = this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+              const handlerId = `card_${card.id}`;
+              const hasHandler = this.engine.getEventHandler().hasHandler(handlerId);
+              let cardPendingAction = hasHandler
+                ? this.engine.getEventHandler().execute(handlerId, playerId)
+                : null;
+
+              // Fallback: apply effects array if no handler registered
+              if (!hasHandler && card.effects.length > 0) {
+                this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
+                for (const effect of card.effects) {
+                  if (effect.stat && effect.delta) {
+                    if (effect.stat === 'money') this.engine.modifyPlayerMoney(playerId, effect.delta);
+                    if (effect.stat === 'gpa') this.engine.modifyPlayerGpa(playerId, effect.delta);
+                    if (effect.stat === 'exploration') this.engine.modifyPlayerExploration(playerId, effect.delta);
+                  }
+                }
+              } else if (!hasHandler) {
+                this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}（无效果）`);
+              }
 
               // Return to discard pile if needed
               if (card.returnToDeck) {

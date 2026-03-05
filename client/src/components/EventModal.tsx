@@ -77,7 +77,7 @@ export function EventModal({
         timerRefs.current.push(setTimeout(() => {
           clearEvent();
         }, 150));
-      }, 4000);
+      }, 8000);
       timerRefs.current.push(timer);
     }
   }, [isReadOnly, isClosing, clearEvent]);
