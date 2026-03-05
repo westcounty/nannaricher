@@ -1,8 +1,7 @@
 // client/src/components/CurrentPlayerPanel.tsx
-import { useState, useCallback } from 'react';
 import type { Player } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
-import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS, getPlayerPlanIds } from '@nannaricher/shared';
+import { getPlayerPlanIds } from '@nannaricher/shared';
 import { boardData } from '../data/board';
 
 interface CurrentPlayerPanelProps {
@@ -19,8 +18,6 @@ export function CurrentPlayerPanel({
   const gameState = useGameStore((s) => s.gameState);
   const socketActions = useGameStore((s) => s.socketActions);
   const rollDice = socketActions?.rollDice ?? (() => {});
-  const confirmPlan = socketActions?.confirmPlan ?? (() => {});
-  const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
 
   if (!player) {
     return (
@@ -41,27 +38,7 @@ export function CurrentPlayerPanel({
     return cell?.name ? `${lineName} · ${cell.name}` : `${lineName} 第${player.position.index + 1}格`;
   };
 
-  // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)
-  // In setup_plans phase, all players can confirm (not just current player)
-  const isSetupPhase = gameState?.phase === 'setup_plans';
-  const canConfirmPlan = isSetupPhase ||
-    (gameState && gameState.turnNumber % PLAN_CONFIRM_INTERVAL === 0 && gameState.turnNumber > 0);
   const currentPlanIds = getPlayerPlanIds(player);
-  const hasReachedMaxPlans = currentPlanIds.length >= MAX_TRAINING_PLANS;
-  // In setup phase, all players can confirm; in playing phase, only current player can confirm
-  const canPlayerConfirm = isSetupPhase ? true : isMyTurn;
-
-  const handleConfirmPlan = useCallback((planId: string) => {
-    if (!canPlayerConfirm || confirmingPlanId) return;
-
-    setConfirmingPlanId(planId);
-    confirmPlan(planId);
-
-    // Reset confirming state after a delay
-    setTimeout(() => {
-      setConfirmingPlanId(null);
-    }, 1000);
-  }, [isMyTurn, confirmingPlanId, confirmPlan]);
 
   // Determine if player can roll dice
   const canRollDice = isMyTurn &&
@@ -133,61 +110,42 @@ export function CurrentPlayerPanel({
 
       {player.trainingPlans.length > 0 && (
         <div className="training-plans-section">
-          <h4>培养计划 ({currentPlanIds.length}/{MAX_TRAINING_PLANS})</h4>
+          <h4>培养计划 ({currentPlanIds.length}/{player.planSlotLimit})</h4>
           <div className="plans-list">
             {player.trainingPlans.map((plan) => {
-              const isConfirmed = currentPlanIds.includes(plan.id);
-              const isConfirming = confirmingPlanId === plan.id;
+              const isMajor = plan.id === player.majorPlan;
+              const isMinor = player.minorPlans.includes(plan.id);
               return (
                 <div
                   key={plan.id}
-                  className={`plan-item ${isConfirmed ? 'confirmed' : ''}`}
+                  className={`plan-item ${isMajor ? 'confirmed' : isMinor ? 'confirmed' : ''}`}
+                  style={{
+                    opacity: (isMajor || isMinor) ? 1 : 0.6,
+                    borderLeft: isMajor ? '3px solid #2196F3' : isMinor ? '3px solid #9E9E9E' : undefined,
+                  }}
                 >
                   <div className="plan-header">
                     <span className="plan-name">{plan.name}</span>
-                    {isConfirmed && <span className="confirmed-badge">已确认</span>}
+                    {isMajor && <span className="confirmed-badge" style={{ background: '#2196F3', color: 'white' }}>主修</span>}
+                    {isMinor && <span className="confirmed-badge" style={{ background: '#9E9E9E', color: 'white' }}>辅修</span>}
                   </div>
                   <div className="plan-details">
                     <span className="plan-condition">胜利条件: {plan.winCondition}</span>
-                    {plan.passiveAbility && (
-                      <span className="plan-ability">特殊能力: {plan.passiveAbility}</span>
+                    {isMajor && plan.passiveAbility && (
+                      <span className="plan-ability">被动能力: {plan.passiveAbility}</span>
                     )}
                   </div>
-                  {!isConfirmed && canPlayerConfirm && canConfirmPlan && !hasReachedMaxPlans && (
-                    <button
-                      className="confirm-plan-btn"
-                      onClick={() => handleConfirmPlan(plan.id)}
-                      disabled={isConfirming}
-                    >
-                      {isConfirming ? '确认中...' : '确认计划'}
-                    </button>
-                  )}
-                  {!isConfirmed && canPlayerConfirm && !canConfirmPlan && gameState?.phase === 'playing' && (
-                    <div className="confirm-hint">
-                      下次确认: 第{(Math.ceil((gameState?.turnNumber || 1) / PLAN_CONFIRM_INTERVAL) * PLAN_CONFIRM_INTERVAL) || PLAN_CONFIRM_INTERVAL}回合
-                    </div>
-                  )}
-                  {!isConfirmed && hasReachedMaxPlans && (
-                    <div className="confirm-hint max-reached">
-                      已达到最大确认计划数
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
-          {gameState?.phase === 'setup_plans' && (
-            <div className="setup-instruction">
-              <p>请选择1-2项培养计划确认</p>
-            </div>
-          )}
         </div>
       )}
 
-      {player.trainingPlans.length === 0 && gameState?.phase === 'setup_plans' && (
+      {player.trainingPlans.length === 0 && gameState?.roundNumber === 1 && (
         <div className="training-plans-section empty">
           <h4>培养计划</h4>
-          <p className="no-plans">正在抽取培养计划...</p>
+          <p className="no-plans">大一阶段，大二起选择培养计划</p>
         </div>
       )}
 

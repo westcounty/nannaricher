@@ -3,6 +3,7 @@
 // Displays winner, all-player rankings, game stats, and navigation buttons.
 
 import { useState } from 'react';
+import { getRoundName } from '@nannaricher/shared';
 import type { GameState, Player } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import '../styles/settlement.css';
@@ -16,7 +17,7 @@ interface SettlementScreenProps {
 
 /** Compute a composite score for ranking (winner excluded from sorting — always first). */
 function computeScore(player: Player): number {
-  return player.money + player.gpa * 1000 + player.exploration * 10;
+  return player.gpa * 10 + player.exploration;
 }
 
 /** Sort players: winner first, then by composite score descending. */
@@ -118,6 +119,16 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby 
                         {player.isInHospital && (
                           <span className="settlement-badge settlement-badge--hospital">住院</span>
                         )}
+                        {player.majorPlan && (
+                          <span className="settlement-badge" style={{ background: '#2196F3', color: 'white', fontSize: '10px' }}>
+                            主修: {player.trainingPlans.find(p => p.id === player.majorPlan)?.name || ''}
+                          </span>
+                        )}
+                        {player.minorPlans.map(id => (
+                          <span key={id} className="settlement-badge" style={{ background: '#9E9E9E', color: 'white', fontSize: '10px' }}>
+                            辅修: {player.trainingPlans.find(p => p.id === id)?.name || ''}
+                          </span>
+                        ))}
                       </div>
                     </td>
                   </tr>
@@ -129,7 +140,7 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby 
 
         {/* Game stats footer */}
         <div className="settlement-footer">
-          共 {gameState.roundNumber} 轮 {gameState.turnNumber} 回合
+          {getRoundName(gameState.roundNumber)} · 共 {gameState.turnNumber} 回合
         </div>
 
         {/* Action buttons */}

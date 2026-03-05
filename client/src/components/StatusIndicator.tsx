@@ -99,11 +99,6 @@ export function StatusIndicator({ gameState, playerId, isMyTurn }: StatusIndicat
       return { text: '事件触发！', variant: 'info', key: 'event' };
     }
 
-    // Setup plans
-    if (phase === 'setup_plans') {
-      return { text: '选择培养计划...', variant: 'action', key: 'setup-plans' };
-    }
-
     return null;
   }, [gameState, isMyTurn, playerId]);
 

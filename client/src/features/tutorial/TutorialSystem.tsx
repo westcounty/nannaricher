@@ -106,11 +106,6 @@ function useActiveTrigger(): TutorialTrigger | null {
 
   if (!gameState) return null;
 
-  // setup_plans phase
-  if (gameState.phase === 'setup_plans') {
-    return 'first_plan_select';
-  }
-
   // Pending action for roll_dice
   if (
     gameState.pendingAction &&

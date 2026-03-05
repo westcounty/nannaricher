@@ -2,6 +2,7 @@
 // Slim 48px header replacing StatusBar for commercial-grade UI
 
 import { useEffect, useRef, useState } from 'react';
+import { getRoundName } from '@nannaricher/shared';
 import type { GameState } from '@nannaricher/shared';
 import { AudioControl } from './AudioControl';
 import { SettingsPanel } from './SettingsPanel';
@@ -39,7 +40,14 @@ export function CompactHeader({ gameState, playerId: _playerId, isMyTurn, curren
 
       <div className="compact-header__center">
         <span className="compact-header__round">
-          第{gameState.roundNumber}轮 · 第{gameState.turnNumber}回合
+          {getRoundName(gameState.roundNumber)} · 第{gameState.turnNumber}回合
+          {gameState.roundNumber === 1 && (
+            <span className="compact-header__buff-indicator" title="大一通用Buff生效中" style={{
+              marginLeft: '4px',
+              color: '#FFD700',
+              fontSize: '14px',
+            }}>&#9889;</span>
+          )}
         </span>
         {statusText && (
           <>
@@ -66,7 +74,6 @@ function getStatusText(
 ): string {
   const { phase, pendingAction } = gameState;
 
-  if (phase === 'setup_plans') return '选择培养计划';
   if (phase === 'finished') return '游戏结束';
   if (phase === 'waiting') return '等待开始';
 

@@ -34,7 +34,7 @@ import { playSound } from '../audio/AudioManager';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
 import type { BoardCell, BoardLine } from '@nannaricher/shared';
-import { getPlayerPlanIds } from '@nannaricher/shared';
+// getPlayerPlanIds import removed — plan selection now server-driven
 import { boardData } from '../data/board';
 import './ChatPanel.css';
 import '../styles/game.css';
@@ -62,7 +62,7 @@ export function GameScreen() {
   const socketActions = useGameStore((s) => s.socketActions);
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
-  const confirmPlan = socketActions?.confirmPlan ?? (() => {});
+  // confirmPlan removed — plan selection is now server-driven via pendingAction
   const useCard = socketActions?.useCard ?? (() => {});
   const rollDice = socketActions?.rollDice ?? (() => {});
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
@@ -73,7 +73,7 @@ export function GameScreen() {
   // Desktop sidebar tab
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chat');
   // Track if player finished plan selection
-  const [planSelectionDone, setPlanSelectionDone] = useState(false);
+  // planSelectionDone state removed — plan selection is now server-driven
 
   // Unread chat tracking
   const lastSeenChatCountRef = useRef(0);
@@ -474,41 +474,6 @@ export function GameScreen() {
               }
             }}
             timeout={gameState.pendingAction.timeoutMs}
-          />
-        )}
-
-      {/* Training Plan Multi-Select Dialog */}
-      {gameState?.phase === 'setup_plans' &&
-        myPlayer &&
-        myPlayer.trainingPlans.length > 0 &&
-        getPlayerPlanIds(myPlayer).length < 2 &&
-        !planSelectionDone && (
-          <MultiSelectDialog
-            key={`plan-select-${getPlayerPlanIds(myPlayer).length}`}
-            title="选择培养计划"
-            prompt={`${myPlayer.name}，请选择${getPlayerPlanIds(myPlayer).length === 0 ? '1-2' : '0-1'}项培养计划确认（已确认 ${getPlayerPlanIds(myPlayer).length}/2）`}
-            options={myPlayer.trainingPlans
-              .filter((plan) => !getPlayerPlanIds(myPlayer).includes(plan.id))
-              .map((plan) => ({
-                label: plan.name,
-                value: plan.id,
-                description: [
-                  `胜利条件: ${plan.winCondition}`,
-                  plan.passiveAbility ? `被动能力: ${plan.passiveAbility}` : null,
-                ].filter(Boolean).join('\n'),
-              }))}
-            minSelections={getPlayerPlanIds(myPlayer).length >= 1 ? 0 : 1}
-            maxSelections={2 - getPlayerPlanIds(myPlayer).length}
-            onConfirm={(selectedIds) => {
-              if (selectedIds.length === 0) {
-                setPlanSelectionDone(true);
-              } else {
-                selectedIds.forEach((planId) => {
-                  confirmPlan(planId);
-                });
-              }
-            }}
-            timeout={120000}
           />
         )}
 

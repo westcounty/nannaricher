@@ -34,9 +34,6 @@ export function ActionPromptBar({
 
   if (myPlayer?.isBankrupt) {
     text = '\u{1F441}\uFE0F \u89C2\u6218\u6A21\u5F0F \u2014 \u7EE7\u7EED\u89C2\u770B\u6BD4\u8D5B';
-  } else if (gameState.phase === 'setup_plans') {
-    text = '\u{1F4CB} \u8BF7\u9009\u62E9\u57F9\u517B\u8BA1\u5212';
-    isActive = true;
   } else if (gameState.phase === 'finished') {
     text = '\u{1F3C6} \u6E38\u620F\u7ED3\u675F';
   } else if (gameState.phase === 'waiting') {
