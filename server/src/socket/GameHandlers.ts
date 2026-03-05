@@ -33,10 +33,9 @@ export function registerGameHandlers(
     const state = coordinator.getState();
 
     room.phase = 'playing';
-    state.phase = 'setup_plans';
+    state.phase = 'playing';
     state.turnNumber = 1;
-
-    coordinator.handleSetupDrawTrainingPlans();
+    state.roundNumber = 1; // 大一
 
     state.log.push({
       turn: state.turnNumber,
@@ -44,12 +43,23 @@ export function registerGameHandlers(
       message: '游戏开始！',
       timestamp: Date.now(),
     });
-    coordinator.broadcastState();
 
+    // 大一开始：广播大一buff信息
     io.to(roomId).emit('game:announcement', {
-      message: '游戏开始！请选择培养计划',
+      message: '大一开始！通用Buff生效：\n1. 所有GPA增加效果翻倍\n2. 鼓楼线所有正面收益翻倍',
       type: 'success',
     });
+
+    // 设置第一个玩家掷骰子（跳过 setup_plans 阶段）
+    const firstPlayer = state.players[state.currentPlayerIndex];
+    state.pendingAction = {
+      id: `roll_dice_${Date.now()}`,
+      playerId: firstPlayer.id,
+      type: 'roll_dice',
+      prompt: '请投骰子',
+      timeoutMs: 60000,
+    };
+    coordinator.broadcastState();
   });
 
   // Roll dice

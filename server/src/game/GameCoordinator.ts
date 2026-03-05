@@ -10,8 +10,6 @@ import {
   ActiveEffect,
   MIN_PLAYERS,
   INITIAL_TRAINING_DRAW,
-  MAX_TRAINING_PLANS,
-  PLAN_CONFIRM_INTERVAL,
   TURNS_PER_ROUND,
   TOTAL_ROUNDS,
   BASE_WIN_THRESHOLD,
@@ -192,19 +190,22 @@ export class GameCoordinator {
         return;
       }
 
-      // Start plan redraw phase for the new round
-      const roundName = getRoundName(state.roundNumber);
-      this.addLog('system', `=== ${roundName}开始 === 升学阶段！`);
-      this.io.to(this.roomId).emit('game:announcement', {
-        message: `${roundName}开始！升学阶段 — 可以重选培养计划`,
-        type: 'info' as const,
-      });
+      // 大二起：启动年度培养计划选择流程
+      if (state.roundNumber >= 2) {
+        const roundName = getRoundName(state.roundNumber);
+        this.addLog('system', `=== ${roundName}开始 === 升学阶段！`);
+        this.io.to(this.roomId).emit('game:announcement', {
+          message: `${roundName}开始！升学阶段 — 选择培养计划`,
+          type: 'info' as const,
+        });
 
-      // All non-bankrupt, non-disconnected players participate in redraw
-      const eligiblePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
-      if (eligiblePlayers.length > 0) {
-        this.startPlanRedrawForPlayer(eligiblePlayers, 0);
-        return;
+        // All non-bankrupt, non-disconnected players participate in selection
+        const eligiblePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
+        if (eligiblePlayers.length > 0) {
+          this.yearlyDrawnPlanIds.clear();
+          this.startPlanSelectionForPlayer(eligiblePlayers, 0);
+          return;
+        }
       }
     }
 
@@ -1113,21 +1114,60 @@ export class GameCoordinator {
   }
 
   // --------------------------------------------------
-  // Plan Redraw Chain (升学阶段 — 计划重选)
+  // Plan Selection Chain (升学阶段 — 年度培养计划选择，大二起)
   // --------------------------------------------------
 
   /** IDs of plans drawn in the current redraw phase, per player */
   private redrawDrawnPlanIds: Map<string, string[]> = new Map();
 
+  /** 当轮升学阶段所有已被抽取的计划ID（保证全场不重复） */
+  private yearlyDrawnPlanIds: Set<string> = new Set();
+
   /**
-   * Start plan redraw for each eligible player in sequence.
-   * Each player: draw 3 plans → pick up to 2 → discard unconfirmed drawn → next player.
+   * 为玩家抽取3张培养计划，保证：
+   * 1. 不与玩家已加入列表的计划重复
+   * 2. 不与当轮其他玩家已抽取的计划重复
    */
-  private startPlanRedrawForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
+  private drawPlansForPlayer(player: Player): TrainingPlan[] {
+    const state = this.engine.getState();
+    const existingIds = new Set([
+      ...getPlayerPlanIds(player),
+      ...this.yearlyDrawnPlanIds,
+    ]);
+
+    const drawn: TrainingPlan[] = [];
+    const deck = state.cardDecks.training;
+
+    for (let i = 0; i < INITIAL_TRAINING_DRAW && deck.length > 0; i++) {
+      // 从牌堆中找一张不重复的
+      let found = false;
+      for (let j = 0; j < deck.length; j++) {
+        if (!existingIds.has(deck[j].id)) {
+          const [plan] = deck.splice(j, 1);
+          drawn.push(plan);
+          this.yearlyDrawnPlanIds.add(plan.id);
+          existingIds.add(plan.id);
+          found = true;
+          break;
+        }
+      }
+      if (!found) break; // 没有可用的计划了
+    }
+
+    return drawn;
+  }
+
+  /**
+   * 大二起：每年开始时的培养计划选择流程
+   * 每个玩家顺序执行：抽3张 → 根据状态决定流程
+   */
+  private startPlanSelectionForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
     const state = this.engine.getState();
 
     if (playerIdx >= eligiblePlayers.length) {
-      // All players done — resume normal turn
+      // 所有玩家完成 → 将未选择的计划放回牌堆
+      this.returnUnselectedPlans();
+      // 恢复正常游戏流程
       const currentPlayer = state.players[state.currentPlayerIndex];
       state.pendingAction = {
         id: `roll_dice_${Date.now()}`,
@@ -1141,50 +1181,95 @@ export class GameCoordinator {
     }
 
     const player = eligiblePlayers[playerIdx];
-
-    // Draw 3 training plans from deck
-    const drawnPlans: TrainingPlan[] = [];
-    for (let i = 0; i < 3; i++) {
-      const plan = this.engine.drawTrainingPlan(player.id);
-      if (plan) drawnPlans.push(plan);
-    }
+    const drawnPlans = this.drawPlansForPlayer(player);
 
     if (drawnPlans.length === 0) {
-      // No plans available, skip to next player
       this.addLog(player.id, `${player.name} 升学阶段：牌堆已空，跳过`);
-      this.startPlanRedrawForPlayer(eligiblePlayers, playerIdx + 1);
+      this.startPlanSelectionForPlayer(eligiblePlayers, playerIdx + 1);
       return;
     }
 
-    // Track which plans were drawn for cleanup later
+    // 临时存储抽到的计划
     this.redrawDrawnPlanIds.set(player.id, drawnPlans.map(p => p.id));
+    // 将抽到的计划暂存到玩家的 trainingPlans 中（方便UI展示）
+    const tempPlanIds = drawnPlans.map(p => p.id);
+    for (const plan of drawnPlans) {
+      if (!player.trainingPlans.find(p => p.id === plan.id)) {
+        player.trainingPlans.push(plan);
+      }
+    }
 
-    const confirmContext = { eligiblePlayers, playerIdx };
+    const hasPlan = player.majorPlan !== null;
+    const ctx = { eligiblePlayers, playerIdx, drawnPlanIds: tempPlanIds };
 
-    // Multi-select: choose 0-2 plans to confirm at once
+    if (!hasPlan) {
+      // 无培养计划：必须选1-2项加入
+      this.showPlanSelection(player, drawnPlans, ctx, 1, Math.min(2, player.planSlotLimit));
+    } else {
+      // 有培养计划：先选择「不调整」或「调整」
+      state.pendingAction = {
+        id: `plan_adjust_${Date.now()}`,
+        playerId: player.id,
+        type: 'choose_option',
+        prompt: `升学阶段：${player.name}，你已有培养计划（主修: ${player.trainingPlans.find(p => p.id === player.majorPlan)?.name || '无'}），是否调整？`,
+        options: [
+          { label: '不调整', value: 'keep', description: '保留当前主修和辅修方向' },
+          { label: '调整培养计划', value: 'adjust', description: `从新抽到的${drawnPlans.length}张计划中选择加入` },
+        ],
+        callbackHandler: 'plan_adjust_choice',
+        timeoutMs: 60000,
+      };
+
+      this.engine.getEventHandler().registerHandler('plan_adjust_choice', (_eng, pid, choice) => {
+        if (choice === 'keep' || !choice) {
+          // 不调整，放回抽到的计划
+          this.discardTempDrawnPlans(pid, ctx.drawnPlanIds);
+          this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+        } else {
+          // 调整
+          const p = this.engine.getPlayer(pid);
+          if (p) {
+            this.showPlanSelection(p, drawnPlans, ctx, 1, Math.min(2, p.planSlotLimit));
+          }
+        }
+        return null;
+      });
+
+      this.broadcastState();
+    }
+  }
+
+  /**
+   * 展示计划选择界面（选择1-N项加入培养列表）
+   */
+  private showPlanSelection(
+    player: Player,
+    drawnPlans: TrainingPlan[],
+    ctx: { eligiblePlayers: Player[]; playerIdx: number; drawnPlanIds: string[] },
+    minSelect: number,
+    maxSelect: number,
+  ): void {
+    const state = this.engine.getState();
     const options = drawnPlans.map(p => ({
       label: p.name,
       value: p.id,
-      description: [
-        `胜利条件: ${p.winCondition}`,
-        p.passiveAbility ? `被动能力: ${p.passiveAbility}` : null,
-      ].filter(Boolean).join('\n'),
+      description: `胜利条件: ${p.winCondition}${p.passiveAbility ? '\n被动能力: ' + p.passiveAbility : ''}`,
     }));
 
     state.pendingAction = {
-      id: `plan_redraw_${Date.now()}`,
+      id: `plan_select_${Date.now()}`,
       playerId: player.id,
       type: 'choose_option',
-      prompt: `升学阶段：${player.name}，抽到${drawnPlans.length}张新计划，选择要确认的（0-2张）(已确认 ${getPlayerPlanIds(player).length}/${MAX_TRAINING_PLANS})`,
+      prompt: `升学阶段：${player.name}，选择${minSelect}-${maxSelect}项培养计划加入`,
       options,
-      maxSelections: 2,
-      minSelections: 0,
-      callbackHandler: 'plan_redraw_handler',
+      maxSelections: maxSelect,
+      minSelections: minSelect,
+      callbackHandler: 'plan_select_handler',
       timeoutMs: 60000,
     };
 
-    this.engine.getEventHandler().registerHandler('plan_redraw_handler', (_eng, pid, choice) => {
-      this.handleRedrawResponse(pid, choice, confirmContext);
+    this.engine.getEventHandler().registerHandler('plan_select_handler', (_eng, pid, choice) => {
+      this.handlePlanSelectionResponse(pid, choice, ctx);
       return null;
     });
 
@@ -1192,77 +1277,177 @@ export class GameCoordinator {
   }
 
   /**
-   * Handle the redraw multi-select response: parse selected plan IDs,
-   * mark them as confirmed, then run overflow check + effects.
+   * 处理玩家的计划选择响应
    */
-  private handleRedrawResponse(
+  private handlePlanSelectionResponse(
     playerId: string,
     choice: string | undefined,
-    ctx: { eligiblePlayers: Player[]; playerIdx: number },
+    ctx: { eligiblePlayers: Player[]; playerIdx: number; drawnPlanIds: string[] },
   ): void {
     const selectedIds = (!choice || choice === 'skip') ? [] : choice.split(',');
     const player = this.engine.getPlayer(playerId);
     if (!player) {
-      this.discardUnconfirmedDrawnPlans(playerId);
-      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      this.discardTempDrawnPlans(playerId, ctx.drawnPlanIds);
+      this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
       return;
     }
 
     if (selectedIds.length === 0) {
-      this.discardUnconfirmedDrawnPlans(playerId);
-      this.offerGeneralMoveOption(playerId, ctx);
+      this.discardTempDrawnPlans(playerId, ctx.drawnPlanIds);
+      this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
       return;
     }
 
-    // Mark selected plans as confirmed (without triggering on_confirm effects yet)
-    for (const planId of selectedIds) {
-      const plan = player.trainingPlans.find(p => p.id === planId);
-      if (plan && player.majorPlan !== planId && !player.minorPlans.includes(planId)) {
-        if (!player.majorPlan) {
-          player.majorPlan = planId;
-        } else {
-          player.minorPlans.push(planId);
-        }
-        this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
-      }
-    }
+    // 将选中的计划加入培养列表
+    // 先处理溢出：如果加入后超过 planSlotLimit
+    const existingPlanIds = getPlayerPlanIds(player);
+    const allPlanIds = [...existingPlanIds, ...selectedIds.filter(id => !existingPlanIds.includes(id))];
 
-    // Check overflow first, then execute effects for plans still confirmed
-    this.checkPlanOverflow(playerId, () => {
-      const confirmedSelectedIds = selectedIds.filter(id => player.majorPlan === id || player.minorPlans.includes(id));
-      this.executeRedrawConfirmEffects(playerId, confirmedSelectedIds, ctx);
-    });
+    if (allPlanIds.length > player.planSlotLimit) {
+      // 需要选择保留哪些
+      this.showPlanOverflowSelection(player, allPlanIds, ctx);
+    } else {
+      // 不超出，直接进入主修设置
+      this.showMajorSelection(player, allPlanIds, ctx);
+    }
   }
 
   /**
-   * Execute on_confirm effects for each newly confirmed plan sequentially.
-   * If a plan triggers a post-confirm action (社会学院 etc.), wait for it to complete.
+   * 溢出选择：让玩家选择保留哪些计划
    */
-  private executeRedrawConfirmEffects(
-    playerId: string,
-    remainingIds: string[],
-    ctx: { eligiblePlayers: Player[]; playerIdx: number },
+  private showPlanOverflowSelection(
+    player: Player,
+    allPlanIds: string[],
+    ctx: { eligiblePlayers: Player[]; playerIdx: number; drawnPlanIds: string[] },
   ): void {
-    if (remainingIds.length === 0) {
-      this.discardUnconfirmedDrawnPlans(playerId);
-      this.offerGeneralMoveOption(playerId, ctx);
+    const state = this.engine.getState();
+    const options = allPlanIds.map(id => {
+      const plan = player.trainingPlans.find(p => p.id === id);
+      return {
+        label: plan?.name || id,
+        value: id,
+        description: plan ? `胜利条件: ${plan.winCondition}` : undefined,
+      };
+    });
+
+    state.pendingAction = {
+      id: `plan_overflow_${Date.now()}`,
+      playerId: player.id,
+      type: 'choose_option',
+      prompt: `你有${allPlanIds.length}个计划（上限${player.planSlotLimit}），选择要保留的（1-${player.planSlotLimit}个）：`,
+      options,
+      maxSelections: player.planSlotLimit,
+      minSelections: 1,
+      callbackHandler: 'plan_overflow_handler',
+      timeoutMs: 60000,
+    };
+
+    this.engine.getEventHandler().registerHandler('plan_overflow_handler', (_eng, pid, choice) => {
+      const keepIds = (!choice || choice === 'skip') ? [] : choice.split(',');
+      const p = this.engine.getPlayer(pid);
+      if (p && keepIds.length > 0) {
+        this.showMajorSelection(p, keepIds, ctx);
+      } else {
+        this.discardTempDrawnPlans(pid, ctx.drawnPlanIds);
+        this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      }
+      return null;
+    });
+
+    this.broadcastState();
+  }
+
+  /**
+   * 让玩家从保留的计划中选择主修方向
+   */
+  private showMajorSelection(
+    player: Player,
+    keepPlanIds: string[],
+    ctx: { eligiblePlayers: Player[]; playerIdx: number; drawnPlanIds: string[] },
+  ): void {
+    const state = this.engine.getState();
+    const oldMajor = player.majorPlan;
+
+    if (keepPlanIds.length === 1) {
+      // 只有一个计划，自动设为主修
+      this.finalizePlanSelection(player, keepPlanIds[0], [], oldMajor, ctx);
       return;
     }
 
-    const [currentPlanId, ...rest] = remainingIds;
+    const options = keepPlanIds.map(id => {
+      const plan = player.trainingPlans.find(p => p.id === id);
+      return {
+        label: plan?.name || id,
+        value: id,
+        description: plan?.passiveAbility ? `被动能力: ${plan.passiveAbility}` : '无被动能力',
+      };
+    });
 
-    // Trigger on_confirm effects for this plan
-    this.triggerPlanConfirmEffects(playerId, currentPlanId);
+    state.pendingAction = {
+      id: `plan_major_${Date.now()}`,
+      playerId: player.id,
+      type: 'choose_option',
+      prompt: `选择你的主修方向（只有主修的被动效果生效）：`,
+      options,
+      maxSelections: 1,
+      minSelections: 1,
+      callbackHandler: 'plan_major_handler',
+      timeoutMs: 60000,
+    };
 
-    // Check for post-confirm pending actions (社会学院 etc.)
-    const player = this.engine.getPlayer(playerId);
-    if (player) {
-      const postAction = this.createPostConfirmAction(player, playerId);
+    this.engine.getEventHandler().registerHandler('plan_major_handler', (_eng, pid, choice) => {
+      const p = this.engine.getPlayer(pid);
+      if (p && choice) {
+        const majorId = choice.split(',')[0];
+        const minorIds = keepPlanIds.filter(id => id !== majorId);
+        this.finalizePlanSelection(p, majorId, minorIds, oldMajor, ctx);
+      } else {
+        this.discardTempDrawnPlans(pid, ctx.drawnPlanIds);
+        this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      }
+      return null;
+    });
+
+    this.broadcastState();
+  }
+
+  /**
+   * 最终确定培养计划选择：设置主修/辅修，清理临时计划，触发效果
+   */
+  private finalizePlanSelection(
+    player: Player,
+    majorId: string,
+    minorIds: string[],
+    oldMajor: string | null,
+    ctx: { eligiblePlayers: Player[]; playerIdx: number; drawnPlanIds: string[] },
+  ): void {
+    const keepIds = [majorId, ...minorIds];
+
+    // 更新 trainingPlans：只保留选中的
+    player.trainingPlans = player.trainingPlans.filter(p => keepIds.includes(p.id));
+    player.majorPlan = majorId;
+    player.minorPlans = minorIds;
+
+    const majorName = player.trainingPlans.find(p => p.id === majorId)?.name || majorId;
+    this.addLog(player.id, `${player.name} 设置主修方向: ${majorName}`);
+    if (minorIds.length > 0) {
+      const minorNames = minorIds.map(id => player.trainingPlans.find(p => p.id === id)?.name || id);
+      this.addLog(player.id, `${player.name} 辅修方向: ${minorNames.join(', ')}`);
+    }
+
+    // 将未选中的抽取计划放回牌堆
+    this.discardTempDrawnPlans(player.id, ctx.drawnPlanIds.filter(id => !keepIds.includes(id)));
+
+    // 主修方向变化时触发 on_confirm 效果
+    if (majorId !== oldMajor) {
+      this.triggerPlanConfirmEffects(player.id, majorId);
+      // 检查是否有 post-confirm action
+      const postAction = this.createPostConfirmAction(player, player.id);
       if (postAction) {
         this.pendingConfirmContext = {
-          ...ctx,
-          needsGeneralMove: false,
-          redrawContext: { remainingEffectIds: rest },
+          eligiblePlayers: ctx.eligiblePlayers,
+          playerIdx: ctx.playerIdx,
+          drawnPlanIds: ctx.drawnPlanIds,
         };
         const state = this.engine.getState();
         state.pendingAction = postAction;
@@ -1271,100 +1456,44 @@ export class GameCoordinator {
       }
     }
 
-    // No post-confirm action needed — continue with remaining plans
-    this.executeRedrawConfirmEffects(playerId, rest, ctx);
+    // 继续下一个玩家
+    this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
   }
 
   /**
-   * Check if confirmed plans exceed MAX_TRAINING_PLANS.
-   * If so, show multi-select dialog to let player choose which plans to KEEP.
+   * 将临时抽取的、未被选中的计划从玩家的 trainingPlans 中移除并放回牌堆
    */
-  private checkPlanOverflow(playerId: string, onComplete: () => void): void {
+  private discardTempDrawnPlans(playerId: string, planIds: string[]): void {
     const player = this.engine.getPlayer(playerId);
-    if (!player) { onComplete(); return; }
-
-    const playerPlanIds = getPlayerPlanIds(player);
-    if (playerPlanIds.length <= MAX_TRAINING_PLANS) {
-      onComplete();
-      return;
-    }
-
     const state = this.engine.getState();
-    const confirmedPlanDetails = playerPlanIds.map(id => {
-      const plan = player.trainingPlans.find(p => p.id === id);
-      return {
-        id,
-        name: plan?.name || id,
-        description: plan ? [
-          `胜利条件: ${plan.winCondition}`,
-          plan.passiveAbility ? `被动能力: ${plan.passiveAbility}` : null,
-        ].filter(Boolean).join('\n') : undefined,
-      };
-    });
+    if (!player) return;
 
-    state.pendingAction = {
-      id: `plan_overflow_${Date.now()}`,
-      playerId,
-      type: 'choose_option',
-      prompt: `你已确认${playerPlanIds.length}个计划（上限${MAX_TRAINING_PLANS}），请选择要保留的计划：`,
-      options: confirmedPlanDetails.map(p => ({
-        label: p.name,
-        value: p.id,
-        description: p.description,
-      })),
-      maxSelections: MAX_TRAINING_PLANS,
-      minSelections: 1,
-      callbackHandler: 'plan_overflow_callback',
-      timeoutMs: 30000,
-    };
-
-    this.engine.getEventHandler().registerHandler('plan_overflow_callback', (_eng, pid, choice) => {
-      const keepIds = (!choice || choice === 'skip') ? [] : choice.split(',');
-      const p = this.engine.getPlayer(pid);
-      if (p && keepIds.length > 0) {
-        const currentPlanIds = getPlayerPlanIds(p);
-        const removedIds = currentPlanIds.filter(id => !keepIds.includes(id));
-        for (const removedId of removedIds) {
-          const plan = p.trainingPlans.find(tp => tp.id === removedId);
-          this.addLog(pid, `${p.name} 移除了培养计划: ${plan?.name || removedId}`);
+    for (const planId of planIds) {
+      const keepIds = getPlayerPlanIds(player);
+      if (!keepIds.includes(planId)) {
+        const idx = player.trainingPlans.findIndex(p => p.id === planId);
+        if (idx >= 0) {
+          const [plan] = player.trainingPlans.splice(idx, 1);
+          state.cardDecks.training.push(plan); // 放回牌堆底部
         }
-        // Rebuild majorPlan/minorPlans from kept IDs
-        const kept = currentPlanIds.filter(id => keepIds.includes(id));
-        p.majorPlan = kept.length > 0 ? kept[0] : null;
-        p.minorPlans = kept.slice(1);
       }
-      onComplete();
-      return null;
-    });
+    }
 
-    this.broadcastState();
+    // 从当轮追踪中也移除（让后续玩家/年度可以再抽到）
+    for (const planId of planIds) {
+      const keepIds = getPlayerPlanIds(player);
+      if (!keepIds.includes(planId)) {
+        this.yearlyDrawnPlanIds.delete(planId);
+      }
+    }
   }
 
   /**
-   * Discard unconfirmed plans drawn during redraw phase.
-   * Returns them to the bottom of the training deck.
+   * 当轮所有玩家选择完毕后，清理追踪状态
    */
-  private discardUnconfirmedDrawnPlans(playerId: string): void {
-    const player = this.engine.getPlayer(playerId);
-    const state = this.engine.getState();
-    const drawnIds = this.redrawDrawnPlanIds.get(playerId);
-    if (!player || !drawnIds) return;
-
-    const toReturn: TrainingPlan[] = [];
-    player.trainingPlans = player.trainingPlans.filter(p => {
-      if (drawnIds.includes(p.id) && player.majorPlan !== p.id && !player.minorPlans.includes(p.id)) {
-        toReturn.push(p);
-        return false;
-      }
-      return true;
-    });
-
-    // Return to bottom of deck
-    for (const plan of toReturn) {
-      state.cardDecks.training.unshift(plan);
-    }
-
-    this.redrawDrawnPlanIds.delete(playerId);
+  private returnUnselectedPlans(): void {
+    this.yearlyDrawnPlanIds.clear();
+    this.redrawDrawnPlanIds.clear();
   }
 
   /**
@@ -1505,8 +1634,7 @@ export class GameCoordinator {
   private pendingConfirmContext: {
     eligiblePlayers: Player[];
     playerIdx: number;
-    needsGeneralMove?: boolean;
-    redrawContext?: { remainingEffectIds?: string[] };
+    drawnPlanIds?: string[];
   } | null = null;
 
   /**
@@ -1681,7 +1809,7 @@ export class GameCoordinator {
   }
 
   /**
-   * Continue the post-confirm chain: check for more post-actions, then general move, then next player.
+   * Continue the post-confirm chain: check for more post-actions, then next player.
    */
   private continuePostConfirmChain(playerId: string): void {
     const player = this.engine.getPlayer(playerId);
@@ -1701,19 +1829,8 @@ export class GameCoordinator {
     const ctx = this.pendingConfirmContext;
     this.pendingConfirmContext = null;
 
-    // Handle redraw context (plan redraw phase)
-    if (ctx.redrawContext) {
-      // Continue executing effects for remaining plans
-      this.executeRedrawConfirmEffects(playerId, ctx.redrawContext.remainingEffectIds || [], ctx);
-      return;
-    }
-
-    // Original behavior: general move option
-    if (ctx.needsGeneralMove) {
-      this.checkWinConditionSlotOverflow(playerId, () => {
-        this.offerGeneralMoveOption(playerId, ctx);
-      });
-    }
+    // Continue to next player in plan selection
+    this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
   }
 
   /**
@@ -1779,65 +1896,6 @@ export class GameCoordinator {
       } else {
         onComplete();
       }
-      return null;
-    });
-
-    this.broadcastState();
-  }
-
-  /**
-   * Offer the general "move to any line start" option after plan confirmation.
-   * Only offered once per player per confirmation round, regardless of how many plans confirmed.
-   * Skipped if the plan's specific effect already included a moveToLine.
-   */
-  private offerGeneralMoveOption(
-    playerId: string,
-    ctx: { eligiblePlayers: Player[]; playerIdx: number }
-  ): void {
-    const state = this.engine.getState();
-    const player = this.engine.getPlayer(playerId);
-
-    // Check if plan-specific effect already moved the player to a line
-    // If they're currently in a line, skip the general move option
-    if (!player || player.position.type === 'line') {
-      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
-      return;
-    }
-
-    // Offer move to any line start (with entry fee)
-    const lineOptions = [
-      { label: '浦口线', value: 'general_move_pukou' },
-      { label: '学习线', value: 'general_move_study' },
-      { label: '赚钱线', value: 'general_move_money' },
-      { label: '苏州线', value: 'general_move_suzhou' },
-      { label: '探索线', value: 'general_move_explore' },
-      { label: '鼓楼线', value: 'general_move_gulou' },
-      { label: '仙林线', value: 'general_move_xianlin' },
-      { label: '食堂线', value: 'general_move_food' },
-      { label: '不移动', value: 'general_move_skip' },
-    ];
-
-    state.pendingAction = {
-      id: `general_move_${Date.now()}`,
-      playerId,
-      type: 'choose_option',
-      prompt: '确认培养方案后：是否移动到某条线起点？（需交入场费，经过起点不领工资）',
-      options: lineOptions,
-      callbackHandler: 'plan_general_move_callback',
-      timeoutMs: 30000,
-    };
-
-    this.engine.getEventHandler().registerHandler('plan_general_move_callback', (eng, pid, choice) => {
-      if (choice && choice.startsWith('general_move_') && choice !== 'general_move_skip') {
-        const lineId = choice.replace('general_move_', '');
-        // Enter line with fee (skip salary pass — handled by enterLine's skipSalary param)
-        const success = eng.enterLine(pid, lineId, true);
-        if (success) {
-          eng.log(`确认计划后移动到 ${lineId} 线起点`, pid);
-        }
-      }
-      // Chain to next player
-      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
       return null;
     });
 
@@ -2621,8 +2679,8 @@ export class GameCoordinator {
     const plan = player.trainingPlans.find(p => p.id === planId);
     if (!plan) return { error: 'Plan not found' };
 
-    // Check if can confirm (max 2 plans)
-    if (getPlayerPlanIds(player).length >= MAX_TRAINING_PLANS) {
+    // Check if can confirm (planSlotLimit)
+    if (getPlayerPlanIds(player).length >= player.planSlotLimit) {
       return { error: '已达到最大确认计划数' };
     }
 
@@ -2642,41 +2700,12 @@ export class GameCoordinator {
     // Trigger on_confirm effects via shared helper
     this.triggerPlanConfirmEffects(playerId, planId);
 
-    // Check if all players have confirmed plans in setup phase
-    if (state.phase === 'setup_plans') {
-      const allPlayersHavePlans = state.players.every(
-        p => p.trainingPlans.length > 0 && getPlayerPlanIds(p).length > 0
-      );
-
-      if (allPlayersHavePlans) {
-        // Remove unconfirmed plans for all players after setup phase ends
-        state.players.forEach(p => {
-          const pPlanIds = getPlayerPlanIds(p);
-          p.trainingPlans = p.trainingPlans.filter(tp => pPlanIds.includes(tp.id));
-        });
-
-        state.phase = 'playing';
-        state.pendingAction = {
-          id: `roll_dice_${Date.now()}`,
-          playerId: state.players[0].id,
-          type: 'roll_dice',
-          prompt: '请投骰子',
-          timeoutMs: 60000,
-        };
-
-        this.io.to(this.roomId).emit('game:announcement', {
-          message: '所有玩家已确认培养计划，游戏正式开始！',
-          type: 'success',
-        });
-      }
-    } else {
-      // In playing phase, remove unconfirmed plans immediately after confirming one
-      // (this is for the every-6-turns plan confirmation during gameplay)
-      const confirmedIds = getPlayerPlanIds(player);
-      player.trainingPlans = player.trainingPlans.filter(p =>
-        confirmedIds.includes(p.id) || p.id === planId
-      );
-    }
+    // In playing phase, remove unconfirmed plans immediately after confirming one
+    // (this is for the every-6-turns plan confirmation during gameplay)
+    const confirmedIds = getPlayerPlanIds(player);
+    player.trainingPlans = player.trainingPlans.filter(p =>
+      confirmedIds.includes(p.id) || p.id === planId
+    );
 
     this.broadcastState();
 
@@ -2699,36 +2728,4 @@ export class GameCoordinator {
     return {};
   }
 
-  // --------------------------------------------------
-  // Setup Phase
-  // --------------------------------------------------
-
-  handleSetupDrawTrainingPlans(): void {
-    const state = this.engine.getState();
-    console.log(`[handleSetupDrawTrainingPlans] roomId: ${this.roomId}, state exists: true, phase: ${state.phase}`);
-    console.log(`[handleSetupDrawTrainingPlans] players count: ${state.players.length}, training deck count: ${state.cardDecks.training.length}`);
-
-    if (state.phase !== 'setup_plans') return;
-
-    state.players.forEach(player => {
-      const drawnPlans: TrainingPlan[] = [];
-      for (let i = 0; i < INITIAL_TRAINING_DRAW; i++) {
-        const plan = state.cardDecks.training.pop();
-        if (plan) drawnPlans.push(plan);
-      }
-      player.trainingPlans = drawnPlans;
-      console.log(`[handleSetupDrawTrainingPlans] Player ${player.name} drew ${drawnPlans.length} plans:`, drawnPlans.map(p => p.name));
-    });
-
-    state.pendingAction = {
-      id: `setup_choose_plans_${Date.now()}`,
-      type: 'draw_training_plan',
-      playerId: 'all',
-      prompt: '选择1-2项培养计划保留',
-      options: [],
-      timeoutMs: 120000,
-    };
-
-    this.broadcastState();
-  }
 }

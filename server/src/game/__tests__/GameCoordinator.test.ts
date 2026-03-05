@@ -286,18 +286,19 @@ describe('GameEngine — integration tests', () => {
   // 5. Basic game start flow
   // -------------------------------------------------------------------------
   describe('game start', () => {
-    it('should transition to setup_plans phase and deal training plans', () => {
+    it('should transition directly to playing phase (skip setup_plans)', () => {
       engine.startGame();
 
       const state = engine.getState();
-      expect(state.phase).toBe('setup_plans');
+      expect(state.phase).toBe('playing');
       expect(state.turnNumber).toBe(1);
+      expect(state.roundNumber).toBe(1); // 大一
 
-      // Each player should have 3 training plans dealt
+      // No training plans dealt at start (大一无培养计划抽取)
       const p1 = engine.getPlayer('p1')!;
       const p2 = engine.getPlayer('p2')!;
-      expect(p1.trainingPlans.length).toBe(3);
-      expect(p2.trainingPlans.length).toBe(3);
+      expect(p1.trainingPlans.length).toBe(0);
+      expect(p2.trainingPlans.length).toBe(0);
     });
 
     it('should not start with fewer than 2 players', () => {

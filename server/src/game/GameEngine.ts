@@ -1435,19 +1435,13 @@ export class GameEngine implements IGameEngine {
       return;
     }
 
-    this.state.phase = 'setup_plans';
+    // 跳过 setup_plans 阶段，直接进入 playing（大一无培养计划抽取）
+    this.state.phase = 'playing';
     this.state.turnNumber = 1;
+    this.state.roundNumber = 1; // 大一
     this.state.currentPlayerIndex = 0;
 
-    // Deal initial training plans
-    for (const player of this.state.players) {
-      for (let i = 0; i < 3; i++) {
-        this.drawTrainingPlan(player.id);
-      }
-    }
-
-    this.log('游戏开始！');
-    this.log('请选择培养计划');
+    this.log('游戏开始！大一开始！');
   }
 
   /**
