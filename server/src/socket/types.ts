@@ -21,8 +21,9 @@ export interface SocketData {
   playerId?: string;
   roomId?: string;
   playerName?: string;
-  userId?: string;      // authenticated user UUID
+  userId?: string;       // authenticated user UUID
   username?: string;     // authenticated username
+  authVerified?: boolean; // true if JWT signature was verified (not just decoded)
 }
 
 // Typed Socket.io server

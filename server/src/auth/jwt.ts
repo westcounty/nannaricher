@@ -8,6 +8,11 @@ export interface JwtPayload {
   exp: number;
 }
 
+export interface VerifyResult {
+  payload: JwtPayload;
+  verified: boolean;  // true = signature verified; false = decode-only (dev mode)
+}
+
 let jwtSecret: Buffer | null = null;
 
 export function initJwt(): void {
@@ -20,19 +25,21 @@ export function initJwt(): void {
   console.log('[Auth] JWT verification enabled');
 }
 
-export function verifyToken(token: string): JwtPayload | null {
+export function verifyToken(token: string): VerifyResult | null {
   if (!jwtSecret) {
     // Dev mode: decode without verification
     try {
       const decoded = jwt.decode(token) as JwtPayload;
-      return decoded;
+      if (!decoded?.sub) return null;
+      return { payload: decoded, verified: false };
     } catch {
       return null;
     }
   }
 
   try {
-    return jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as JwtPayload;
+    const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as JwtPayload;
+    return { payload, verified: true };
   } catch {
     return null;
   }

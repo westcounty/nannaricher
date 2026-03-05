@@ -13,7 +13,7 @@ import time
 import os
 from playwright.sync_api import sync_playwright, Page
 
-BASE_URL = "http://localhost:3001"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:5173")
 SCREENSHOT_DIR = "balance-test/screenshots"
 MAX_GAME_SECONDS = 600  # 10 min max
 

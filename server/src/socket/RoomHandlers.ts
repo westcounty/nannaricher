@@ -20,6 +20,7 @@ export function registerRoomHandlers(
         socket.id,
         data.diceOption,
         socket.data.userId,
+        socket.data.authVerified,
       );
 
       socket.join(roomId);
@@ -61,6 +62,7 @@ export function registerRoomHandlers(
         socket.id,
         data.diceOption,
         socket.data.userId,
+        socket.data.authVerified,
       );
 
       socket.join(data.roomId);

@@ -46,7 +46,8 @@ export interface TrainingPlan {
 export interface Player {
   id: string;
   socketId: string;
-  userId?: string;    // authenticated user UUID (from tuchan-api)
+  userId?: string;        // authenticated user UUID (from tuchan-api)
+  authVerified?: boolean; // true if JWT signature was verified (not mock/dev token)
   name: string;
   color: string;
   money: number;

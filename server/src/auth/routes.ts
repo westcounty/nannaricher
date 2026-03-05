@@ -15,14 +15,14 @@ function authenticateToken(req: Request, res: Response, next: Function): void {
     return;
   }
 
-  const payload = verifyToken(token);
-  if (!payload) {
+  const result = verifyToken(token);
+  if (!result) {
     res.status(401).json({ error: 'Invalid or expired token' });
     return;
   }
 
-  (req as any).userId = payload.sub;
-  (req as any).phone = payload.phone;
+  (req as any).userId = result.payload.sub;
+  (req as any).phone = result.payload.phone;
   next();
 }
 

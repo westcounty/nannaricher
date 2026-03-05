@@ -24,9 +24,10 @@ export function createSocketServer(httpServer: HttpServer): GameServer {
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (token) {
-      const payload = verifyToken(token);
-      if (payload) {
-        socket.data.userId = payload.sub;
+      const result = verifyToken(token);
+      if (result) {
+        socket.data.userId = result.payload.sub;
+        socket.data.authVerified = result.verified;
       }
     }
     // Allow connection even without token (guest mode for development)

@@ -19,8 +19,8 @@ export function saveGameResults(
 
   const saveAll = db.transaction(() => {
     for (const player of players) {
-      // Skip players without userId (guests or legacy players)
-      if (!player.userId) continue;
+      // Skip players without userId or with unverified tokens (dev/test accounts)
+      if (!player.userId || !player.authVerified) continue;
 
       const id = `${roomId}_${player.id}`;
       const planNames = player.trainingPlans.map(p => p.name);
