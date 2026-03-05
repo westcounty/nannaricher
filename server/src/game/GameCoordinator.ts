@@ -1216,11 +1216,12 @@ export class GameCoordinator {
           { label: '不调整', value: 'keep', description: '保留当前主修和辅修方向' },
           { label: '调整培养计划', value: 'adjust', description: `从新抽到的${drawnPlans.length}张计划中选择加入` },
         ],
-        callbackHandler: 'plan_adjust_choice',
+        callbackHandler: `plan_adjust_choice_${player.id}_${Date.now()}`,
         timeoutMs: 60000,
       };
 
-      this.engine.getEventHandler().registerHandler('plan_adjust_choice', (_eng, pid, choice) => {
+      const adjustHandlerId = state.pendingAction.callbackHandler!;
+      this.engine.getEventHandler().registerHandler(adjustHandlerId, (_eng, pid, choice) => {
         if (choice === 'keep' || !choice) {
           // 不调整，放回抽到的计划
           this.discardTempDrawnPlans(pid, ctx.drawnPlanIds);
@@ -1264,11 +1265,12 @@ export class GameCoordinator {
       options,
       maxSelections: maxSelect,
       minSelections: minSelect,
-      callbackHandler: 'plan_select_handler',
+      callbackHandler: `plan_select_handler_${player.id}_${Date.now()}`,
       timeoutMs: 60000,
     };
 
-    this.engine.getEventHandler().registerHandler('plan_select_handler', (_eng, pid, choice) => {
+    const selectHandlerId = state.pendingAction.callbackHandler!;
+    this.engine.getEventHandler().registerHandler(selectHandlerId, (_eng, pid, choice) => {
       this.handlePlanSelectionResponse(pid, choice, ctx);
       return null;
     });
@@ -1338,11 +1340,12 @@ export class GameCoordinator {
       options,
       maxSelections: player.planSlotLimit,
       minSelections: 1,
-      callbackHandler: 'plan_overflow_handler',
+      callbackHandler: `plan_overflow_handler_${player.id}_${Date.now()}`,
       timeoutMs: 60000,
     };
 
-    this.engine.getEventHandler().registerHandler('plan_overflow_handler', (_eng, pid, choice) => {
+    const overflowHandlerId = state.pendingAction.callbackHandler!;
+    this.engine.getEventHandler().registerHandler(overflowHandlerId, (_eng, pid, choice) => {
       const keepIds = (!choice || choice === 'skip') ? [] : choice.split(',');
       const p = this.engine.getPlayer(pid);
       if (p && keepIds.length > 0) {
@@ -1391,11 +1394,12 @@ export class GameCoordinator {
       options,
       maxSelections: 1,
       minSelections: 1,
-      callbackHandler: 'plan_major_handler',
+      callbackHandler: `plan_major_handler_${player.id}_${Date.now()}`,
       timeoutMs: 60000,
     };
 
-    this.engine.getEventHandler().registerHandler('plan_major_handler', (_eng, pid, choice) => {
+    const majorHandlerId = state.pendingAction.callbackHandler!;
+    this.engine.getEventHandler().registerHandler(majorHandlerId, (_eng, pid, choice) => {
       const p = this.engine.getPlayer(pid);
       if (p && choice) {
         const majorId = choice.split(',')[0];
@@ -1468,21 +1472,15 @@ export class GameCoordinator {
     const state = this.engine.getState();
     if (!player) return;
 
+    const keepIds = new Set(getPlayerPlanIds(player));
+
     for (const planId of planIds) {
-      const keepIds = getPlayerPlanIds(player);
-      if (!keepIds.includes(planId)) {
+      if (!keepIds.has(planId)) {
         const idx = player.trainingPlans.findIndex(p => p.id === planId);
         if (idx >= 0) {
           const [plan] = player.trainingPlans.splice(idx, 1);
           state.cardDecks.training.push(plan); // 放回牌堆底部
         }
-      }
-    }
-
-    // 从当轮追踪中也移除（让后续玩家/年度可以再抽到）
-    for (const planId of planIds) {
-      const keepIds = getPlayerPlanIds(player);
-      if (!keepIds.includes(planId)) {
         this.yearlyDrawnPlanIds.delete(planId);
       }
     }

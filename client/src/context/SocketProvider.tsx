@@ -177,9 +177,6 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       useCard: (cardId: string, targetPlayerId?: string) => {
         socket.emit('game:use-card', { cardId, targetPlayerId });
       },
-      confirmPlan: (planId: string) => {
-        socket.emit('game:confirm-plan', { planId });
-      },
       sendChat: (message: string) => {
         socket.emit('game:chat', { message });
       },

@@ -1232,6 +1232,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   });
 
   // 学科评估 — 抽培养计划替换某位玩家的辅修计划
+  // Option values encode the drawn plan ID as prefix: "drawnPlanId|targetPlayerId"
   eventHandler.registerHandler('card_chance_discipline_evaluation', (engine, playerId) => {
     const newPlan = engine.drawTrainingPlan(playerId);
     if (!newPlan) {
@@ -1250,7 +1251,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
     const options = others.map(p => ({
       label: p.name,
-      value: p.id,
+      value: `${newPlan.id}|${p.id}`,
       description: `辅修: ${p.minorPlans.map(id => p.trainingPlans.find(tp => tp.id === id)?.name || id).join(', ')}`,
     }));
     const action = engine.createPendingAction(
@@ -1260,15 +1261,16 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return action;
   });
 
-  // 学科评估 Step 1: target chosen
+  // 学科评估 Step 1: target chosen — choice format: "drawnPlanId|targetPlayerId"
   eventHandler.registerHandler('card_discipline_evaluation_target', (engine, playerId, choice) => {
     if (!choice) return null;
-    const target = engine.getPlayer(choice);
+    const [drawnPlanId, targetId] = choice.split('|');
+    const target = engine.getPlayer(targetId);
     const player = engine.getPlayer(playerId);
     if (!target || !player) return null;
 
-    // Find the newly drawn plan (last in player's trainingPlans)
-    const newPlan = player.trainingPlans[player.trainingPlans.length - 1];
+    const newPlan = player.trainingPlans.find(p => p.id === drawnPlanId);
+    if (!newPlan) return null;
 
     if (target.minorPlans.length === 1) {
       // Only one minor, replace directly
@@ -1283,9 +1285,10 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     }
 
     // Multiple minors — let player choose which to replace
+    // Choice format: "drawnPlanId|targetPlayerId:minorPlanId"
     const options = target.minorPlans.map(id => {
       const plan = target.trainingPlans.find(p => p.id === id);
-      return { label: plan?.name || id, value: `${choice}:${id}` };
+      return { label: plan?.name || id, value: `${drawnPlanId}|${targetId}:${id}` };
     });
     const action = engine.createPendingAction(
       playerId, 'choose_option', `选择${target.name}的一项辅修计划来替换`, options
@@ -1294,15 +1297,17 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return action;
   });
 
-  // 学科评估 Step 2: finalize replacement
+  // 学科评估 Step 2: finalize replacement — choice format: "drawnPlanId|targetPlayerId:replacedPlanId"
   eventHandler.registerHandler('card_discipline_evaluation_replace', (engine, playerId, choice) => {
     if (!choice) return null;
-    const [targetId, replacedId] = choice.split(':');
+    const [drawnPlanId, rest] = choice.split('|');
+    const [targetId, replacedId] = rest.split(':');
     const target = engine.getPlayer(targetId);
     const player = engine.getPlayer(playerId);
     if (!target || !player) return null;
 
-    const newPlan = player.trainingPlans[player.trainingPlans.length - 1];
+    const newPlan = player.trainingPlans.find(p => p.id === drawnPlanId);
+    if (!newPlan) return null;
     const replaced = target.trainingPlans.find(p => p.id === replacedId);
     target.trainingPlans = target.trainingPlans.filter(p => p.id !== replacedId);
     target.minorPlans = target.minorPlans.filter(id => id !== replacedId).concat(newPlan.id);
@@ -1564,6 +1569,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   });
 
   // 出行方式 — 惩罚选择回调（链式处理多个玩家）
+  // Registered once at init; chain continuation re-uses the same static handler ID.
   eventHandler.registerHandler('travel_penalty_callback', (engine, playerId, choice) => {
     const player = engine.getPlayer(playerId);
     if (player && choice) {

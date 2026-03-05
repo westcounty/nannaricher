@@ -72,7 +72,6 @@ export class MetroBackgroundLayer implements RenderLayer {
     if (this.phaseText) {
       const phaseLabels: Record<string, string> = {
         waiting: '等待开始',
-        setup_plans: '选择培养计划',
         playing: '进行中',
         finished: '游戏结束',
       };

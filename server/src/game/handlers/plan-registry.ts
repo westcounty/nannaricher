@@ -536,7 +536,8 @@ register({
   planId: 'plan_yishu',
   trigger: 'passive',
   apply(ctx) {
-    // 被动能力：浦口线经验卡双倍奖励，直接在 exitLine 中通过 majorPlan/minorPlans 检查
+    if (ctx.trigger !== 'passive') return null;
+    // 被动能力：浦口线经验卡双倍奖励，直接在 exitLine 中通过 majorPlan 检查
     return {
       activated: true,
       message: '艺术学院能力：浦口线经验卡奖励翻倍',

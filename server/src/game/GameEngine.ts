@@ -596,7 +596,7 @@ export class GameEngine implements IGameEngine {
     // Give experience card at end of line
     if (line?.experienceCard && moveToMainBoard) {
       // 艺术学院能力：浦口线经验卡双倍奖励（在执行经验卡前额外给一份奖励）
-      if (lineId === 'pukou' && (player.majorPlan === 'plan_yishu' || player.minorPlans.includes('plan_yishu'))) {
+      if (lineId === 'pukou' && player.majorPlan === 'plan_yishu') {
         this.modifyPlayerMoney(playerId, 400);
         this.log('艺术学院能力：浦口线双倍经验卡，额外金钱 +400', playerId);
       }

@@ -98,21 +98,6 @@ export function registerGameHandlers(
     coordinator.handleUseCard(playerId, data.cardId, data.targetPlayerId);
   });
 
-  // Confirm training plan
-  socket.on('game:confirm-plan', (data) => {
-    const roomId = socket.data.roomId;
-    const playerId = socket.data.playerId;
-    if (!roomId || !playerId) return;
-
-    const coordinator = roomManager.getCoordinator(roomId);
-    if (!coordinator) return;
-
-    const result = coordinator.handleConfirmPlan(playerId, data.planId);
-    if (result.error) {
-      socket.emit('room:error', { message: result.error });
-    }
-  });
-
   // Chat
   socket.on('game:chat', (data) => {
     const roomId = socket.data.roomId;

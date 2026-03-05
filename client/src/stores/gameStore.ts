@@ -44,7 +44,6 @@ export interface SocketActions {
   rollDice: () => void;
   chooseAction: (actionId: string, choice: string) => void;
   useCard: (cardId: string, targetPlayerId?: string) => void;
-  confirmPlan: (planId: string) => void;
   sendChat: (message: string) => void;
 }
 

@@ -4,7 +4,6 @@
 export type TutorialTrigger =
   | 'first_dice'        // 首次出现 roll_dice 待定动作
   | 'first_card_draw'   // 首次抽到卡牌
-  | 'first_plan_select' // 首次进入 setup_plans 阶段
   | 'plan_confirm'      // 确认培养计划时
   | 'first_branch';     // 首次进入支线
 
@@ -25,14 +24,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: '投骰子前进',
     message: '点击"投骰子"按钮来掷骰子，根据点数在棋盘上前进。按 R 键也可以快速掷骰。',
     position: 'top',
-  },
-  {
-    id: 'step_plan_select',
-    trigger: 'first_plan_select',
-    targetSelector: '[data-tutorial="plans"], [data-tutorial="training-plan"]',
-    title: '选择培养计划',
-    message: '从抽到的3张培养计划中选择1-2项保留。每个计划有独特的被动能力和胜利条件。',
-    position: 'right',
   },
   {
     id: 'step_plan_confirm',

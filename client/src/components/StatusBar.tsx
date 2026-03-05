@@ -1,4 +1,5 @@
 // client/src/components/StatusBar.tsx
+import { getRoundName } from '@nannaricher/shared';
 import type { GamePhase } from '@nannaricher/shared';
 import { AudioControl } from './AudioControl';
 
@@ -12,7 +13,6 @@ interface StatusBarProps {
 
 const phaseLabels: Record<GamePhase, string> = {
   waiting: '等待中',
-  setup_plans: '选择培养计划',
   playing: '游戏中',
   finished: '已结束',
   rolling_dice: '掷骰子',
@@ -32,7 +32,7 @@ export function StatusBar({ roomId, turnNumber, roundNumber, currentPlayerName, 
       </div>
       <div className="status-item">
         <span className="status-label">回合</span>
-        <span className="status-value">{turnNumber} <span className="round-info">· 第{roundNumber}轮</span></span>
+        <span className="status-value">{turnNumber} <span className="round-info">· {getRoundName(roundNumber)}</span></span>
       </div>
       <div className="status-item">
         <span className="status-label">当前玩家</span>

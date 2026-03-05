@@ -101,7 +101,7 @@ export interface PendingAction {
 }
 
 // === Game State ===
-export type GamePhase = 'waiting' | 'setup_plans' | 'playing' | 'finished'
+export type GamePhase = 'waiting' | 'playing' | 'finished'
   | 'rolling_dice'      // 掷骰子
   | 'moving'            // 移动中
   | 'event_popup'       // 事件弹窗
@@ -148,7 +148,6 @@ export interface ClientToServerEvents {
   'game:roll-dice': () => void;
   'game:choose-action': (data: { actionId: string; choice: string }) => void;
   'game:use-card': (data: { cardId: string; targetPlayerId?: string }) => void;
-  'game:confirm-plan': (data: { planId: string }) => void;
   'game:chat': (data: { message: string }) => void;
   'room:reconnect': (data: { roomId: string; playerId: string }) => void;
 }
