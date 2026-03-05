@@ -34,6 +34,7 @@ export class GameCoordinator {
   private roomId: string;
   private logger: GameLogger;
   private processingAction = false;
+  private pendingActionTimer: ReturnType<typeof setTimeout> | null = null;
   private onFinishedCallback: (() => void) | null = null;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
@@ -137,10 +138,68 @@ export class GameCoordinator {
       }
       maskedState.pendingAction!.responses = maskedResponses;
       this.io.to(this.roomId).emit('game:state-update', maskedState);
+      this.startPendingActionTimeout();
       return;
     }
 
     this.io.to(this.roomId).emit('game:state-update', state);
+    this.startPendingActionTimeout();
+  }
+
+  // --------------------------------------------------
+  // Pending Action Timeout
+  // --------------------------------------------------
+
+  private startPendingActionTimeout(): void {
+    this.clearPendingActionTimeout();
+    const state = this.engine.getState();
+    const pa = state.pendingAction;
+    if (!pa || !pa.timeoutMs) return;
+
+    this.pendingActionTimer = setTimeout(() => {
+      const currentPa = this.engine.getState().pendingAction;
+      if (!currentPa || currentPa.id !== pa.id) return;
+
+      this.addLog(pa.playerId, '操作超时，自动处理');
+
+      if (currentPa.type === 'roll_dice') {
+        this.handleRollDice(pa.playerId);
+      } else if (currentPa.type === 'multi_vote') {
+        const responses = currentPa.responses || {};
+        const firstOption = currentPa.options?.[0]?.value || 'skip';
+        for (const p of this.engine.getState().players) {
+          if (!p.isBankrupt && !p.isDisconnected && !responses[p.id]) {
+            responses[p.id] = firstOption;
+          }
+        }
+        currentPa.responses = responses;
+        this._processAction(pa.id, pa.playerId, firstOption);
+      } else {
+        const defaultChoice = currentPa.options?.[0]?.value || 'skip';
+        this._processAction(pa.id, pa.playerId, defaultChoice);
+      }
+    }, pa.timeoutMs + 3000);
+  }
+
+  private clearPendingActionTimeout(): void {
+    if (this.pendingActionTimer) {
+      clearTimeout(this.pendingActionTimer);
+      this.pendingActionTimer = null;
+    }
+  }
+
+  handleDisconnectedPlayerAction(): void {
+    const state = this.engine.getState();
+    const pa = state.pendingAction;
+    if (!pa) return;
+    this.clearPendingActionTimeout();
+    this.addLog(pa.playerId, '玩家断连，自动处理操作');
+    if (pa.type === 'roll_dice') {
+      this.handleRollDice(pa.playerId);
+    } else {
+      const defaultChoice = pa.options?.[0]?.value || 'skip';
+      this._processAction(pa.id, pa.playerId, defaultChoice);
+    }
   }
 
   // --------------------------------------------------
@@ -1375,7 +1434,7 @@ export class GameCoordinator {
     // 将选中的计划加入培养列表
     // 先处理溢出：如果加入后超过 planSlotLimit
     const existingPlanIds = getPlayerPlanIds(player);
-    const allPlanIds = [...existingPlanIds, ...selectedIds.filter(id => !existingPlanIds.includes(id))];
+    const allPlanIds = [...new Set([...existingPlanIds, ...selectedIds])];
 
     if (allPlanIds.length > player.planSlotLimit) {
       // 需要选择保留哪些
@@ -2268,6 +2327,7 @@ export class GameCoordinator {
   // --------------------------------------------------
 
   handleRollDice(playerId: string): void {
+    this.clearPendingActionTimeout();
     const state = this.engine.getState();
     if (state.phase !== 'playing') return;
 
@@ -2420,6 +2480,7 @@ export class GameCoordinator {
   }
 
   handleChooseAction(playerId: string, actionId: string, choice: string): void {
+    this.clearPendingActionTimeout();
     const state = this.engine.getState();
     if (!state.pendingAction) return;
 

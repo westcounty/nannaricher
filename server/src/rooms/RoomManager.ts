@@ -153,10 +153,17 @@ export class RoomManager {
       });
       coordinator.broadcastState();
 
-      // If in game, notify remaining players
-      if (state.phase === 'playing') {
-        // Use io reference from coordinator to emit announcement
-        coordinator.broadcastState(); // ensures latest state is sent
+      // If in game, auto-handle disconnected player's pending action
+      if (state.phase === 'playing' && state.pendingAction?.playerId === player.id) {
+        setTimeout(() => {
+          const coord = this.coordinators.get(room.roomId);
+          if (coord) {
+            const currentState = coord.getState();
+            if (currentState.pendingAction?.playerId === player.id) {
+              coord.handleDisconnectedPlayerAction();
+            }
+          }
+        }, 2000);
       }
     }
   }
