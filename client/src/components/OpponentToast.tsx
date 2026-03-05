@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import './OpponentToast.css';
 
-const AUTO_DISMISS_MS = 3000;
+const AUTO_DISMISS_MS = 5500;
 
 export function OpponentToast() {
   const notifications = useGameStore((s) => s.opponentNotifications);

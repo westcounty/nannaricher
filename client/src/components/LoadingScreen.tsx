@@ -25,20 +25,20 @@ interface LoadingScreenProps {
  */
 const DEFAULT_MESSAGES: Record<LoadingType, { title: string; subtitle: string }> = {
   connecting: {
-    title: 'Connecting to Server',
-    subtitle: 'Establishing connection...',
+    title: '正在连接服务器',
+    subtitle: '建立连接中...',
   },
   waiting: {
-    title: 'Waiting for Players',
-    subtitle: 'Waiting for other players to join...',
+    title: '等待玩家',
+    subtitle: '等待其他玩家加入...',
   },
   calculating: {
-    title: 'Processing',
-    subtitle: 'Calculating game state...',
+    title: '处理中',
+    subtitle: '计算游戏状态...',
   },
   loading: {
-    title: 'Loading',
-    subtitle: 'Please wait...',
+    title: '加载中',
+    subtitle: '请稍候...',
   },
   custom: {
     title: '',
@@ -50,16 +50,16 @@ const DEFAULT_MESSAGES: Record<LoadingType, { title: string; subtitle: string }>
  * Game tips to show during loading
  */
 const GAME_TIPS = [
-  'Tip: Balance your GPA and money - both are important for success!',
-  'Tip: Visit different cell types to maximize your exploration value.',
-  'Tip: Event cards can turn the tide - save them for crucial moments.',
-  'Tip: Landing on the same cell as another player may trigger special events.',
-  'Tip: Training plans provide long-term benefits - choose wisely!',
-  'Tip: High GPA opens up scholarship opportunities.',
-  'Tip: Managing your finances is key to avoiding bankruptcy.',
-  'Tip: The hospital cell will delay your next turn.',
-  'Tip: Exploration points unlock special endings.',
-  'Tip: Watch your opponents - their moves might affect your strategy!',
+  '平衡你的GPA和金钱——两者都很重要！',
+  '访问不同类型的格子可以提高探索值。',
+  '事件卡牌可以扭转局势——在关键时刻使用！',
+  '与其他玩家走到同一格子可能触发特殊事件。',
+  '培养计划提供长期收益——谨慎选择！',
+  '高GPA可以获得奖学金。',
+  '管好你的钱包是避免破产的关键。',
+  '校医院格子会让你暂停行动。',
+  '探索值可以解锁特殊结局。',
+  '注意对手的行动——他们可能影响你的策略！',
 ];
 
 /**
