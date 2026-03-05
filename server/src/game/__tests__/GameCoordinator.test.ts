@@ -16,7 +16,9 @@ function createMockPlayer(overrides: Partial<Player> & { id: string; name: strin
     position: { type: 'main', index: 0 } as Position,
     diceCount: 1,
     trainingPlans: [],
-    confirmedPlans: [],
+    majorPlan: null,
+    minorPlans: [],
+    planSlotLimit: 2,
     heldCards: [],
     effects: [],
     skipNextTurn: false,
@@ -188,29 +190,29 @@ describe('GameEngine — integration tests', () => {
   // 3. Plan confirmation flow
   // -------------------------------------------------------------------------
   describe('plan confirmation flow', () => {
-    it('should add plan to confirmedPlans on confirmTrainingPlan', () => {
+    it('should add plan to majorPlan on confirmTrainingPlan', () => {
       const player = engine.getPlayer('p1')!;
       player.trainingPlans = [
-        { id: 'plan_test', name: 'Test Plan', winCondition: 'test', passiveAbility: 'none', confirmed: false },
+        { id: 'plan_test', name: 'Test Plan', winCondition: 'test', passiveAbility: 'none' },
       ];
 
       engine.confirmTrainingPlan('p1', 'plan_test');
 
-      expect(player.confirmedPlans).toContain('plan_test');
-      expect(player.trainingPlans.find(p => p.id === 'plan_test')!.confirmed).toBe(true);
+      expect(player.majorPlan).toBe('plan_test');
     });
 
-    it('should not duplicate plan in confirmedPlans if confirmed twice', () => {
+    it('should not duplicate plan in majorPlan/minorPlans if confirmed twice', () => {
       const player = engine.getPlayer('p1')!;
       player.trainingPlans = [
-        { id: 'plan_test', name: 'Test Plan', winCondition: 'test', passiveAbility: 'none', confirmed: false },
+        { id: 'plan_test', name: 'Test Plan', winCondition: 'test', passiveAbility: 'none' },
       ];
 
       engine.confirmTrainingPlan('p1', 'plan_test');
       engine.confirmTrainingPlan('p1', 'plan_test');
 
-      const count = player.confirmedPlans.filter(id => id === 'plan_test').length;
-      expect(count).toBe(1);
+      // majorPlan should be set, minorPlans should be empty (no duplicate)
+      expect(player.majorPlan).toBe('plan_test');
+      expect(player.minorPlans).toHaveLength(0);
     });
 
     it('should not confirm a plan that does not exist', () => {
@@ -219,7 +221,8 @@ describe('GameEngine — integration tests', () => {
 
       engine.confirmTrainingPlan('p1', 'nonexistent');
 
-      expect(player.confirmedPlans).toHaveLength(0);
+      expect(player.majorPlan).toBeNull();
+      expect(player.minorPlans).toHaveLength(0);
     });
   });
 
@@ -233,17 +236,17 @@ describe('GameEngine — integration tests', () => {
       state.currentPlayerIndex = 0;
       state.turnNumber = 5;
 
-      // For 2 players, TOTAL_ROUNDS[2] = 32
+      // TOTAL_ROUNDS is now 4 (4学年制)
       // roundNumber increments every 6 turns. Set it right at the limit.
-      state.roundNumber = 32;
+      state.roundNumber = 4;
 
-      // nextTurn increments turnNumber; at turnNumber 6 it bumps roundNumber to 33
-      // which exceeds maxRounds (32), triggering forceEndGame.
+      // nextTurn increments turnNumber; at turnNumber 6 it bumps roundNumber to 5
+      // which exceeds maxRounds (4), triggering forceEndGame.
       engine.nextTurn();
 
       // turnNumber is now 6, roundNumber should have bumped
-      // If roundNumber > 32, forceEndGame should fire
-      if (state.roundNumber > 32) {
+      // If roundNumber > 4, forceEndGame should fire
+      if (state.roundNumber > 4) {
         expect(state.phase).toBe('finished');
         expect(state.winner).not.toBeNull();
       }

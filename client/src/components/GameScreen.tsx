@@ -34,6 +34,7 @@ import { playSound } from '../audio/AudioManager';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
 import type { BoardCell, BoardLine } from '@nannaricher/shared';
+import { getPlayerPlanIds } from '@nannaricher/shared';
 import { boardData } from '../data/board';
 import './ChatPanel.css';
 import '../styles/game.css';
@@ -480,14 +481,14 @@ export function GameScreen() {
       {gameState?.phase === 'setup_plans' &&
         myPlayer &&
         myPlayer.trainingPlans.length > 0 &&
-        myPlayer.confirmedPlans.length < 2 &&
+        getPlayerPlanIds(myPlayer).length < 2 &&
         !planSelectionDone && (
           <MultiSelectDialog
-            key={`plan-select-${myPlayer.confirmedPlans.length}`}
+            key={`plan-select-${getPlayerPlanIds(myPlayer).length}`}
             title="选择培养计划"
-            prompt={`${myPlayer.name}，请选择${myPlayer.confirmedPlans.length === 0 ? '1-2' : '0-1'}项培养计划确认（已确认 ${myPlayer.confirmedPlans.length}/2）`}
+            prompt={`${myPlayer.name}，请选择${getPlayerPlanIds(myPlayer).length === 0 ? '1-2' : '0-1'}项培养计划确认（已确认 ${getPlayerPlanIds(myPlayer).length}/2）`}
             options={myPlayer.trainingPlans
-              .filter((plan) => !myPlayer.confirmedPlans.includes(plan.id))
+              .filter((plan) => !getPlayerPlanIds(myPlayer).includes(plan.id))
               .map((plan) => ({
                 label: plan.name,
                 value: plan.id,
@@ -496,8 +497,8 @@ export function GameScreen() {
                   plan.passiveAbility ? `被动能力: ${plan.passiveAbility}` : null,
                 ].filter(Boolean).join('\n'),
               }))}
-            minSelections={myPlayer.confirmedPlans.length >= 1 ? 0 : 1}
-            maxSelections={2 - myPlayer.confirmedPlans.length}
+            minSelections={getPlayerPlanIds(myPlayer).length >= 1 ? 0 : 1}
+            maxSelections={2 - getPlayerPlanIds(myPlayer).length}
             onConfirm={(selectedIds) => {
               if (selectedIds.length === 0) {
                 setPlanSelectionDone(true);

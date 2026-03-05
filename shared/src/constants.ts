@@ -8,7 +8,9 @@ export const SALARY_STOP = 1000;
 export const HOSPITAL_FEE = 250;
 export const HOSPITAL_DICE_TARGET = 3;
 export const WAITING_ROOM_FEE = 200;
-export const PLAN_CONFIRM_INTERVAL = 6; // every 6 turns
+export const PLAN_CONFIRM_INTERVAL = 6; // every 6 turns (kept for backward compat)
+export const TURNS_PER_ROUND = 6; // 每学年6回合
+export const TOTAL_ROUNDS = 4; // 4学年
 export const MAX_TRAINING_PLANS = 2;
 export const INITIAL_TRAINING_DRAW = 3;
 export const ACTION_TIMEOUT_MS = 60_000;
@@ -16,7 +18,20 @@ export const RECONNECT_TIMEOUT_MS = 60_000;
 export const ROOM_IDLE_TIMEOUT_MS = 600_000;
 export const BASE_WIN_THRESHOLD = 60; // GPA*10 + exploration >= 60
 
-// 回合上限（按人数）
-export const TOTAL_ROUNDS: Record<number, number> = {
-  2: 32, 3: 28, 4: 24, 5: 20, 6: 20,
+// 学年名称
+export const ROUND_NAMES: Record<number, string> = {
+  1: '大一', 2: '大二', 3: '大三', 4: '大四',
 };
+
+export function getRoundName(roundNumber: number): string {
+  return ROUND_NAMES[roundNumber] || `第${roundNumber}学年`;
+}
+
+export const DEFAULT_PLAN_SLOTS = 2;
+
+export function getPlayerPlanIds(player: { majorPlan: string | null; minorPlans: string[] }): string[] {
+  const ids: string[] = [];
+  if (player.majorPlan) ids.push(player.majorPlan);
+  ids.push(...player.minorPlans);
+  return ids;
+}

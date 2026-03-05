@@ -1,5 +1,5 @@
 // server/src/game/rules/WinConditionChecker.ts
-import { Player, GameState, PlayerHistory } from '@nannaricher/shared';
+import { Player, GameState, PlayerHistory, getPlayerPlanIds } from '@nannaricher/shared';
 
 export interface WinResult {
   won: boolean;
@@ -21,7 +21,7 @@ export class WinConditionChecker {
     }
 
     // 检查每个已确认的培养计划（如果未被禁用）
-    for (const planId of player.confirmedPlans) {
+    for (const planId of getPlayerPlanIds(player)) {
       if (disabled.includes(planId)) continue;
       const result = this.checkPlanWinCondition(player, planId, state, history);
       if (result.won) return result;
@@ -437,7 +437,7 @@ export class WinConditionChecker {
   private checkMatchAnyOtherPlanWin(player: Player, state: GameState, history: PlayerHistory): boolean {
     for (const otherPlayer of state.players) {
       if (otherPlayer.id === player.id) continue;
-      for (const otherPlanId of otherPlayer.confirmedPlans) {
+      for (const otherPlanId of getPlayerPlanIds(otherPlayer)) {
         // 跳过匡亚明本身和海外教育学院（特殊触发）
         if (otherPlanId === 'plan_kuangyaming' || otherPlanId === 'plan_haiwai') continue;
         const result = this.checkPlanWinCondition(player, otherPlanId, state, history);
@@ -452,7 +452,7 @@ export class WinConditionChecker {
    * 返回 true 表示海外教育学院玩家优先获胜
    */
   checkHaiwaiIntercept(player: Player, winningPlayerId: string): boolean {
-    if (!player.confirmedPlans.includes('plan_haiwai')) return false;
+    if (player.majorPlan !== 'plan_haiwai' && !player.minorPlans.includes('plan_haiwai')) return false;
     const usedCount = player.chanceCardsUsedOnPlayers[winningPlayerId] ?? 0;
     return usedCount >= 2;
   }

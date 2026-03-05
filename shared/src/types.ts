@@ -40,7 +40,6 @@ export interface TrainingPlan {
   name: string;           // e.g. "文学院"
   winCondition: string;   // description
   passiveAbility: string; // description
-  confirmed: boolean;
 }
 
 // === Player ===
@@ -55,7 +54,9 @@ export interface Player {
   position: Position;
   diceCount: 1 | 2;
   trainingPlans: TrainingPlan[];
-  confirmedPlans: string[];    // ids of confirmed plans
+  majorPlan: string | null;       // 主修方向的计划ID（被动效果仅主修生效）
+  minorPlans: string[];           // 辅修方向的计划ID列表
+  planSlotLimit: number;          // 培养计划槽位上限（默认2，专业意向可+1）
   heldCards: Card[];
   effects: ActiveEffect[];
   skipNextTurn: boolean;

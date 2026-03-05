@@ -13,6 +13,8 @@ import {
   BASE_WIN_THRESHOLD,
   ACTION_TIMEOUT_MS,
   TOTAL_ROUNDS,
+  DEFAULT_PLAN_SLOTS,
+  getPlayerPlanIds,
 } from '@nannaricher/shared';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import { createDecks } from '../data/cards.js';
@@ -104,37 +106,27 @@ export class GameEngine implements IGameEngine {
     return shuffled;
   }
 
-  /**
-   * Get max rounds for the current player count.
-   * Falls back to a sensible default if the player count isn't in TOTAL_ROUNDS.
-   */
+  /** Get max rounds (学年数). */
   private getMaxRounds(): number {
-    const playerCount = this.state.players.length;
-    if (TOTAL_ROUNDS[playerCount] !== undefined) {
-      return TOTAL_ROUNDS[playerCount];
-    }
-    // Fallback: <=3 → 30, <=4 → 25, else 20
-    if (playerCount <= 3) return 30;
-    if (playerCount <= 4) return 25;
-    return 20;
+    return TOTAL_ROUNDS;
   }
 
   /**
    * Calculate final score for a player (used in forced scoring at round limit).
    */
-  private calculateFinalScore(player: Player): number {
-    return player.gpa * 10 + player.exploration + Math.floor(player.money / 100);
+  calculateFinalScore(player: Player): number {
+    return player.gpa * 10 + player.exploration;
   }
 
   /**
    * Forced scoring when the round limit is reached.
    * Scores all non-bankrupt players, declares the highest scorer as winner.
    */
-  private forceEndGame(): void {
+  forceEndGame(): void {
     const activePlayers = this.state.players.filter(p => !p.isBankrupt);
     if (activePlayers.length === 0) {
       this.state.phase = 'finished';
-      this.log('回合上限到达，无存活玩家，游戏结束');
+      this.log('大四结束，无存活玩家，游戏结束');
       return;
     }
 
@@ -144,7 +136,7 @@ export class GameEngine implements IGameEngine {
 
     for (const player of activePlayers) {
       const score = this.calculateFinalScore(player);
-      this.log(`最终得分: ${score} (GPA×10=${player.gpa * 10}, 探索=${player.exploration}, 金钱÷100=${Math.floor(player.money / 100)})`, player.id);
+      this.log(`最终得分: ${score} (GPA×10=${player.gpa * 10}, 探索=${player.exploration})`, player.id);
       if (score > bestScore) {
         bestScore = score;
         winnerId = player.id;
@@ -153,8 +145,8 @@ export class GameEngine implements IGameEngine {
 
     this.state.phase = 'finished';
     this.state.winner = winnerId;
-    this.log(`回合上限到达，强制结算！最高分: ${bestScore}`, winnerId);
-    this.log(`获胜！条件: 回合上限强制结算`, winnerId);
+    this.log(`大四结束，强制结算！最高分: ${bestScore}`, winnerId);
+    this.log(`获胜！条件: 毕业结算`, winnerId);
   }
 
   // ============================================
@@ -288,11 +280,18 @@ export class GameEngine implements IGameEngine {
       }
     }
 
+    // 大一通用buff：GPA增加效果翻倍
+    let actualDelta = delta;
+    if (this.state.roundNumber === 1 && delta > 0) {
+      actualDelta = delta * 2;
+      this.log(`大一buff：GPA增加翻倍 (${delta} → ${actualDelta})`, playerId);
+    }
+
     const oldGpa = player.gpa;
-    let newGpa = player.gpa + delta;
+    let newGpa = player.gpa + actualDelta;
 
     // Check philosophy plan ability: GPA floor of 3.0
-    if (player.confirmedPlans.includes('plan_zhexue') && newGpa < 3.0 && oldGpa >= 3.0) {
+    if ((player.majorPlan === 'plan_zhexue' || player.minorPlans.includes('plan_zhexue')) && newGpa < 3.0 && oldGpa >= 3.0) {
       newGpa = 3.0;
       this.log('哲学系能力：GPA下限保持在3.0', playerId);
     }
@@ -597,7 +596,7 @@ export class GameEngine implements IGameEngine {
     // Give experience card at end of line
     if (line?.experienceCard && moveToMainBoard) {
       // 艺术学院能力：浦口线经验卡双倍奖励（在执行经验卡前额外给一份奖励）
-      if (lineId === 'pukou' && player.confirmedPlans.includes('plan_yishu')) {
+      if (lineId === 'pukou' && (player.majorPlan === 'plan_yishu' || player.minorPlans.includes('plan_yishu'))) {
         this.modifyPlayerMoney(playerId, 400);
         this.log('艺术学院能力：浦口线双倍经验卡，额外金钱 +400', playerId);
       }
@@ -869,6 +868,7 @@ export class GameEngine implements IGameEngine {
 
   /**
    * Advance to next turn
+   * @deprecated Only used in tests. Real game uses GameCoordinator.advanceTurn().
    */
   nextTurn(): void {
     // Find next active player
@@ -1085,7 +1085,7 @@ export class GameEngine implements IGameEngine {
     }
 
     // Check training plan win conditions
-    for (const plan of player.confirmedPlans) {
+    for (const plan of getPlayerPlanIds(player)) {
       if (disabled.includes(plan)) continue;
       if (this.checkTrainingPlanWin(playerId, plan)) {
         return true;
@@ -1100,7 +1100,9 @@ export class GameEngine implements IGameEngine {
     if (!player) return false;
 
     const plan = player.trainingPlans.find(p => p.id === planId);
-    if (!plan || !plan.confirmed) return false;
+    if (!plan) return false;
+    // Plan must be in the player's majorPlan or minorPlans
+    if (player.majorPlan !== planId && !player.minorPlans.includes(planId)) return false;
 
     switch (planId) {
       case 'plan_shangxue':
@@ -1292,7 +1294,7 @@ export class GameEngine implements IGameEngine {
     }
 
     // Software plan allows negative balance up to -1000
-    const hasSoftwarePlan = player.confirmedPlans.includes('plan_ruanjian');
+    const hasSoftwarePlan = player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian');
     if (hasSoftwarePlan && player.money >= -1000) {
       return;
     }
@@ -1303,7 +1305,7 @@ export class GameEngine implements IGameEngine {
 
       // Check if this triggers other players' win conditions (e.g., Law School plan)
       for (const p of this.state.players) {
-        if (p.id !== playerId && p.confirmedPlans.includes('plan_faxue')) {
+        if (p.id !== playerId && (p.majorPlan === 'plan_faxue' || p.minorPlans.includes('plan_faxue'))) {
           const faxueDisabled = (p.disabledWinConditions ?? []).includes('plan_faxue');
           if (!faxueDisabled) {
             this.declareWinner(p.id, '场上出现破产玩家（法学院）');
@@ -1458,9 +1460,12 @@ export class GameEngine implements IGameEngine {
     const plan = player.trainingPlans.find(p => p.id === planId);
     if (!plan) return;
 
-    plan.confirmed = true;
-    if (!player.confirmedPlans.includes(planId)) {
-      player.confirmedPlans.push(planId);
+    if (player.majorPlan !== planId && !player.minorPlans.includes(planId)) {
+      if (!player.majorPlan) {
+        player.majorPlan = planId;
+      } else {
+        player.minorPlans.push(planId);
+      }
     }
 
     // StateTracker: record plan confirmation

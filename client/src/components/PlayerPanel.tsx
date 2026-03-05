@@ -1,5 +1,6 @@
 // client/src/components/PlayerPanel.tsx
 import type { Player } from '@nannaricher/shared';
+import { getPlayerPlanIds } from '@nannaricher/shared';
 import { boardData } from '../data/board';
 
 interface PlayerPanelProps {
@@ -71,8 +72,8 @@ export function PlayerPanel({ player, isCurrentTurn = false }: PlayerPanelProps)
         <div className="player-plans">
           <span className="plans-label">培养计划:</span>
           <span className="plans-count">{player.trainingPlans.length}</span>
-          {player.confirmedPlans.length > 0 && (
-            <span className="confirmed-count">({player.confirmedPlans.length} 已确认)</span>
+          {getPlayerPlanIds(player).length > 0 && (
+            <span className="confirmed-count">({getPlayerPlanIds(player).length} 已确认)</span>
           )}
         </div>
       )}

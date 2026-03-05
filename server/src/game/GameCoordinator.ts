@@ -18,6 +18,7 @@ import {
   SALARY_PASS,
   SALARY_STOP,
   getRoundName,
+  getPlayerPlanIds,
 } from '@nannaricher/shared';
 import { GameEngine } from './GameEngine.js';
 import { GameLogger } from './GameLogger.js';
@@ -432,7 +433,7 @@ export class GameCoordinator {
       }
 
       // Check each confirmed training plan's win condition (skip disabled)
-      for (const planId of player.confirmedPlans) {
+      for (const planId of getPlayerPlanIds(player)) {
         if (disabled.includes(planId)) continue;
         const condition = this.checkPlanWinCondition(player, planId, state);
         if (condition) {
@@ -648,7 +649,7 @@ export class GameCoordinator {
       case 'plan_kuangyaming': { // 匡亚明学院：满足任意玩家的已固定培养计划
         for (const other of state.players) {
           if (other.id === player.id) continue;
-          for (const otherPlanId of other.confirmedPlans) {
+          for (const otherPlanId of getPlayerPlanIds(other)) {
             const result = this.checkPlanWinCondition(player, otherPlanId, state);
             if (result) return `满足${other.name}的${otherPlanId}条件: ${result}`;
           }
@@ -973,7 +974,7 @@ export class GameCoordinator {
       // 海外教育学院拦截：对获胜者使用过≥2次机会卡的玩家优先获胜
       for (const p of state.players) {
         if (p.id === winnerId || p.isBankrupt || p.isDisconnected) continue;
-        if (!p.confirmedPlans.includes('plan_haiwai')) continue;
+        if (p.majorPlan !== 'plan_haiwai' && !p.minorPlans.includes('plan_haiwai')) continue;
         const disabled = p.disabledWinConditions ?? [];
         if (disabled.includes('plan_haiwai')) continue;
         const usedCount = p.chanceCardsUsedOnPlayers[winnerId] ?? 0;
@@ -1005,7 +1006,7 @@ export class GameCoordinator {
               break;
             }
           }
-          for (const planId of p.confirmedPlans) {
+          for (const planId of getPlayerPlanIds(p)) {
             if (pDisabled.includes(planId)) continue;
             const planCond = this.checkPlanWinCondition(p, planId, state);
             if (planCond) {
@@ -1125,7 +1126,7 @@ export class GameCoordinator {
       id: `plan_redraw_${Date.now()}`,
       playerId: player.id,
       type: 'choose_option',
-      prompt: `升学阶段：${player.name}，抽到${drawnPlans.length}张新计划，选择要确认的（0-2张）(已确认 ${player.confirmedPlans.length}/${MAX_TRAINING_PLANS})`,
+      prompt: `升学阶段：${player.name}，抽到${drawnPlans.length}张新计划，选择要确认的（0-2张）(已确认 ${getPlayerPlanIds(player).length}/${MAX_TRAINING_PLANS})`,
       options,
       maxSelections: 2,
       minSelections: 0,
@@ -1167,16 +1168,19 @@ export class GameCoordinator {
     // Mark selected plans as confirmed (without triggering on_confirm effects yet)
     for (const planId of selectedIds) {
       const plan = player.trainingPlans.find(p => p.id === planId);
-      if (plan && !player.confirmedPlans.includes(planId)) {
-        plan.confirmed = true;
-        player.confirmedPlans.push(planId);
+      if (plan && player.majorPlan !== planId && !player.minorPlans.includes(planId)) {
+        if (!player.majorPlan) {
+          player.majorPlan = planId;
+        } else {
+          player.minorPlans.push(planId);
+        }
         this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
       }
     }
 
     // Check overflow first, then execute effects for plans still confirmed
     this.checkPlanOverflow(playerId, () => {
-      const confirmedSelectedIds = selectedIds.filter(id => player.confirmedPlans.includes(id));
+      const confirmedSelectedIds = selectedIds.filter(id => player.majorPlan === id || player.minorPlans.includes(id));
       this.executeRedrawConfirmEffects(playerId, confirmedSelectedIds, ctx);
     });
   }
@@ -1230,13 +1234,14 @@ export class GameCoordinator {
     const player = this.engine.getPlayer(playerId);
     if (!player) { onComplete(); return; }
 
-    if (player.confirmedPlans.length <= MAX_TRAINING_PLANS) {
+    const playerPlanIds = getPlayerPlanIds(player);
+    if (playerPlanIds.length <= MAX_TRAINING_PLANS) {
       onComplete();
       return;
     }
 
     const state = this.engine.getState();
-    const confirmedPlanDetails = player.confirmedPlans.map(id => {
+    const confirmedPlanDetails = playerPlanIds.map(id => {
       const plan = player.trainingPlans.find(p => p.id === id);
       return {
         id,
@@ -1252,7 +1257,7 @@ export class GameCoordinator {
       id: `plan_overflow_${Date.now()}`,
       playerId,
       type: 'choose_option',
-      prompt: `你已确认${player.confirmedPlans.length}个计划（上限${MAX_TRAINING_PLANS}），请选择要保留的计划：`,
+      prompt: `你已确认${playerPlanIds.length}个计划（上限${MAX_TRAINING_PLANS}），请选择要保留的计划：`,
       options: confirmedPlanDetails.map(p => ({
         label: p.name,
         value: p.id,
@@ -1268,13 +1273,16 @@ export class GameCoordinator {
       const keepIds = (!choice || choice === 'skip') ? [] : choice.split(',');
       const p = this.engine.getPlayer(pid);
       if (p && keepIds.length > 0) {
-        const removedIds = p.confirmedPlans.filter(id => !keepIds.includes(id));
+        const currentPlanIds = getPlayerPlanIds(p);
+        const removedIds = currentPlanIds.filter(id => !keepIds.includes(id));
         for (const removedId of removedIds) {
           const plan = p.trainingPlans.find(tp => tp.id === removedId);
-          if (plan) plan.confirmed = false;
           this.addLog(pid, `${p.name} 移除了培养计划: ${plan?.name || removedId}`);
         }
-        p.confirmedPlans = p.confirmedPlans.filter(id => keepIds.includes(id));
+        // Rebuild majorPlan/minorPlans from kept IDs
+        const kept = currentPlanIds.filter(id => keepIds.includes(id));
+        p.majorPlan = kept.length > 0 ? kept[0] : null;
+        p.minorPlans = kept.slice(1);
       }
       onComplete();
       return null;
@@ -1295,7 +1303,7 @@ export class GameCoordinator {
 
     const toReturn: TrainingPlan[] = [];
     player.trainingPlans = player.trainingPlans.filter(p => {
-      if (drawnIds.includes(p.id) && !player.confirmedPlans.includes(p.id)) {
+      if (drawnIds.includes(p.id) && player.majorPlan !== p.id && !player.minorPlans.includes(p.id)) {
         toReturn.push(p);
         return false;
       }
@@ -1312,7 +1320,7 @@ export class GameCoordinator {
 
   /**
    * Trigger on_confirm effects for a specific plan.
-   * Unlike handleConfirmPlan, this does NOT set plan.confirmed or add to confirmedPlans.
+   * Unlike handleConfirmPlan, this does NOT add to majorPlan/minorPlans.
    * It only triggers the on_confirm ability effects.
    */
   private triggerPlanConfirmEffects(playerId: string, planId: string): void {
@@ -1673,7 +1681,7 @@ export class GameCoordinator {
     const disabled = player.disabledWinConditions ?? [];
     const activeConditions: string[] = [];
     if (!disabled.includes('base')) activeConditions.push('base');
-    for (const planId of player.confirmedPlans) {
+    for (const planId of getPlayerPlanIds(player)) {
       if (!disabled.includes(planId)) activeConditions.push(planId);
     }
 
@@ -1691,7 +1699,7 @@ export class GameCoordinator {
     if (!disabled.includes('base')) {
       options.push({ label: '放弃基础胜利条件 (GPA×10+探索值≥60)', value: 'disable_base' });
     }
-    for (const planId of player.confirmedPlans) {
+    for (const planId of getPlayerPlanIds(player)) {
       if (disabled.includes(planId)) continue;
       const plan = player.trainingPlans.find(p => p.id === planId);
       const planName = plan?.name || planId;
@@ -1872,7 +1880,7 @@ export class GameCoordinator {
           }
 
           // yishu: 浦口线双倍经验卡 — 实际逻辑已移至 GameEngine.exitLine()
-          // 通过 player.confirmedPlans.includes('plan_yishu') 直接检查
+          // 通过 majorPlan/minorPlans 检查 plan_yishu
 
           // wenxue: custom choice for jiang_gong cell
           if (fx.customEffect === 'wenxue_jiang_gong') {
@@ -2558,16 +2566,19 @@ export class GameCoordinator {
     if (!plan) return { error: 'Plan not found' };
 
     // Check if can confirm (max 2 plans)
-    if (player.confirmedPlans.length >= MAX_TRAINING_PLANS) {
+    if (getPlayerPlanIds(player).length >= MAX_TRAINING_PLANS) {
       return { error: '已达到最大确认计划数' };
     }
 
     // Turn interval check removed — confirmation is now server-driven
     // via pendingAction chains (升学阶段 redraw or setup phase)
 
-    plan.confirmed = true;
-    if (!player.confirmedPlans.includes(plan.id)) {
-      player.confirmedPlans.push(plan.id);
+    if (player.majorPlan !== plan.id && !player.minorPlans.includes(plan.id)) {
+      if (!player.majorPlan) {
+        player.majorPlan = plan.id;
+      } else {
+        player.minorPlans.push(plan.id);
+      }
     }
 
     this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
@@ -2578,13 +2589,14 @@ export class GameCoordinator {
     // Check if all players have confirmed plans in setup phase
     if (state.phase === 'setup_plans') {
       const allPlayersHavePlans = state.players.every(
-        p => p.trainingPlans.length > 0 && p.trainingPlans.some(tp => tp.confirmed)
+        p => p.trainingPlans.length > 0 && getPlayerPlanIds(p).length > 0
       );
 
       if (allPlayersHavePlans) {
         // Remove unconfirmed plans for all players after setup phase ends
         state.players.forEach(p => {
-          p.trainingPlans = p.trainingPlans.filter(tp => tp.confirmed);
+          const pPlanIds = getPlayerPlanIds(p);
+          p.trainingPlans = p.trainingPlans.filter(tp => pPlanIds.includes(tp.id));
         });
 
         state.phase = 'playing';
@@ -2604,8 +2616,9 @@ export class GameCoordinator {
     } else {
       // In playing phase, remove unconfirmed plans immediately after confirming one
       // (this is for the every-6-turns plan confirmation during gameplay)
+      const confirmedIds = getPlayerPlanIds(player);
       player.trainingPlans = player.trainingPlans.filter(p =>
-        p.confirmed || p.id === planId
+        confirmedIds.includes(p.id) || p.id === planId
       );
     }
 

@@ -23,7 +23,9 @@ function createMockPlayer(overrides: Partial<Player> = {}): Player {
     position: startPosition,
     diceCount: 1,
     trainingPlans: [],
-    confirmedPlans: [],
+    majorPlan: null,
+    minorPlans: [],
+    planSlotLimit: 2,
     heldCards: [],
     effects: [],
     skipNextTurn: false,
@@ -303,7 +305,7 @@ describe('Plan Abilities — on_gpa_change trigger', () => {
   it('plan_zhexue (Philosophy) overrides GPA to 3.0 when dropping below', () => {
     const ability = getPlanAbility('plan_zhexue')!;
     expect(ability.trigger).toBe('on_gpa_change');
-    const player = createMockPlayer({ gpa: 2.8, confirmedPlans: ['plan_zhexue'] });
+    const player = createMockPlayer({ gpa: 2.8, majorPlan: 'plan_zhexue' });
     const result = ability.apply(createAbilityCtx('on_gpa_change', { player, gpaDelta: -0.5 }));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);

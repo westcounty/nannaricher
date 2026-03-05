@@ -1,6 +1,6 @@
 // server/src/game/rules/PlanAbilities.ts
 // Refactored to delegate to plan-registry instead of a monolithic switch/case
-import { Player, GameState } from '@nannaricher/shared';
+import { Player, GameState, getPlayerPlanIds } from '@nannaricher/shared';
 import {
   getPlanAbility,
   PlanAbilityContext as RegistryContext,
@@ -41,7 +41,7 @@ export class PlanAbilityHandler {
     trigger: AbilityTrigger,
     extra?: Partial<RegistryContext>,
   ): RegistryResult | null {
-    for (const planId of player.confirmedPlans) {
+    for (const planId of getPlayerPlanIds(player)) {
       const ability = getPlanAbility(planId);
       if (!ability || ability.trigger !== trigger) continue;
       const ctx: RegistryContext = { player, state, trigger, ...extra };
@@ -119,7 +119,7 @@ export class PlanAbilityHandler {
    * Software engineering plan extends the bankruptcy threshold to -1000.
    */
   canGoBankrupt(player: Player): boolean {
-    if (player.confirmedPlans.includes('plan_ruanjian')) {
+    if (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian')) {
       return player.money < -1000;
     }
     return player.money < 0;

@@ -15,7 +15,7 @@ describe('PlanRegistry', () => {
     expect(ability).toBeDefined();
     expect(ability!.trigger).toBe('on_gpa_change');
     const result = ability!.apply({
-      player: { gpa: 2.5, confirmedPlans: ['plan_zhexue'] } as any,
+      player: { gpa: 2.5, majorPlan: 'plan_zhexue', minorPlans: [] } as any,
       state: {} as any,
       trigger: 'on_gpa_change',
       gpaDelta: -1.0,
@@ -34,7 +34,7 @@ describe('PlanRegistry', () => {
     const ability = getPlanAbility('plan_xinwen');
     expect(ability).toBeDefined();
     const result = ability!.apply({
-      player: { confirmedPlans: ['plan_xinwen'] } as any,
+      player: { majorPlan: 'plan_xinwen', minorPlans: [] } as any,
       state: {} as any,
       trigger: 'on_line_enter',
       lineId: 'explore',

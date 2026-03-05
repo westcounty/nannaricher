@@ -8,7 +8,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     if (!player) return null;
 
     // 软件学院：可选择支付3200，不破产即获胜
-    if (player.confirmedPlans.includes('plan_ruanjian')) {
+    if (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian')) {
       return engine.createPendingAction(
         playerId, 'choose_option',
         '软件学院能力：是否支付3200金钱？不破产即获胜！',
@@ -210,7 +210,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
     // 电子科学与工程学院：投到6即获胜
     const player = engine.getPlayer(playerId);
-    if (dice === 6 && player?.confirmedPlans.includes('plan_dianzi')) {
+    if (dice === 6 && player && (player.majorPlan === 'plan_dianzi' || player.minorPlans.includes('plan_dianzi'))) {
       const disabled = player.disabledWinConditions ?? [];
       if (!disabled.includes('plan_dianzi')) {
         engine.declareWinner(playerId, '电子科学与工程学院：科创赛事投到6');

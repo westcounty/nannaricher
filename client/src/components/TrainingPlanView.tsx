@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
-import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS } from '@nannaricher/shared';
+import { PLAN_CONFIRM_INTERVAL, MAX_TRAINING_PLANS, getPlayerPlanIds } from '@nannaricher/shared';
 
 interface TrainingPlanViewProps {
   player: Player;
@@ -22,8 +22,9 @@ export function TrainingPlanView({
   // Check if confirmation is available (every PLAN_CONFIRM_INTERVAL turns)
   const canConfirmPlan = gameState?.phase === 'setup_plans' ||
     (turnNumber % PLAN_CONFIRM_INTERVAL === 0 && turnNumber > 0);
-  const hasUnconfirmedPlans = player.trainingPlans.some(plan => !plan.confirmed);
-  const hasReachedMaxPlans = player.confirmedPlans.length >= MAX_TRAINING_PLANS;
+  const playerPlanIds = getPlayerPlanIds(player);
+  const hasUnconfirmedPlans = player.trainingPlans.some(plan => !playerPlanIds.includes(plan.id));
+  const hasReachedMaxPlans = playerPlanIds.length >= MAX_TRAINING_PLANS;
 
   const handleConfirmPlan = useCallback((planId: string) => {
     if (!isCurrentPlayer || confirmingPlanId) return;
@@ -88,7 +89,7 @@ export function TrainingPlanView({
   };
 
   const getProgressPercentage = (plan: TrainingPlan): number => {
-    if (!player.confirmedPlans.includes(plan.id)) return 0;
+    if (!playerPlanIds.includes(plan.id)) return 0;
     const progress = parseProgress(plan);
     if (progress) return progress.pct;
     // Confirmed but unparseable — show as indeterminate
@@ -99,7 +100,7 @@ export function TrainingPlanView({
     <div className="training-plans">
       <div className="training-plans-header">
         <h3>培养计划</h3>
-        <span className="plans-count">{player.confirmedPlans.length}/{MAX_TRAINING_PLANS}</span>
+        <span className="plans-count">{playerPlanIds.length}/{MAX_TRAINING_PLANS}</span>
         {canConfirmPlan && hasUnconfirmedPlans && isCurrentPlayer && !hasReachedMaxPlans && (
           <span className="confirm-available" title="可确认计划">!</span>
         )}
@@ -107,7 +108,7 @@ export function TrainingPlanView({
 
       <div className="plans-list">
         {player.trainingPlans.map((plan) => {
-          const isConfirmed = player.confirmedPlans.includes(plan.id);
+          const isConfirmed = playerPlanIds.includes(plan.id);
           const isConfirming = confirmingPlanId === plan.id;
 
           return (

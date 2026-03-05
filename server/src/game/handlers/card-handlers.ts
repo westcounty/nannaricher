@@ -1,4 +1,5 @@
 // server/src/game/handlers/card-handlers.ts
+import { getPlayerPlanIds } from '@nannaricher/shared';
 import type { EventHandler } from '../EventHandler.js';
 
 export function registerCardHandlers(eventHandler: EventHandler): void {
@@ -898,16 +899,18 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const myUnconfirmed = player.trainingPlans.filter(p => !p.confirmed);
+    const myPlanIds = getPlayerPlanIds(player);
+    const myUnconfirmed = player.trainingPlans.filter(p => !myPlanIds.includes(p.id));
     if (myUnconfirmed.length === 0) {
       engine.log('联合培养：你没有未固定的培养计划，无法交换', playerId);
       return null;
     }
 
-    const others = engine.getAllPlayers().filter(p =>
-      p.id !== playerId && !p.isBankrupt &&
-      p.trainingPlans.some(tp => !tp.confirmed)
-    );
+    const others = engine.getAllPlayers().filter(p => {
+      const pIds = getPlayerPlanIds(p);
+      return p.id !== playerId && !p.isBankrupt &&
+        p.trainingPlans.some(tp => !pIds.includes(tp.id));
+    });
     if (others.length === 0) {
       engine.log('联合培养：没有其他玩家有未固定的培养计划', playerId);
       return null;
@@ -915,7 +918,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
     // Randomly swap one unconfirmed plan with a random other player
     const target = others[Math.floor(Math.random() * others.length)];
-    const targetUnconfirmed = target.trainingPlans.filter(p => !p.confirmed);
+    const targetPlanIds = getPlayerPlanIds(target);
+    const targetUnconfirmed = target.trainingPlans.filter(p => !targetPlanIds.includes(p.id));
     const myPlan = myUnconfirmed[Math.floor(Math.random() * myUnconfirmed.length)];
     const theirPlan = targetUnconfirmed[Math.floor(Math.random() * targetUnconfirmed.length)];
 
@@ -939,17 +943,19 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     }
 
     // Find a random other player with unconfirmed plan
-    const others = engine.getAllPlayers().filter(p =>
-      p.id !== playerId && !p.isBankrupt &&
-      p.trainingPlans.some(tp => !tp.confirmed)
-    );
+    const others = engine.getAllPlayers().filter(p => {
+      const pIds = getPlayerPlanIds(p);
+      return p.id !== playerId && !p.isBankrupt &&
+        p.trainingPlans.some(tp => !pIds.includes(tp.id));
+    });
     if (others.length === 0) {
       engine.log(`学科评估：抽到${newPlan.name}，但无人可替换，计划废弃`, playerId);
       return null;
     }
 
     const target = others[Math.floor(Math.random() * others.length)];
-    const unconfirmed = target.trainingPlans.filter(tp => !tp.confirmed);
+    const evalTargetPlanIds = getPlayerPlanIds(target);
+    const unconfirmed = target.trainingPlans.filter(tp => !evalTargetPlanIds.includes(tp.id));
     const replaced = unconfirmed[Math.floor(Math.random() * unconfirmed.length)];
     const idx = target.trainingPlans.findIndex(p => p.id === replaced.id);
     if (idx !== -1) {
@@ -1439,12 +1445,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   // 10. 跨院准出 — remove a confirmed plan
   eventHandler.registerHandler('card_destiny_cross_college_exit', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
-    if (!player || player.confirmedPlans.length === 0) {
+    const crossPlanIds = player ? getPlayerPlanIds(player) : [];
+    if (!player || crossPlanIds.length === 0) {
       engine.log('跨院准出：没有已确认的培养方案', playerId);
       return null;
     }
 
-    const options = player.confirmedPlans.map(planId => {
+    const options = crossPlanIds.map(planId => {
       const plan = player.trainingPlans.find(p => p.id === planId);
       return { label: `取消: ${plan?.name || planId}`, value: `remove_plan_${planId}` };
     });
@@ -1462,9 +1469,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       const planId = choice.replace('remove_plan_', '');
       const player = engine.getPlayer(playerId);
       if (player) {
-        player.confirmedPlans = player.confirmedPlans.filter(id => id !== planId);
+        if (player.majorPlan === planId) {
+          // Promote first minor to major, or set null
+          player.majorPlan = player.minorPlans.length > 0 ? player.minorPlans.shift()! : null;
+        } else {
+          player.minorPlans = player.minorPlans.filter(id => id !== planId);
+        }
         const plan = player.trainingPlans.find(p => p.id === planId);
-        if (plan) plan.confirmed = false;
         engine.log(`跨院准出：取消了培养方案 ${plan?.name || planId}`, playerId);
       }
     }
@@ -1476,7 +1487,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const unconfirmed = player.trainingPlans.filter(p => !player.confirmedPlans.includes(p.id));
+    const intentionPlanIds = getPlayerPlanIds(player);
+    const unconfirmed = player.trainingPlans.filter(p => !intentionPlanIds.includes(p.id));
     if (unconfirmed.length === 0) {
       engine.log('专业意向：没有未确认的培养方案', playerId);
       return null;
@@ -1501,9 +1513,12 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       if (player) {
         const plan = player.trainingPlans.find(p => p.id === planId);
         if (plan) {
-          plan.confirmed = true;
-          if (!player.confirmedPlans.includes(planId)) {
-            player.confirmedPlans.push(planId);
+          if (player.majorPlan !== planId && !player.minorPlans.includes(planId)) {
+            if (!player.majorPlan) {
+              player.majorPlan = planId;
+            } else {
+              player.minorPlans.push(planId);
+            }
           }
           engine.log(`专业意向：提前确认了 ${plan.name}`, playerId);
         }

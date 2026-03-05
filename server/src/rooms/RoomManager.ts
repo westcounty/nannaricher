@@ -1,5 +1,5 @@
 // server/src/rooms/RoomManager.ts
-import { Player, PLAYER_COLORS, MAX_PLAYERS, Position, TrainingPlan, Card, ActiveEffect } from '@nannaricher/shared';
+import { Player, PLAYER_COLORS, MAX_PLAYERS, Position, TrainingPlan, Card, ActiveEffect, DEFAULT_PLAN_SLOTS } from '@nannaricher/shared';
 import type { GameCoordinator } from '../game/GameCoordinator.js';
 
 export interface Room {
@@ -30,7 +30,9 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
     position: { type: 'main', index: 0 } as Position,
     diceCount,
     trainingPlans: [] as TrainingPlan[],
-    confirmedPlans: [],
+    majorPlan: null,
+    minorPlans: [],
+    planSlotLimit: DEFAULT_PLAN_SLOTS,
     heldCards: [] as Card[],
     effects: [] as ActiveEffect[],
     skipNextTurn: false,
