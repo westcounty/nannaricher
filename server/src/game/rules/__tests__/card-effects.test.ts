@@ -294,7 +294,6 @@ describe('Card Effects — detailed behavioral tests', () => {
   describe('Chain cards', () => {
     const chainCardIds = [
       'chance_delivery_theft',
-      'chance_southbound_rose',
       'chance_gossip_secret',
     ];
 

@@ -32,39 +32,6 @@ export const CHAIN_ACTION_CARDS: Record<string, {
   ) => { effect?: () => void; nextAction?: 'continue' | 'end' };
   onChainEnd: (context: ChainActionContext, state: GameState) => void;
 }> = {
-  'chance_southbound_rose': {
-    cardId: 'chance_southbound_rose',
-    description: '南行玫瑰：依次说出校内平台/工具',
-    timeoutPerPlayer: 30000,
-    onStart: (state, cardPlayerId) => {
-      // 从抽卡者开始，按顺序
-      const playerIds = state.players
-        .filter(p => !p.isDisconnected)
-        .map(p => p.id);
-      const cardPlayerIndex = playerIds.indexOf(cardPlayerId);
-      return [
-        ...playerIds.slice(cardPlayerIndex),
-        ...playerIds.slice(0, cardPlayerIndex),
-      ];
-    },
-    onPlayerAction: (player, action, data, context, state) => {
-      if (action === 'pass') {
-        // 停顿>3秒：-1探索
-        return {
-          effect: () => { player.exploration = Math.max(0, player.exploration - 1); },
-          nextAction: 'continue',
-        };
-      }
-      // 成功说出：+1探索
-      return {
-        effect: () => { player.exploration += 1; },
-        nextAction: 'continue',
-      };
-    },
-    onChainEnd: (context, state) => {
-      // 链结束无额外效果
-    },
-  },
   'chance_delivery_theft': {
     cardId: 'chance_delivery_theft',
     description: '外卖贼盗：选监控或沉默',

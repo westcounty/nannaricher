@@ -101,12 +101,6 @@ register('destiny_alternative_path', (ctx) => ({
   effects: { custom: 'alternative_path' },
 }));
 
-register('destiny_major_admission', (ctx) => ({
-  success: true,
-  message: `${ctx.card.name}：延迟一回合选定培养计划`,
-  effects: { custom: 'delay_plan_selection' },
-}));
-
 register('destiny_cross_college_exit', (ctx) => ({
   success: true,
   message: `${ctx.card.name}：取消一个自己的已经固定的培养方案`,
@@ -746,29 +740,6 @@ register('chance_pair_programming', (ctx) => ({
   },
 }));
 
-// ---- Immediate chance cards — social matching (real-world attributes) ----
-
-register('chance_flag_raising', (ctx) => ({
-  // 升旗仪式：衣服颜色一致的玩家探索+2
-  success: true,
-  message: `${ctx.card.name}：你和所有与你衣服颜色一致的玩家探索值 +2`,
-  effects: { custom: 'flag_raising_color_match' },
-}));
-
-register('chance_clustering_algorithm', (ctx) => ({
-  // 聚类算法：姓名全名长度一致的玩家GPA+0.2
-  success: true,
-  message: `${ctx.card.name}：你和所有与你姓名全名长度一致的玩家GPA +0.2`,
-  effects: { custom: 'clustering_name_length' },
-}));
-
-register('chance_internship_referral', (ctx) => ({
-  // 实习内推：专业或院系一致的玩家金钱+200
-  success: true,
-  message: `${ctx.card.name}：你和所有与你专业或院系一致的玩家金钱 +200`,
-  effects: { custom: 'internship_referral_match' },
-}));
-
 // ---- Immediate chance cards — dice duel (choose player + dice) ----
 
 register('chance_group_presentation', (ctx) => ({
@@ -948,13 +919,6 @@ register('chance_delivery_theft', (ctx) => ({
 }));
 
 // ---- Chain action chance cards — delegated to ChainActionSystem ----
-
-register('chance_southbound_rose', (ctx) => ({
-  // 南行玫瑰：依次说出校内平台 → 委托 ChainActionSystem
-  success: true,
-  message: `${ctx.card.name}：从你开始，每名玩家依次说出校内内容分享平台或工具`,
-  effects: { custom: 'chain_southbound_rose' },
-}));
 
 register('chance_gossip_secret', (ctx) => ({
   // 八卦秘闻：悄悄告知链 → 委托 ChainActionSystem

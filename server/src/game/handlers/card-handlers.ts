@@ -621,10 +621,10 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('card_chance_budget_sharing', (engine, playerId) => {
     const players = engine.getAllPlayers();
     players.forEach(p => {
-      const diff = 800 - p.money;
+      const diff = 2000 - p.money;
       engine.modifyPlayerMoney(p.id, diff);
     });
-    engine.log('经费均摊：所有玩家金钱变为800', playerId);
+    engine.log('经费均摊：所有玩家金钱变为2000', playerId);
     return null;
   });
 
@@ -961,61 +961,6 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     if (idx !== -1) {
       target.trainingPlans[idx] = newPlan;
       engine.log(`学科评估：将${target.name}的${replaced.name}替换为${newPlan.name}`, playerId);
-    }
-    return null;
-  });
-
-  // 升旗仪式 — 数字版简化：抽卡者和一个随机玩家探索值+2
-  eventHandler.registerHandler('card_chance_flag_raising', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 2);
-    const others = engine.getAllPlayers().filter(p => p.id !== playerId && !p.isBankrupt);
-    if (others.length > 0) {
-      const lucky = others[Math.floor(Math.random() * others.length)];
-      engine.modifyPlayerExploration(lucky.id, 2);
-      engine.log(`升旗仪式：${engine.getPlayer(playerId)?.name}和${lucky.name}探索值+2`, playerId);
-    } else {
-      engine.log('升旗仪式：探索值+2', playerId);
-    }
-    return null;
-  });
-
-  // 聚类算法 — 与抽卡者姓名全名长度一致的玩家GPA+0.2
-  eventHandler.registerHandler('card_chance_clustering_algorithm', (engine, playerId) => {
-    const player = engine.getPlayer(playerId);
-    if (!player) return null;
-
-    const myNameLen = player.name.length;
-    const matched = engine.getAllPlayers().filter(p => !p.isBankrupt && p.name.length === myNameLen);
-    for (const p of matched) {
-      engine.modifyPlayerGpa(p.id, 0.2);
-    }
-    const names = matched.map(p => p.name).join('、');
-    engine.log(`聚类算法：姓名长度为${myNameLen}的玩家(${names})GPA+0.2`, playerId);
-    return null;
-  });
-
-  // 实习内推 — 数字版简化：所有玩家金钱+200
-  eventHandler.registerHandler('card_chance_internship_referral', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
-    for (const p of players) {
-      engine.modifyPlayerMoney(p.id, 200);
-    }
-    engine.log('实习内推：所有玩家金钱+200', playerId);
-    return null;
-  });
-
-  // 南行玫瑰 — 数字版简化：所有玩家投骰子，>=4者探索值+1，否则-1
-  eventHandler.registerHandler('card_chance_southbound_rose', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
-    for (const p of players) {
-      const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
-      if (dice >= 4) {
-        engine.modifyPlayerExploration(p.id, 1);
-        engine.log(`南行玫瑰：${p.name}投出${dice}，探索值+1`, playerId);
-      } else {
-        engine.modifyPlayerExploration(p.id, -1);
-        engine.log(`南行玫瑰：${p.name}投出${dice}，探索值-1`, playerId);
-      }
     }
     return null;
   });
@@ -1427,18 +1372,6 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     } else {
       engine.log('另辟蹊径：当前不在支线内，无效', playerId);
     }
-    return null;
-  });
-
-  // 9. 大类招生 — delay plan confirmation by 1 turn
-  eventHandler.registerHandler('card_destiny_major_admission', (engine, playerId) => {
-    engine.addEffectToPlayer(playerId, {
-      id: `delayPlan_${Date.now()}`,
-      type: 'custom',
-      turnsRemaining: 2,
-      data: { delayPlanConfirm: true },
-    });
-    engine.log('大类招生：延迟一回合选定培养计划', playerId);
     return null;
   });
 
