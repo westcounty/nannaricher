@@ -287,24 +287,24 @@ register('destiny_mutual_help', (ctx) => ({
 }));
 
 register('destiny_strong_base_plan', (ctx) => ({
-  // 强基计划：再抽一张培养方案，选定一个固定，GPA +0.2
+  // 强基计划：抽取培养计划并选择加入，GPA +0.2
   success: true,
-  message: `${ctx.card.name}：再抽取一张培养方案并选定固定，GPA +0.2`,
-  effects: { gpa: 0.2, custom: 'draw_and_fix_plan' },
+  message: `${ctx.card.name}：抽取培养计划并选择加入，GPA +0.2`,
+  effects: { gpa: 0.2, custom: 'draw_and_add_plan' },
 }));
 
 register('destiny_national_special', (ctx) => ({
-  // 国家专项：再抽一张培养方案，选定一个固定，金钱 +200
+  // 国家专项：抽取培养计划并选择加入，金钱 +200
   success: true,
-  message: `${ctx.card.name}：再抽取一张培养方案并选定固定，金钱 +200`,
-  effects: { money: 200, custom: 'draw_and_fix_plan' },
+  message: `${ctx.card.name}：抽取培养计划并选择加入，金钱 +200`,
+  effects: { money: 200, custom: 'draw_and_add_plan' },
 }));
 
 register('destiny_secondary_selection', (ctx) => ({
-  // 二次选拔：再抽一张培养方案，选定一个固定，探索值 +2
+  // 二次选拔：抽取培养计划并选择加入，探索值 +2
   success: true,
-  message: `${ctx.card.name}：再抽取一张培养方案并选定固定，探索值 +2`,
-  effects: { exploration: 2, custom: 'draw_and_fix_plan' },
+  message: `${ctx.card.name}：抽取培养计划并选择加入，探索值 +2`,
+  effects: { exploration: 2, custom: 'draw_and_add_plan' },
 }));
 
 register('destiny_sino_foreign', (ctx) => ({
@@ -671,37 +671,17 @@ register('chance_peer_mentor', (ctx) => ({
 }));
 
 register('chance_joint_training', (ctx) => ({
-  // 联合培养：选择一位玩家交换未固定培养计划
+  // 联合培养：选择一位玩家交换辅修培养计划
   success: true,
-  message: `${ctx.card.name}：选择一位其他玩家，将你们各自一张未固定的培养计划交换`,
-  pendingAction: {
-    id: `choose_${ctx.card.id}`,
-    playerId: ctx.player.id,
-    type: 'choose_player',
-    prompt: '选择一位其他玩家交换未固定的培养计划',
-    targetPlayerIds: ctx.state.players
-      .filter(p => p.id !== ctx.player.id)
-      .map(p => p.id),
-    timeoutMs: 60000,
-    cardId: ctx.card.id,
-  },
+  message: `${ctx.card.name}：选择一位其他玩家，将你们各自一张辅修培养计划交换`,
+  effects: { custom: 'swap_minor_plans' },
 }));
 
 register('chance_discipline_evaluation', (ctx) => ({
-  // 学科评估：抽取培养计划替换某位玩家未固定的
+  // 学科评估：抽取培养计划替换某位玩家的辅修计划
   success: true,
-  message: `${ctx.card.name}：抽取一张培养计划并选择一位玩家替换其未固定的培养计划`,
-  pendingAction: {
-    id: `choose_${ctx.card.id}`,
-    playerId: ctx.player.id,
-    type: 'choose_player',
-    prompt: '选择一位玩家，替换其一张未固定的培养计划',
-    targetPlayerIds: ctx.state.players
-      .filter(p => p.id !== ctx.player.id)
-      .map(p => p.id),
-    timeoutMs: 60000,
-    cardId: ctx.card.id,
-  },
+  message: `${ctx.card.name}：抽取一张培养计划并选择一位玩家替换其辅修培养计划`,
+  effects: { custom: 'replace_minor_plan' },
 }));
 
 // ---- Immediate chance cards — choose player + dice compare ----

@@ -1,6 +1,7 @@
 // server/src/game/handlers/card-handlers.ts
-import { getPlayerPlanIds } from '@nannaricher/shared';
+import { getPlayerPlanIds, Player } from '@nannaricher/shared';
 import type { EventHandler } from '../EventHandler.js';
+import type { GameEngine } from '../EventHandler.js';
 
 export function registerCardHandlers(eventHandler: EventHandler): void {
   // === Destiny Card Handlers ===
@@ -318,27 +319,135 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
+  // --- 通用「抽取并加入培养计划」流程 ---
+
+  /**
+   * Draw a training plan, let player choose to add it, then give bonus via callback.
+   */
+  function drawAndAddPlanFlow(
+    engine: GameEngine,
+    playerId: string,
+    cardName: string,
+    bonusFn: () => void,
+    bonusCallbackId: string,
+  ) {
+    const plan = engine.drawTrainingPlan(playerId);
+    if (!plan) {
+      engine.log(`${cardName}：培养计划牌堆已空，仅获得奖励`, playerId);
+      bonusFn();
+      return null;
+    }
+
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    const currentCount = getPlayerPlanIds(player).length;
+    const options = [
+      {
+        label: `加入: ${plan.name}`,
+        value: `add_${plan.id}`,
+        description: `胜利条件: ${plan.winCondition}`,
+      },
+      { label: '不加入（仅领取奖励）', value: 'skip' },
+    ];
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_option',
+      `${cardName}：抽到 ${plan.name}，是否加入培养计划？(${currentCount}/${player.planSlotLimit})`,
+      options,
+    );
+    action.callbackHandler = bonusCallbackId;
+    return action;
+  }
+
+  /** Add a plan to player's major/minor slot */
+  function addPlanToPlayerSlot(player: Player, planId: string) {
+    if (!player.majorPlan) {
+      player.majorPlan = planId;
+    } else if (!player.minorPlans.includes(planId) && player.majorPlan !== planId) {
+      player.minorPlans.push(planId);
+    }
+  }
+
+  /** Swap one minor plan between two players */
+  function swapMinorPlans(engine: GameEngine, playerA: Player, planIdA: string, playerB: Player, planIdB: string) {
+    playerA.minorPlans = playerA.minorPlans.filter(id => id !== planIdA);
+    playerB.minorPlans = playerB.minorPlans.filter(id => id !== planIdB);
+
+    const planA = playerA.trainingPlans.find(p => p.id === planIdA);
+    const planB = playerB.trainingPlans.find(p => p.id === planIdB);
+
+    if (planA && planB) {
+      playerA.trainingPlans = playerA.trainingPlans.filter(p => p.id !== planIdA);
+      playerB.trainingPlans = playerB.trainingPlans.filter(p => p.id !== planIdB);
+      playerA.trainingPlans.push(planB);
+      playerB.trainingPlans.push(planA);
+      playerA.minorPlans.push(planIdB);
+      playerB.minorPlans.push(planIdA);
+      engine.log(`联合培养：${playerA.name}的${planA.name}与${playerB.name}的${planB.name}交换`, playerA.id);
+    }
+  }
+
   // 强基计划
   eventHandler.registerHandler('card_destiny_strong_base_plan', (engine, playerId) => {
+    return drawAndAddPlanFlow(engine, playerId, '强基计划', () => {
+      engine.modifyPlayerGpa(playerId, 0.2);
+      engine.log('强基计划：GPA +0.2', playerId);
+    }, 'card_strong_base_plan_callback');
+  });
+
+  eventHandler.registerHandler('card_strong_base_plan_callback', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (player && choice && choice.startsWith('add_')) {
+      const planId = choice.replace('add_', '');
+      addPlanToPlayerSlot(player, planId);
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      engine.log(`强基计划：加入培养计划 ${plan?.name || planId}`, playerId);
+    }
     engine.modifyPlayerGpa(playerId, 0.2);
-    engine.log('强基计划：GPA +0.2，再抽培养方案', playerId);
-    engine.drawTrainingPlan(playerId);
+    engine.log('强基计划：GPA +0.2', playerId);
     return null;
   });
 
   // 国家专项
   eventHandler.registerHandler('card_destiny_national_special', (engine, playerId) => {
+    return drawAndAddPlanFlow(engine, playerId, '国家专项', () => {
+      engine.modifyPlayerMoney(playerId, 200);
+      engine.log('国家专项：金钱 +200', playerId);
+    }, 'card_national_special_callback');
+  });
+
+  eventHandler.registerHandler('card_national_special_callback', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (player && choice && choice.startsWith('add_')) {
+      const planId = choice.replace('add_', '');
+      addPlanToPlayerSlot(player, planId);
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      engine.log(`国家专项：加入培养计划 ${plan?.name || planId}`, playerId);
+    }
     engine.modifyPlayerMoney(playerId, 200);
-    engine.log('国家专项：金钱 +200，再抽培养方案', playerId);
-    engine.drawTrainingPlan(playerId);
+    engine.log('国家专项：金钱 +200', playerId);
     return null;
   });
 
   // 二次选拔
   eventHandler.registerHandler('card_destiny_secondary_selection', (engine, playerId) => {
+    return drawAndAddPlanFlow(engine, playerId, '二次选拔', () => {
+      engine.modifyPlayerExploration(playerId, 2);
+      engine.log('二次选拔：探索值 +2', playerId);
+    }, 'card_secondary_selection_callback');
+  });
+
+  eventHandler.registerHandler('card_secondary_selection_callback', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (player && choice && choice.startsWith('add_')) {
+      const planId = choice.replace('add_', '');
+      addPlanToPlayerSlot(player, planId);
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      engine.log(`二次选拔：加入培养计划 ${plan?.name || planId}`, playerId);
+    }
     engine.modifyPlayerExploration(playerId, 2);
-    engine.log('二次选拔：探索值 +2，再抽培养方案', playerId);
-    engine.drawTrainingPlan(playerId);
+    engine.log('二次选拔：探索值 +2', playerId);
     return null;
   });
 
@@ -894,47 +1003,114 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 联合培养 — 选择一位玩家交换培养计划
+  // 联合培养 — 选择一位玩家交换辅修培养计划
   eventHandler.registerHandler('card_chance_joint_training', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const myPlanIds = getPlayerPlanIds(player);
-    const myUnconfirmed = player.trainingPlans.filter(p => !myPlanIds.includes(p.id));
-    if (myUnconfirmed.length === 0) {
-      engine.log('联合培养：你没有未固定的培养计划，无法交换', playerId);
+    if (player.minorPlans.length === 0) {
+      engine.log('联合培养：你没有辅修培养计划，无法交换', playerId);
       return null;
     }
 
-    const others = engine.getAllPlayers().filter(p => {
-      const pIds = getPlayerPlanIds(p);
-      return p.id !== playerId && !p.isBankrupt &&
-        p.trainingPlans.some(tp => !pIds.includes(tp.id));
-    });
+    const others = engine.getAllPlayers().filter(p =>
+      p.id !== playerId && !p.isBankrupt && p.minorPlans.length > 0
+    );
     if (others.length === 0) {
-      engine.log('联合培养：没有其他玩家有未固定的培养计划', playerId);
+      engine.log('联合培养：没有其他玩家有辅修培养计划', playerId);
       return null;
     }
 
-    // Randomly swap one unconfirmed plan with a random other player
-    const target = others[Math.floor(Math.random() * others.length)];
-    const targetPlanIds = getPlayerPlanIds(target);
-    const targetUnconfirmed = target.trainingPlans.filter(p => !targetPlanIds.includes(p.id));
-    const myPlan = myUnconfirmed[Math.floor(Math.random() * myUnconfirmed.length)];
-    const theirPlan = targetUnconfirmed[Math.floor(Math.random() * targetUnconfirmed.length)];
+    const options = others.map(p => ({
+      label: p.name,
+      value: p.id,
+      description: `辅修: ${p.minorPlans.map(id => p.trainingPlans.find(tp => tp.id === id)?.name || id).join(', ')}`,
+    }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '联合培养：选择一位玩家交换辅修培养计划', options
+    );
+    action.callbackHandler = 'card_joint_training_choose_target';
+    return action;
+  });
 
-    // Swap
-    const myIdx = player.trainingPlans.findIndex(p => p.id === myPlan.id);
-    const theirIdx = target.trainingPlans.findIndex(p => p.id === theirPlan.id);
-    if (myIdx !== -1 && theirIdx !== -1) {
-      player.trainingPlans[myIdx] = theirPlan;
-      target.trainingPlans[theirIdx] = myPlan;
-      engine.log(`联合培养：${player.name}的${myPlan.name}与${target.name}的${theirPlan.name}交换`, playerId);
+  // 联合培养 Step 1: target chosen, now choose own minor (or auto-resolve)
+  eventHandler.registerHandler('card_joint_training_choose_target', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (!player || !choice) return null;
+
+    const target = engine.getPlayer(choice);
+    if (!target) return null;
+
+    // If both have exactly 1 minor, swap directly
+    if (player.minorPlans.length === 1 && target.minorPlans.length === 1) {
+      swapMinorPlans(engine, player, player.minorPlans[0], target, target.minorPlans[0]);
+      return null;
     }
+
+    // If player has 1 minor but target has multiple, skip to choosing target's
+    if (player.minorPlans.length === 1) {
+      const options = target.minorPlans.map(id => {
+        const plan = target.trainingPlans.find(p => p.id === id);
+        return { label: plan?.name || id, value: `${choice}:${player.minorPlans[0]}:${id}` };
+      });
+      const action = engine.createPendingAction(
+        playerId, 'choose_option', `选择${target.name}的一项辅修计划来交换`, options
+      );
+      action.callbackHandler = 'card_joint_training_finalize';
+      return action;
+    }
+
+    // Player has multiple minors — choose own first
+    const myOptions = player.minorPlans.map(id => {
+      const plan = player.trainingPlans.find(p => p.id === id);
+      return { label: plan?.name || id, value: `${choice}:${id}` };
+    });
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '选择你要交换的辅修培养计划', myOptions
+    );
+    action.callbackHandler = 'card_joint_training_choose_mine';
+    return action;
+  });
+
+  // 联合培养 Step 2: own minor chosen, now choose target's minor
+  eventHandler.registerHandler('card_joint_training_choose_mine', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (!player || !choice) return null;
+
+    const [targetId, myPlanId] = choice.split(':');
+    const target = engine.getPlayer(targetId);
+    if (!target) return null;
+
+    if (target.minorPlans.length === 1) {
+      swapMinorPlans(engine, player, myPlanId, target, target.minorPlans[0]);
+      return null;
+    }
+
+    const options = target.minorPlans.map(id => {
+      const plan = target.trainingPlans.find(p => p.id === id);
+      return { label: plan?.name || id, value: `${targetId}:${myPlanId}:${id}` };
+    });
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', `选择${target.name}的一项辅修计划来交换`, options
+    );
+    action.callbackHandler = 'card_joint_training_finalize';
+    return action;
+  });
+
+  // 联合培养 Step 3: finalize swap
+  eventHandler.registerHandler('card_joint_training_finalize', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (!player || !choice) return null;
+
+    const [targetId, myPlanId, theirPlanId] = choice.split(':');
+    const target = engine.getPlayer(targetId);
+    if (!target) return null;
+
+    swapMinorPlans(engine, player, myPlanId, target, theirPlanId);
     return null;
   });
 
-  // 学科评估 — 抽培养计划替换某位玩家的未固定计划
+  // 学科评估 — 抽培养计划替换某位玩家的辅修计划
   eventHandler.registerHandler('card_chance_discipline_evaluation', (engine, playerId) => {
     const newPlan = engine.drawTrainingPlan(playerId);
     if (!newPlan) {
@@ -942,26 +1118,76 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       return null;
     }
 
-    // Find a random other player with unconfirmed plan
-    const others = engine.getAllPlayers().filter(p => {
-      const pIds = getPlayerPlanIds(p);
-      return p.id !== playerId && !p.isBankrupt &&
-        p.trainingPlans.some(tp => !pIds.includes(tp.id));
-    });
+    // Find other players with minor plans
+    const others = engine.getAllPlayers().filter(p =>
+      p.id !== playerId && !p.isBankrupt && p.minorPlans.length > 0
+    );
     if (others.length === 0) {
-      engine.log(`学科评估：抽到${newPlan.name}，但无人可替换，计划废弃`, playerId);
+      engine.log(`学科评估：抽到${newPlan.name}，但无人有辅修计划可替换`, playerId);
       return null;
     }
 
-    const target = others[Math.floor(Math.random() * others.length)];
-    const evalTargetPlanIds = getPlayerPlanIds(target);
-    const unconfirmed = target.trainingPlans.filter(tp => !evalTargetPlanIds.includes(tp.id));
-    const replaced = unconfirmed[Math.floor(Math.random() * unconfirmed.length)];
-    const idx = target.trainingPlans.findIndex(p => p.id === replaced.id);
-    if (idx !== -1) {
-      target.trainingPlans[idx] = newPlan;
-      engine.log(`学科评估：将${target.name}的${replaced.name}替换为${newPlan.name}`, playerId);
+    const options = others.map(p => ({
+      label: p.name,
+      value: p.id,
+      description: `辅修: ${p.minorPlans.map(id => p.trainingPlans.find(tp => tp.id === id)?.name || id).join(', ')}`,
+    }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', `学科评估：抽到 ${newPlan.name}，选择一位玩家替换其辅修计划`, options
+    );
+    action.callbackHandler = 'card_discipline_evaluation_target';
+    return action;
+  });
+
+  // 学科评估 Step 1: target chosen
+  eventHandler.registerHandler('card_discipline_evaluation_target', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const target = engine.getPlayer(choice);
+    const player = engine.getPlayer(playerId);
+    if (!target || !player) return null;
+
+    // Find the newly drawn plan (last in player's trainingPlans)
+    const newPlan = player.trainingPlans[player.trainingPlans.length - 1];
+
+    if (target.minorPlans.length === 1) {
+      // Only one minor, replace directly
+      const replacedId = target.minorPlans[0];
+      const replaced = target.trainingPlans.find(p => p.id === replacedId);
+      target.trainingPlans = target.trainingPlans.filter(p => p.id !== replacedId);
+      target.minorPlans = [newPlan.id];
+      target.trainingPlans.push(newPlan);
+      player.trainingPlans = player.trainingPlans.filter(p => p.id !== newPlan.id);
+      engine.log(`学科评估：将${target.name}的辅修 ${replaced?.name} 替换为 ${newPlan.name}`, playerId);
+      return null;
     }
+
+    // Multiple minors — let player choose which to replace
+    const options = target.minorPlans.map(id => {
+      const plan = target.trainingPlans.find(p => p.id === id);
+      return { label: plan?.name || id, value: `${choice}:${id}` };
+    });
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', `选择${target.name}的一项辅修计划来替换`, options
+    );
+    action.callbackHandler = 'card_discipline_evaluation_replace';
+    return action;
+  });
+
+  // 学科评估 Step 2: finalize replacement
+  eventHandler.registerHandler('card_discipline_evaluation_replace', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const [targetId, replacedId] = choice.split(':');
+    const target = engine.getPlayer(targetId);
+    const player = engine.getPlayer(playerId);
+    if (!target || !player) return null;
+
+    const newPlan = player.trainingPlans[player.trainingPlans.length - 1];
+    const replaced = target.trainingPlans.find(p => p.id === replacedId);
+    target.trainingPlans = target.trainingPlans.filter(p => p.id !== replacedId);
+    target.minorPlans = target.minorPlans.filter(id => id !== replacedId).concat(newPlan.id);
+    target.trainingPlans.push(newPlan);
+    player.trainingPlans = player.trainingPlans.filter(p => p.id !== newPlan.id);
+    engine.log(`学科评估：将${target.name}的辅修 ${replaced?.name} 替换为 ${newPlan.name}`, playerId);
     return null;
   });
 
