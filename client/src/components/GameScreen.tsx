@@ -15,6 +15,7 @@ import { GameCanvas } from '../game/GameCanvas';
 import { GameEventModal } from './EventModal';
 import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './ChoiceDialog';
 import { VotePanel } from './VotePanel';
+import { VoteResultModal } from './VoteResultModal';
 import { ChainActionPanel } from './ChainActionPanel';
 import { DiceRoller } from './DiceRoller';
 import { TrainingPlanView } from './TrainingPlanView';
@@ -483,6 +484,9 @@ export function GameScreen() {
           {announcement.message}
         </div>
       )}
+
+      {/* Vote Result overlay */}
+      <VoteResultModal />
 
       {/* Opponent event toasts */}
       <OpponentToast />

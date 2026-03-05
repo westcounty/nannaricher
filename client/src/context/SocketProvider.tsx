@@ -281,6 +281,12 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem('nannaricher_playerId');
     };
 
+    const handleVoteResult = (data: { cardId: string; results: Record<string, string[]>; winnerOption: string }) => {
+      store.getState().setVoteResult(data);
+      // Auto-clear after 5 seconds
+      setTimeout(() => store.getState().setVoteResult(null), 5000);
+    };
+
     const handleResourceChange = (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {
       const localId = store.getState().playerId;
       if (data.playerId !== localId) {
@@ -304,6 +310,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:announcement', handleAnnouncement);
     socket.on('game:player-won', handlePlayerWon);
     socket.on('game:resource-change', handleResourceChange);
+    socket.on('game:vote-result', handleVoteResult);
 
     // ------ Cleanup ------
     return () => {
@@ -319,6 +326,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:announcement', handleAnnouncement);
       socket.off('game:player-won', handlePlayerWon);
       socket.off('game:resource-change', handleResourceChange);
+      socket.off('game:vote-result', handleVoteResult);
     };
   }, [socket]);
 

@@ -63,6 +63,7 @@ interface GameStore {
   drawnCard: { card: Card; deckType: string } | null;
   announcement: AnnouncementData | null;
   winner: WinnerInfo | null;
+  voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null;
   isLoading: boolean;
   error: string | null;
   isRolling: boolean;
@@ -90,6 +91,7 @@ interface GameStore {
   setDrawnCard: (data: { card: Card; deckType: string } | null) => void;
   setAnnouncement: (data: AnnouncementData | null) => void;
   setWinner: (data: WinnerInfo | null) => void;
+  setVoteResult: (data: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
@@ -118,6 +120,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   drawnCard: null,
   announcement: null,
   winner: null,
+  voteResult: null,
   isLoading: true,
   error: null,
   isRolling: false,
@@ -185,6 +188,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setAnnouncement: (data) => set({ announcement: data }),
 
   setWinner: (data) => set({ winner: data }),
+
+  setVoteResult: (data) => set({ voteResult: data }),
 
   setLoading: (loading) => set({ isLoading: loading }),
 
