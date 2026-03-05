@@ -307,14 +307,14 @@ export class GameEngine implements IGameEngine {
     }
 
     player.gpa = parseFloat(Math.max(0, Math.min(5.0, newGpa)).toFixed(1));
-    this.log(`GPA ${delta >= 0 ? '+' : ''}${delta} (当前: ${player.gpa})`, playerId);
+    this.log(`GPA ${actualDelta >= 0 ? '+' : ''}${actualDelta} (当前: ${player.gpa})`, playerId);
 
     if (this.resourceChangeCallback) {
       this.resourceChangeCallback({
         playerId,
         playerName: player.name,
         stat: 'gpa',
-        delta,
+        delta: actualDelta,
         current: player.gpa,
       });
     }
