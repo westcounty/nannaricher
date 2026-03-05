@@ -2,26 +2,30 @@
 import type { EventHandler } from '../EventHandler.js';
 
 export function registerEventHandlers(eventHandler: EventHandler): void {
-  // Tuition payment event
+  // Tuition payment event — ALL non-bankrupt players pay tuition
   eventHandler.registerHandler('event_tuition', (engine, playerId) => {
+    const state = engine.getState();
     const player = engine.getPlayer(playerId);
-    if (!player) return null;
 
-    // 软件学院：可选择支付3200，不破产即获胜
-    if (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian')) {
+    // Check if current player has software school ability
+    if (player && (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian'))) {
       return engine.createPendingAction(
         playerId, 'choose_option',
-        '软件学院能力：是否支付3200金钱？不破产即获胜！',
+        '软件学院能力：是否支付3200金钱？不破产即获胜！（其余玩家照常交学费）',
         [
-          { label: `支付3200金钱 (当前: ${player.money})`, value: 'tuition_ruanjian_3200' },
-          { label: '正常交学费', value: 'tuition_normal' },
+          { label: `支付3200金钱 (当前: ${player.money})`, value: 'tuition_ruanjian_3200_all' },
+          { label: '正常交学费', value: 'tuition_normal_all' },
         ]
       );
     }
 
-    const tuition = Math.round((5.0 - player.gpa) * 100);
-    engine.modifyPlayerMoney(playerId, -tuition);
-    engine.log(`交学费 ${(5.0 - player.gpa).toFixed(1)} * 100 = ${tuition} 金钱`, playerId);
+    // All players pay tuition
+    for (const p of state.players) {
+      if (p.isBankrupt) continue;
+      const tuition = Math.round((5.0 - p.gpa) * 100);
+      engine.modifyPlayerMoney(p.id, -tuition);
+      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
+    }
     return null;
   });
 
@@ -46,6 +50,40 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     const tuition = Math.round((5.0 - player.gpa) * 100);
     engine.modifyPlayerMoney(playerId, -tuition);
     engine.log(`交学费 ${(5.0 - player.gpa).toFixed(1)} * 100 = ${tuition} 金钱`, playerId);
+    return null;
+  });
+
+  // 软件学院选择支付3200（全员版本）
+  eventHandler.registerHandler('tuition_ruanjian_3200_all', (engine, playerId) => {
+    engine.modifyPlayerMoney(playerId, -3200);
+    engine.log('软件学院：支付3200金钱交学费', playerId);
+    const player = engine.getPlayer(playerId);
+    if (player && !player.isBankrupt) {
+      const disabled = player.disabledWinConditions ?? [];
+      if (!disabled.includes('plan_ruanjian')) {
+        engine.declareWinner(playerId, '软件学院：交学费3200金钱后未破产');
+      }
+    }
+    // Other players pay normal tuition
+    const state = engine.getState();
+    for (const p of state.players) {
+      if (p.id === playerId || p.isBankrupt) continue;
+      const tuition = Math.round((5.0 - p.gpa) * 100);
+      engine.modifyPlayerMoney(p.id, -tuition);
+      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
+    }
+    return null;
+  });
+
+  // 软件学院选择不使用能力（全员版本）
+  eventHandler.registerHandler('tuition_normal_all', (engine, playerId) => {
+    const state = engine.getState();
+    for (const p of state.players) {
+      if (p.isBankrupt) continue;
+      const tuition = Math.round((5.0 - p.gpa) * 100);
+      engine.modifyPlayerMoney(p.id, -tuition);
+      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
+    }
     return null;
   });
 
