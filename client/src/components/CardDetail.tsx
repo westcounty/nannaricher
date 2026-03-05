@@ -12,6 +12,7 @@ interface CardDetailProps {
 
 export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardDetailProps) {
   const [selectedTarget, setSelectedTarget] = useState<string | undefined>(undefined);
+  const [confirmingUse, setConfirmingUse] = useState(false);
 
   const getEffectText = (effect: CardEffect): string => {
     if (!effect.stat) return '特殊效果';
@@ -52,11 +53,15 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
   const selectablePlayers = players.filter(p => !p.isBankrupt);
 
   const handleUse = () => {
-    if (needsTargetSelection && !selectedTarget) {
+    if (needsTargetSelection && !selectedTarget) return;
+    if (!confirmingUse) {
+      setConfirmingUse(true);
       return;
     }
     onUse(card.id, selectedTarget);
   };
+
+  const cancelUse = () => setConfirmingUse(false);
 
   return (
     <div className="card-detail-overlay" onClick={onClose}>
@@ -110,13 +115,32 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
 
         <div className="card-actions">
           {canUse ? (
-            <button
-              className="use-card-btn"
-              onClick={handleUse}
-              disabled={needsTargetSelection && !selectedTarget}
-            >
-              使用卡牌
-            </button>
+            confirmingUse ? (
+              <div className="confirm-use-group" style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <button
+                  className="use-card-btn"
+                  onClick={handleUse}
+                  style={{ flex: 1, background: '#e53935' }}
+                >
+                  确认使用
+                </button>
+                <button
+                  className="cancel-btn"
+                  onClick={cancelUse}
+                  style={{ flex: 1 }}
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <button
+                className="use-card-btn"
+                onClick={handleUse}
+                disabled={needsTargetSelection && !selectedTarget}
+              >
+                使用卡牌
+              </button>
+            )
           ) : (
             <span className="not-your-turn">非你的回合</span>
           )}

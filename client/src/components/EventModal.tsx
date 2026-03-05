@@ -44,6 +44,11 @@ export function EventModal({
   const title = propTitle || currentEvent?.title || '事件';
   const description = propDescription || currentEvent?.description || '';
   const pendingAction = currentEvent?.pendingAction;
+  const gameState = useGameStore((s) => s.gameState);
+  const actingPlayerId = currentEvent?.playerId || pendingAction?.playerId;
+  const actingPlayerName = actingPlayerId && gameState
+    ? gameState.players.find(p => p.id === actingPlayerId)?.name
+    : undefined;
 
   // Determine if this is read-only (event is for another player)
   const isReadOnly = pendingAction
@@ -160,7 +165,9 @@ export function EventModal({
         <div className="modal-header">
           <h2 className="modal-title">{title}</h2>
           {isReadOnly && (
-            <span className="read-only-badge">观战中</span>
+            <span className="read-only-badge">
+              {actingPlayerName ? `${actingPlayerName} 的事件` : '观战中'}
+            </span>
           )}
           {showCloseButton && !isReadOnly && (
             <button className="modal-close" onClick={handleClose}>

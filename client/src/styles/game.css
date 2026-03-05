@@ -452,7 +452,16 @@
   grid-template-rows: 48px 1fr 28px 64px;
   height: 100vh;
   width: 100vw;
+  max-width: 1600px;
+  margin: 0 auto;
   overflow: hidden;
+}
+
+@media (min-width: 1601px) {
+  .game-screen.layout-desktop {
+    border-left: 1px solid var(--game-border);
+    border-right: 1px solid var(--game-border);
+  }
 }
 
 .game-main.layout-desktop {

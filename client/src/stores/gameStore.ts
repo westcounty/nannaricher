@@ -25,6 +25,7 @@ export interface GameEvent {
   title: string;
   description: string;
   pendingAction?: PendingAction;
+  playerId?: string;
   effects?: {
     money?: number;
     gpa?: number;
@@ -64,6 +65,7 @@ interface GameStore {
   announcement: AnnouncementData | null;
   winner: WinnerInfo | null;
   voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null;
+  eventDice: { values: number[]; total: number } | null;
   isLoading: boolean;
   error: string | null;
   isRolling: boolean;
@@ -92,6 +94,7 @@ interface GameStore {
   setAnnouncement: (data: AnnouncementData | null) => void;
   setWinner: (data: WinnerInfo | null) => void;
   setVoteResult: (data: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null) => void;
+  setEventDice: (data: { values: number[]; total: number } | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
@@ -121,6 +124,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   announcement: null,
   winner: null,
   voteResult: null,
+  eventDice: null,
   isLoading: true,
   error: null,
   isRolling: false,
@@ -190,6 +194,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setWinner: (data) => set({ winner: data }),
 
   setVoteResult: (data) => set({ voteResult: data }),
+  setEventDice: (data) => set({ eventDice: data }),
 
   setLoading: (loading) => set({ isLoading: loading }),
 

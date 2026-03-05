@@ -48,6 +48,26 @@ function getDeviceFingerprint(): string {
   return fp;
 }
 
+function getDeviceName(): string {
+  const ua = navigator.userAgent;
+  let browser = 'Unknown';
+  if (ua.includes('Firefox/')) browser = 'Firefox';
+  else if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome/')) browser = 'Chrome';
+  else if (ua.includes('Safari/')) browser = 'Safari';
+
+  let os = 'Unknown';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+
+  return `NannaRicher Web (${browser}/${os})`;
+}
+
+const APP_ID = 'nannaricher-web';
+
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const base64 = token.split('.')[1];
@@ -105,7 +125,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           username,
           password,
           deviceFingerprint: getDeviceFingerprint(),
-          deviceName: 'NannaRicher Web',
+          deviceName: getDeviceName(),
+          appId: APP_ID,
         }),
       });
 
@@ -146,7 +167,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           username,
           password,
           deviceFingerprint: getDeviceFingerprint(),
-          deviceName: 'NannaRicher Web',
+          deviceName: getDeviceName(),
+          appId: APP_ID,
         }),
       });
 
@@ -206,7 +228,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           code,
           smsToken,
           deviceFingerprint: getDeviceFingerprint(),
-          deviceName: 'NannaRicher Web',
+          deviceName: getDeviceName(),
+          appId: APP_ID,
         }),
       });
 
@@ -247,6 +270,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         body: JSON.stringify({
           refreshToken: currentRefreshToken,
           deviceFingerprint: getDeviceFingerprint(),
+          appId: APP_ID,
         }),
       });
 

@@ -179,8 +179,8 @@ export function bezierArcLength(
 
 // Snake layout parameters
 const SNAKE_COLS = 4;           // max stations per row
-const SNAKE_STATION_GAP = 74;   // distance between stations in a row
-const SNAKE_ROW_GAP = 82;       // distance between rows
+const SNAKE_STATION_GAP = 78;   // distance between stations in a row
+const SNAKE_ROW_GAP = 86;       // distance between rows
 const SNAKE_FIRST_OFFSET = 55;  // offset from ring to first row
 
 /**

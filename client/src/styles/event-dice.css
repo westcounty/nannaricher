@@ -1,0 +1,64 @@
+.event-dice-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1050;
+  pointer-events: none;
+  animation: eventDiceFadeIn 0.3s ease;
+}
+
+.event-dice-panel {
+  background: rgba(20, 20, 30, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.event-dice-label {
+  font-size: 12px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.event-dice-values {
+  display: flex;
+  gap: 8px;
+}
+
+.event-dice-face {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 215, 0, 0.6);
+  border-radius: 8px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFD700;
+  animation: eventDiceBounce 0.4s ease;
+}
+
+.event-dice-total {
+  font-size: 14px;
+  color: #ccc;
+}
+
+@keyframes eventDiceFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes eventDiceBounce {
+  0% { transform: scale(0.5) rotate(-10deg); }
+  60% { transform: scale(1.15) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}

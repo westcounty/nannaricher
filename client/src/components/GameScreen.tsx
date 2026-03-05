@@ -16,6 +16,7 @@ import { GameEventModal } from './EventModal';
 import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './ChoiceDialog';
 import { VotePanel } from './VotePanel';
 import { VoteResultModal } from './VoteResultModal';
+import { EventDiceOverlay } from './EventDiceOverlay';
 import { ChainActionPanel } from './ChainActionPanel';
 import { DiceRoller } from './DiceRoller';
 import { TrainingPlanView } from './TrainingPlanView';
@@ -487,6 +488,7 @@ export function GameScreen() {
 
       {/* Vote Result overlay */}
       <VoteResultModal />
+      <EventDiceOverlay />
 
       {/* Opponent event toasts */}
       <OpponentToast />

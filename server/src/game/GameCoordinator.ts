@@ -1133,8 +1133,9 @@ export class GameCoordinator {
         break;
       }
       default: {
-        // Fallback for unknown card types — just log
-        this.addLog('system', `投票完成`);
+        // Unhandled card type — log a warning so we can catch missing implementations
+        console.warn(`[GameCoordinator] resolveMultiVoteCard: unhandled cardId="${cardId}"`);
+        this.addLog('system', `投票完成 (${cardId})`);
         break;
       }
     }
@@ -2263,12 +2264,18 @@ export class GameCoordinator {
             pendingAction,
           });
         } else {
-          // Event completed automatically — notify current player only
+          // Event completed automatically — show actual effect
           const cell = boardData.mainBoard[position.index];
           if (cell) {
+            const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
+            // Get the last log entry which contains the actual event effect description
+            const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+            const effectDesc = lastLog && lastLog.playerId === playerId
+              ? lastLog.message
+              : `${playerName} 触发了 ${cell.name}`;
             this.io.to(this.roomId).emit('game:event-trigger', {
               title: cell.name || '事件',
-              description: `${this.engine.getPlayer(playerId)?.name || '玩家'} 触发了事件`,
+              description: effectDesc,
               playerId,
             });
           }
@@ -2300,10 +2307,15 @@ export class GameCoordinator {
               pendingAction,
             });
           } else {
-            // Line event completed automatically — notify current player only
+            // Line event completed automatically — show actual effect
+            const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
+            const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+            const effectDesc = lastLog && lastLog.playerId === playerId
+              ? lastLog.message
+              : `${playerName} 触发了 ${cell.description || cell.name}`;
             this.io.to(this.roomId).emit('game:event-trigger', {
               title: cell.name || '线路事件',
-              description: `${this.engine.getPlayer(playerId)?.name || '玩家'} 触发了 ${cell.description || cell.name}`,
+              description: effectDesc,
               playerId,
             });
             this.broadcastState();
