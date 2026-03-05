@@ -1,6 +1,12 @@
 // server/src/game/handlers/line-handlers.ts
 import type { EventHandler } from '../EventHandler.js';
 
+/** 大一buff：鼓楼线正面探索值/金钱收益翻倍（GPA已由modifyPlayerGpa统一翻倍） */
+function gulouFreshmanBuff(engine: { getState(): import('@nannaricher/shared').GameState }, stat: 'money' | 'exploration', delta: number): number {
+  if (engine.getState().roundNumber === 1 && delta > 0) return delta * 2;
+  return delta;
+}
+
 export function registerLineHandlers(eventHandler: EventHandler): void {
   // === Pukou Line (浦口线) ===
   eventHandler.registerHandler('pukou_library_ac', (engine, playerId) => {
@@ -694,8 +700,9 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('gulou_root_plan', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
     if (player && player.exploration < 10) {
-      engine.modifyPlayerExploration(playerId, 2);
-      engine.log('寻根计划（探索值 < 10），探索值 +2', playerId);
+      const expDelta = gulouFreshmanBuff(engine, 'exploration', 2);
+      engine.modifyPlayerExploration(playerId, expDelta);
+      engine.log(`寻根计划（探索值 < 10），探索值 +${expDelta}`, playerId);
     } else {
       engine.modifyPlayerMoney(playerId, -100);
       engine.log('寻根计划（探索值 >= 10），金钱 -100', playerId);
@@ -706,16 +713,11 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('gulou_heritage', (engine, playerId) => {
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
-    if (dice <= 2) {
-      engine.modifyPlayerExploration(playerId, 1);
-      engine.log(`名胜古迹投出 ${dice}，历史文物宿舍，探索值 +1`, playerId);
-    } else if (dice <= 4) {
-      engine.modifyPlayerExploration(playerId, 2);
-      engine.log(`名胜古迹投出 ${dice}，电视剧取景地，探索值 +2`, playerId);
-    } else {
-      engine.modifyPlayerExploration(playerId, 4);
-      engine.log(`名胜古迹投出 ${dice}，皇陵宝地，探索值 +4`, playerId);
-    }
+    const baseDelta = dice <= 2 ? 1 : dice <= 4 ? 2 : 4;
+    const delta = gulouFreshmanBuff(engine, 'exploration', baseDelta);
+    const desc = dice <= 2 ? '历史文物宿舍' : dice <= 4 ? '电视剧取景地' : '皇陵宝地';
+    engine.modifyPlayerExploration(playerId, delta);
+    engine.log(`名胜古迹投出 ${dice}，${desc}，探索值 +${delta}`, playerId);
     return null;
   });
 
@@ -725,9 +727,10 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       engine.modifyPlayerGpa(playerId, 0.3);
       engine.log(`偶遇明星投出 ${dice}（奇数），去图书馆学习，GPA +0.3`, playerId);
     } else {
-      engine.modifyPlayerExploration(playerId, 2);
+      const expDelta = gulouFreshmanBuff(engine, 'exploration', 2);
+      engine.modifyPlayerExploration(playerId, expDelta);
       engine.modifyPlayerGpa(playerId, -0.1);
-      engine.log(`偶遇明星投出 ${dice}（偶数），发小红书，探索值 +2，GPA -0.1`, playerId);
+      engine.log(`偶遇明星投出 ${dice}（偶数），发小红书，探索值 +${expDelta}，GPA -0.1`, playerId);
     }
     return null;
   });
@@ -741,16 +744,18 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('gulou_wedding', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 3);
-    engine.log('旁观集体婚礼，探索值 +3', playerId);
+    const expDelta = gulouFreshmanBuff(engine, 'exploration', 3);
+    engine.modifyPlayerExploration(playerId, expDelta);
+    engine.log(`旁观集体婚礼，探索值 +${expDelta}`, playerId);
     engine.drawAndProcessCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('gulou_retired_teacher', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 1);
+    const expDelta = gulouFreshmanBuff(engine, 'exploration', 1);
+    engine.modifyPlayerExploration(playerId, expDelta);
     engine.modifyPlayerGpa(playerId, 0.1);
-    engine.log('和退休老教师交谈，探索值 +1，GPA +0.1', playerId);
+    engine.log(`和退休老教师交谈，探索值 +${expDelta}，GPA +0.1`, playerId);
     return null;
   });
 
@@ -762,22 +767,25 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   });
 
   eventHandler.registerHandler('gulou_building_guide', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 2);
-    engine.log('鼓楼建筑图鉴，探索值 +2', playerId);
+    const expDelta = gulouFreshmanBuff(engine, 'exploration', 2);
+    engine.modifyPlayerExploration(playerId, expDelta);
+    engine.log(`鼓楼建筑图鉴，探索值 +${expDelta}`, playerId);
     return null;
   });
 
   eventHandler.registerHandler('gulou_tour_guide', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 2);
-    engine.log('带同学游览鼓楼，探索值 +2', playerId);
+    const expDelta = gulouFreshmanBuff(engine, 'exploration', 2);
+    engine.modifyPlayerExploration(playerId, expDelta);
+    engine.log(`带同学游览鼓楼，探索值 +${expDelta}`, playerId);
     engine.drawAndProcessCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     return null;
   });
 
   eventHandler.registerHandler('gulou_exp_card', (engine, playerId) => {
-    engine.modifyPlayerExploration(playerId, 3);
+    const expDelta = gulouFreshmanBuff(engine, 'exploration', 3);
+    engine.modifyPlayerExploration(playerId, expDelta);
     engine.skipPlayerTurn(playerId, 1);
-    engine.log('军训时刻，探索值 +3，暂停一回合', playerId);
+    engine.log(`军训时刻，探索值 +${expDelta}，暂停一回合`, playerId);
     return null;
   });
 
