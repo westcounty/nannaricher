@@ -691,6 +691,52 @@ export class GameCoordinator {
   }
 
   /**
+   * Start a penalty chain for the 出行方式 majority side.
+   * Players choose their penalty one at a time.
+   */
+  private startTravelPenaltyChain(playerIds: string[], side: 'shared' | 'walk'): void {
+    if (playerIds.length === 0) return;
+
+    const [currentId, ...remaining] = playerIds;
+    const player = this.engine.getPlayer(currentId);
+    if (!player) {
+      this.startTravelPenaltyChain(remaining, side);
+      return;
+    }
+
+    const penaltyOptions = side === 'shared'
+      ? [
+          { label: '金钱 -100', value: 'money_loss' },
+          { label: '暂停一回合', value: 'skip_turn' },
+        ]
+      : [
+          { label: '探索值 -1', value: 'exp_loss' },
+          { label: '暂停一回合', value: 'skip_turn' },
+        ];
+
+    // Store remaining players in a temp effect on current player
+    if (remaining.length > 0) {
+      player.effects.push({
+        id: `travel_penalty_queue_${Date.now()}`,
+        type: 'custom' as const,
+        turnsRemaining: 1,
+        data: { travelPenaltyQueue: remaining, travelPenaltySide: side },
+      });
+    }
+
+    const state = this.engine.getState();
+    state.pendingAction = {
+      id: `travel_penalty_${Date.now()}`,
+      playerId: currentId,
+      type: 'choose_option',
+      prompt: `出行方式：${player.name}，选择你的惩罚`,
+      options: penaltyOptions,
+      callbackHandler: 'travel_penalty_callback',
+      timeoutMs: 30000,
+    };
+  }
+
+  /**
    * Resolve multi-vote card effects based on card type and player votes.
    */
   private resolveMultiVoteCard(
@@ -785,23 +831,26 @@ export class GameCoordinator {
         break;
       }
       case 'chance_travel_method': {
-        // 出行方式 — majority decides (simplified)
+        // 出行方式 — majority decides, minority benefits, majority chooses penalty
         const shared = counts['shared'] || 0;
         const walk = counts['walk'] || 0;
         if (shared > walk) {
+          // 共享出行人多 → 丈量校园玩家探索+2, 共享出行玩家选惩罚
           for (const pid of groups['walk'] || []) this.engine.modifyPlayerExploration(pid, 2);
-          for (const pid of groups['shared'] || []) this.engine.modifyPlayerMoney(pid, -100);
-          this.addLog('system', '出行方式：供不应求，丈量校园探索+2，共享出行金钱-100');
+          this.addLog('system', `共享出行(${shared})人多，丈量校园玩家探索+2`);
+          this.startTravelPenaltyChain(groups['shared'] || [], 'shared');
         } else if (walk > shared) {
+          // 丈量校园人多 → 共享出行玩家GPA+0.2, 丈量校园玩家选惩罚
           for (const pid of groups['shared'] || []) this.engine.modifyPlayerGpa(pid, 0.2);
-          for (const pid of groups['walk'] || []) this.engine.modifyPlayerExploration(pid, -1);
-          this.addLog('system', '出行方式：抢占先机，共享出行GPA+0.2，丈量校园探索-1');
+          this.addLog('system', `丈量校园(${walk})人多，共享出行玩家GPA+0.2`);
+          this.startTravelPenaltyChain(groups['walk'] || [], 'walk');
         } else {
-          this.engine.getAllPlayers().forEach(p => {
-            this.engine.modifyPlayerGpa(p.id, 0.1);
-            this.engine.modifyPlayerExploration(p.id, 1);
-          });
-          this.addLog('system', '出行方式：井然有序，所有玩家GPA+0.1, 探索值+1');
+          // 相等 → 所有人GPA+0.1，探索+1
+          for (const pid of [...(groups['shared'] || []), ...(groups['walk'] || [])]) {
+            this.engine.modifyPlayerGpa(pid, 0.1);
+            this.engine.modifyPlayerExploration(pid, 1);
+          }
+          this.addLog('system', '出行方式：井然有序，所有玩家GPA+0.1，探索+1');
         }
         break;
       }
@@ -2421,6 +2470,13 @@ export class GameCoordinator {
           }
         } catch (err) {
           console.error(`[VOTE ERROR] resolveMultiVoteCard failed for ${cardId}:`, err);
+        }
+
+        // If resolveMultiVoteCard set a follow-up pendingAction (e.g. penalty chain),
+        // don't clear it — just broadcast and wait for the new action to resolve
+        if (state.pendingAction && state.pendingAction.type !== 'multi_vote') {
+          this.broadcastState();
+          return;
         }
 
         state.pendingAction = null;

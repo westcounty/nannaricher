@@ -1424,22 +1424,87 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     };
   });
 
-  // 出行方式 — 简化为多数票
+  // 出行方式 — 投票+惩罚选择
   eventHandler.registerHandler('card_chance_travel_method', (engine, _playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
     return {
       id: `vote_travel_method_${Date.now()}`,
       playerId: 'all',
       type: 'multi_vote' as const,
-      prompt: '出行方式：你的出行方式是？',
+      prompt: '出行方式：选择你的出行方式',
       options: [
-        { label: '共享出行', value: 'shared' },
-        { label: '丈量校园', value: 'walk' },
+        { label: '共享出行', value: 'shared', description: '人多则受罚（-100金 or 暂停1回合），人少则获利（GPA+0.2）' },
+        { label: '丈量校园', value: 'walk', description: '人多则受罚（-1探索 or 暂停1回合），人少则获利（探索+2）' },
       ],
       targetPlayerIds: players.map(p => p.id),
       cardId: 'chance_travel_method',
       timeoutMs: 30000,
     };
+  });
+
+  // 出行方式 — 惩罚选择回调（链式处理多个玩家）
+  eventHandler.registerHandler('travel_penalty_callback', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (player && choice) {
+      if (choice === 'money_loss') {
+        engine.modifyPlayerMoney(playerId, -100);
+        engine.log(`${player.name} 选择：金钱 -100`, playerId);
+      } else if (choice === 'exp_loss') {
+        engine.modifyPlayerExploration(playerId, -1);
+        engine.log(`${player.name} 选择：探索值 -1`, playerId);
+      } else if (choice === 'skip_turn') {
+        engine.skipPlayerTurn(playerId, 1);
+        engine.log(`${player.name} 选择：暂停一回合`, playerId);
+      }
+    }
+
+    // Check for queued penalty players
+    if (player) {
+      const queueIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.travelPenaltyQueue
+      );
+      if (queueIdx >= 0) {
+        const remaining = (player.effects[queueIdx].data!.travelPenaltyQueue as string[]);
+        const side = (player.effects[queueIdx].data!.travelPenaltySide as 'shared' | 'walk');
+        player.effects.splice(queueIdx, 1);
+
+        if (remaining.length > 0) {
+          const [nextId, ...rest] = remaining;
+          const nextPlayer = engine.getPlayer(nextId);
+          if (nextPlayer) {
+            // Store remaining in next player's effects
+            if (rest.length > 0) {
+              nextPlayer.effects.push({
+                id: `travel_penalty_queue_${Date.now()}`,
+                type: 'custom' as const,
+                turnsRemaining: 1,
+                data: { travelPenaltyQueue: rest, travelPenaltySide: side },
+              });
+            }
+
+            const penaltyOptions = side === 'shared'
+              ? [
+                  { label: '金钱 -100', value: 'money_loss' },
+                  { label: '暂停一回合', value: 'skip_turn' },
+                ]
+              : [
+                  { label: '探索值 -1', value: 'exp_loss' },
+                  { label: '暂停一回合', value: 'skip_turn' },
+                ];
+
+            const action = engine.createPendingAction(
+              nextId, 'choose_option',
+              `出行方式：${nextPlayer.name}，选择你的惩罚`,
+              penaltyOptions,
+            );
+            action.callbackHandler = 'travel_penalty_callback';
+            return action;
+          }
+        }
+      }
+    }
+
+    return null;
   });
 
   // 八卦秘闻 — 简化为抽卡者选择参与或放弃

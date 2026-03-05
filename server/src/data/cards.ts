@@ -970,7 +970,7 @@ export const chanceCards: Card[] = [
   {
     id: 'chance_travel_method',
     name: '出行方式',
-    description: '所有玩家各自查看自己的共享单车/电动车/滑板车开卡情况',
+    description: '所有玩家选择【共享出行】或【丈量校园】。共享出行多：丈量校园玩家探索+2，共享出行玩家选-100金或暂停1回合。丈量校园多：共享出行玩家GPA+0.2，丈量校园玩家选-1探索或暂停1回合。相等：所有人GPA+0.1，探索+1',
     deckType: 'chance',
     holdable: false,
     singleUse: true,
