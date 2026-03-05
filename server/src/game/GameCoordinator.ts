@@ -2760,7 +2760,13 @@ export class GameCoordinator {
     if (cardIndex === -1) return;
     const card = player.heldCards[cardIndex];
 
-    // Remove card from hand
+    // Validate use timing: own_turn cards can only be used during player's own turn
+    const isCurrentTurn = state.players[state.currentPlayerIndex]?.id === playerId;
+    if (card.useTiming !== 'any_turn' && !isCurrentTurn) {
+      return;
+    }
+
+    // Remove card from hand (after validation)
     player.heldCards.splice(cardIndex, 1);
     this.addLog(playerId, `${player.name} 使用手牌: ${card.name}`);
 

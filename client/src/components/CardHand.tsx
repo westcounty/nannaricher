@@ -99,7 +99,7 @@ export function CardHand({ player, onUseCard, isCurrentPlayer, players = [] }: C
           card={selectedCard}
           onClose={handleCloseDetail}
           onUse={handleUseCard}
-          canUse={isCurrentPlayer}
+          canUse={selectedCard?.useTiming === 'any_turn' || isCurrentPlayer}
           players={players}
         />
       )}

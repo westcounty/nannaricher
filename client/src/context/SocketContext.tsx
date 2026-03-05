@@ -48,6 +48,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnecting(false);
       setConnectionError(null);
       console.log('[Socket] Connected:', newSocket.id);
+
+      // Auto-reconnect to room if session data exists (e.g. after page refresh)
+      const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
+      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+      if (savedRoomId && savedPlayerId) {
+        console.log('[Socket] Auto-reconnecting to room', savedRoomId);
+        newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
+      }
     });
 
     newSocket.on('disconnect', (reason) => {

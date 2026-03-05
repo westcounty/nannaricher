@@ -197,16 +197,26 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().setRoomId(roomId);
       store.getState().setPlayerId(playerId);
       store.getState().setError(null);
+      sessionStorage.setItem('nannaricher_roomId', roomId);
+      sessionStorage.setItem('nannaricher_playerId', playerId);
     };
 
     const handleRoomJoined = ({ playerId }: { playerId: string }) => {
       store.getState().setPlayerId(playerId);
       store.getState().setError(null);
+      const currentRoomId = store.getState().roomId;
+      if (currentRoomId) {
+        sessionStorage.setItem('nannaricher_roomId', currentRoomId);
+      }
+      sessionStorage.setItem('nannaricher_playerId', playerId);
     };
 
     const handleRoomError = ({ message }: { message: string }) => {
       console.error('[ZustandBridge] Room error:', message);
       store.getState().setError(message);
+      // Clear session on room error (room not found, etc.)
+      sessionStorage.removeItem('nannaricher_roomId');
+      sessionStorage.removeItem('nannaricher_playerId');
     };
 
     const handleCardDrawn = (data: { card: any; deckType: string }) => {
@@ -266,6 +276,9 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       playSound('victory');
       // Fanfare follows after a brief delay
       setTimeout(() => playSound('victory_fanfare'), 300);
+      // Clear session — game is over
+      sessionStorage.removeItem('nannaricher_roomId');
+      sessionStorage.removeItem('nannaricher_playerId');
     };
 
     const handleResourceChange = (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {

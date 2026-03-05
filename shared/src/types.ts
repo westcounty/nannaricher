@@ -32,6 +32,7 @@ export interface Card {
   singleUse: boolean;
   returnToDeck: boolean;    // return after use
   effects: CardEffect[];
+  useTiming?: 'own_turn' | 'any_turn'; // when holdable card can be used from hand
   // Complex cards use server-side handler by id
 }
 

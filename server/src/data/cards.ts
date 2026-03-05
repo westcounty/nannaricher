@@ -11,6 +11,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -21,6 +22,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -31,6 +33,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -41,6 +44,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -51,6 +55,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -61,6 +66,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -71,6 +77,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -81,6 +88,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -91,6 +99,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -101,6 +110,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -111,6 +121,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -121,6 +132,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -131,6 +143,7 @@ export const destinyCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'own_turn',
     effects: [],
   },
   {
@@ -615,6 +628,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -625,6 +639,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -635,6 +650,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -645,6 +661,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -655,6 +672,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -665,6 +683,7 @@ export const chanceCards: Card[] = [
     holdable: true,
     singleUse: true,
     returnToDeck: true,
+    useTiming: 'any_turn',
     effects: [],
   },
   {
