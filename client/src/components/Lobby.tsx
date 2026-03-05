@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreateRoom } from './CreateRoom';
 import { JoinRoom } from './JoinRoom';
 import { WaitingRoom } from './WaitingRoom';
+import { BattleHistory } from './BattleHistory';
 import { useSocket } from '../context/SocketContext';
 import { useGameStore } from '../stores/gameStore';
+import { useAuthStore } from '../stores/authStore';
 import { Player } from '@nannaricher/shared';
 import './Lobby.css';
 
-type LobbyMode = 'select' | 'create' | 'join' | 'waiting';
+type LobbyMode = 'select' | 'create' | 'join' | 'waiting' | 'history';
 
 interface LobbyState {
   mode: LobbyMode;
@@ -35,6 +37,7 @@ export function Lobby() {
   const gameState = useGameStore((s) => s.gameState);
   const contextRoomId = useGameStore((s) => s.roomId);
   const contextPlayerId = useGameStore((s) => s.playerId);
+  const { getDisplayName, logout } = useAuthStore();
 
   const [state, setState] = useState<LobbyState>({
     mode: 'select',
@@ -121,8 +124,33 @@ export function Lobby() {
     console.log('Game starting...');
   };
 
+  if (state.mode === 'history') {
+    return <BattleHistory onBack={() => setState({ ...state, mode: 'select' })} />;
+  }
+
   return (
     <div className="lobby">
+      {/* User menu bar */}
+      <motion.div
+        className="lobby-user-bar"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
+        <span className="user-display-name">{getDisplayName()}</span>
+        <div className="user-actions">
+          <button
+            className="user-action-btn"
+            onClick={() => setState({ ...state, mode: 'history' })}
+          >
+            战绩
+          </button>
+          <button className="user-action-btn user-logout" onClick={logout}>
+            登出
+          </button>
+        </div>
+      </motion.div>
+
       <motion.div
         className="lobby-header"
         initial={{ opacity: 0, y: -20 }}

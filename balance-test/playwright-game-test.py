@@ -90,16 +90,41 @@ def get_visible_text(page: Page, selector: str) -> str:
     return ""
 
 
-def create_room(page: Page, player_name: str) -> str:
-    """Player creates a room. Returns room code."""
+def bypass_auth(page: Page, player_name: str):
+    """Inject mock auth tokens into localStorage to bypass login screen."""
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
+    import json, base64, math, time as _time
+    user_id = f"test-{int(_time.time() * 1000)}"
+    mock_user = json.dumps({"userId": user_id, "username": player_name, "nickname": player_name})
+    # Build a minimal JWT-shaped token (header.payload.signature)
+    header = base64.b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    now = int(_time.time())
+    payload_obj = {"sub": user_id, "iat": now, "exp": now + 86400}
+    payload = base64.b64encode(json.dumps(payload_obj).encode()).decode().rstrip("=")
+    mock_token = f"{header}.{payload}.mock"
+    page.evaluate(f"""() => {{
+        localStorage.setItem('nannaricher_access_token', '{mock_token}');
+        localStorage.setItem('nannaricher_refresh_token', 'mock-refresh');
+        localStorage.setItem('nannaricher_user', {json.dumps(mock_user)});
+    }}""")
+    page.reload()
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(500)
+
+
+def create_room(page: Page, player_name: str) -> str:
+    """Player creates a room. Returns room code."""
+    bypass_auth(page, player_name)
     shot(page, "lobby")
 
     page.click(".lobby-button.create")
     page.wait_for_timeout(500)
 
-    page.fill("input#playerName", player_name)
+    # Name field should be pre-filled from auth, but fill to be safe
+    name_input = page.locator("input#playerName")
+    if name_input.count() > 0 and name_input.first.is_visible():
+        name_input.fill(player_name)
     page.wait_for_timeout(200)
 
     # Select 1 dice
@@ -118,14 +143,16 @@ def create_room(page: Page, player_name: str) -> str:
 
 def join_room(page: Page, room_code: str, player_name: str):
     """Player joins an existing room."""
-    page.goto(BASE_URL)
-    page.wait_for_load_state("networkidle")
+    bypass_auth(page, player_name)
 
     page.click(".lobby-button.join")
     page.wait_for_timeout(500)
 
     page.fill("input#roomCode", room_code)
-    page.fill("input#playerName", player_name)
+    # Name field should be pre-filled from auth, but fill to be safe
+    name_input = page.locator("input#playerName")
+    if name_input.count() > 0 and name_input.first.is_visible():
+        name_input.fill(player_name)
     page.wait_for_timeout(200)
 
     dice = page.locator(".dice-option")

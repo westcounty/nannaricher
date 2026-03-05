@@ -14,7 +14,8 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
-        HOST: '0.0.0.0'
+        HOST: '0.0.0.0',
+        TUCHAN_JWT_SECRET: 'xQt2OqUSR3Qo2et4CucuRXhZgZ7haSgcq9iJbEP93CYN+Sb1A6xzFm4Rabo0ujl1'
       },
       env_development: {
         NODE_ENV: 'development',

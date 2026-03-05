@@ -4,6 +4,12 @@ import { createSocketServer } from './socket/SocketManager.js';
 import { registerRoomHandlers } from './socket/RoomHandlers.js';
 import { registerGameHandlers } from './socket/GameHandlers.js';
 import { RoomManager } from './rooms/RoomManager.js';
+import { initDatabase } from './db/database.js';
+import { initJwt } from './auth/jwt.js';
+
+// Initialize auth and database
+initJwt();
+initDatabase();
 
 const app = createApp();
 const httpServer = createServer(app);

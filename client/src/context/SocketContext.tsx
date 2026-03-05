@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents } from '@nannaricher/shared';
+import { useAuthStore } from '../stores/authStore';
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -25,6 +26,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const createSocket = useCallback(() => {
     setIsConnecting(true);
@@ -38,6 +40,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
+      auth: accessToken ? { token: accessToken } : undefined,
     }) as TypedSocket;
 
     newSocket.on('connect', () => {
@@ -93,6 +96,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       newSocket.close();
     };
   }, [createSocket]);
+
+  // Reconnect when auth token changes
+  useEffect(() => {
+    if (socket) {
+      socket.close();
+      const newSocket = createSocket();
+      setSocket(newSocket);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   const reconnect = useCallback(() => {
     if (socket) {

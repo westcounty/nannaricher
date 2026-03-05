@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { useAuthStore } from '../stores/authStore';
 
 interface CreateRoomProps {
   onRoomCreated: (roomId: string, playerId: string, playerName: string) => void;
@@ -9,7 +10,8 @@ interface CreateRoomProps {
 
 export function CreateRoom({ onRoomCreated, onBack }: CreateRoomProps) {
   const { socket } = useSocket();
-  const [playerName, setPlayerName] = useState('');
+  const { getDisplayName } = useAuthStore();
+  const [playerName, setPlayerName] = useState(getDisplayName());
   const [diceOption, setDiceOption] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

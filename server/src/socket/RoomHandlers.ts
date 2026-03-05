@@ -4,6 +4,7 @@ import { RoomManager } from '../rooms/RoomManager.js';
 import { GameEngine } from '../game/GameEngine.js';
 import { GameCoordinator } from '../game/GameCoordinator.js';
 import { MIN_PLAYERS } from '@nannaricher/shared';
+import { saveGameResults } from '../db/gameResults.js';
 
 export function registerRoomHandlers(
   io: GameServer,
@@ -18,6 +19,7 @@ export function registerRoomHandlers(
         data.playerName,
         socket.id,
         data.diceOption,
+        socket.data.userId,
       );
 
       socket.join(roomId);
@@ -33,6 +35,9 @@ export function registerRoomHandlers(
         coordinator.onFinished(() => {
           room.phase = 'finished';
           room.lastActivity = Date.now();
+          // Save game results to SQLite
+          const state = coordinator.getState();
+          saveGameResults(roomId, state.players, state.winner, state.roundNumber);
         });
         roomManager.setCoordinator(roomId, coordinator);
 
@@ -55,6 +60,7 @@ export function registerRoomHandlers(
         data.playerName,
         socket.id,
         data.diceOption,
+        socket.data.userId,
       );
 
       socket.join(data.roomId);

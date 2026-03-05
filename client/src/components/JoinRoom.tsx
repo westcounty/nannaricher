@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { useAuthStore } from '../stores/authStore';
 
 interface JoinRoomProps {
   onRoomJoined: (roomId: string, playerId: string, playerName: string) => void;
@@ -9,8 +10,9 @@ interface JoinRoomProps {
 
 export function JoinRoom({ onRoomJoined, onBack }: JoinRoomProps) {
   const { socket } = useSocket();
+  const { getDisplayName } = useAuthStore();
   const [roomCode, setRoomCode] = useState('');
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(getDisplayName());
   const [diceOption, setDiceOption] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

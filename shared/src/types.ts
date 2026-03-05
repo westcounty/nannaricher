@@ -46,6 +46,7 @@ export interface TrainingPlan {
 export interface Player {
   id: string;
   socketId: string;
+  userId?: string;    // authenticated user UUID (from tuchan-api)
   name: string;
   color: string;
   money: number;

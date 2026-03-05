@@ -21,6 +21,8 @@ export interface SocketData {
   playerId?: string;
   roomId?: string;
   playerName?: string;
+  userId?: string;      // authenticated user UUID
+  username?: string;     // authenticated username
 }
 
 // Typed Socket.io server

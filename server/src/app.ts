@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { authRoutes } from './auth/routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,9 @@ export function createApp(): express.Express {
   app.get('/api/health', (_, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // Auth and game history API
+  app.use('/api', authRoutes);
 
   // In production, serve client build
   if (process.env.NODE_ENV === 'production') {

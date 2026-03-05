@@ -1,9 +1,26 @@
 // e2e/game-flow.spec.ts
 import { test, expect } from '@playwright/test';
 
+/** Bypass auth by injecting a mock user into localStorage */
+async function bypassAuth(page: import('@playwright/test').Page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const mockUser = { userId: 'test-user-e2e', username: 'e2e_tester', nickname: 'E2E测试员' };
+    // Create a minimal JWT-like token (won't be verified in test env without TUCHAN_JWT_SECRET)
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ sub: 'test-user-e2e', phone: '13800000000', iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 86400 }));
+    const mockToken = `${header}.${payload}.mock-signature`;
+    localStorage.setItem('nannaricher_access_token', mockToken);
+    localStorage.setItem('nannaricher_refresh_token', 'mock-refresh-token');
+    localStorage.setItem('nannaricher_user', JSON.stringify(mockUser));
+  });
+  await page.reload();
+  await page.waitForTimeout(500);
+}
+
 test.describe('游戏流程测试', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await bypassAuth(page);
   });
 
   test('页面应该正常加载', async ({ page }) => {
@@ -12,18 +29,24 @@ test.describe('游戏流程测试', () => {
   });
 
   test('创建房间流程', async ({ page }) => {
-    // 输入玩家名称
-    const nameInput = page.locator('input[placeholder*="名"]').first();
-    if (await nameInput.isVisible()) {
-      await nameInput.fill('测试玩家');
+    // After auth bypass, should see lobby with create/join buttons
+    const createBtn = page.locator('button:has-text("创建房间")').first();
+    if (await createBtn.isVisible()) {
+      await createBtn.click();
+      await page.waitForTimeout(500);
 
-      // 点击创建房间按钮
-      const createBtn = page.locator('button:has-text("创建")').first();
-      if (await createBtn.isVisible()) {
-        await createBtn.click();
+      // Player name should be pre-filled from auth
+      const nameInput = page.locator('input[placeholder*="名"]').first();
+      if (await nameInput.isVisible()) {
+        const value = await nameInput.inputValue();
+        expect(value).toBeTruthy(); // auto-filled from auth
 
-        // 等待房间创建
-        await page.waitForTimeout(1000);
+        // Click submit
+        const submitBtn = page.locator('.submit-button').first();
+        if (await submitBtn.isVisible()) {
+          await submitBtn.click();
+          await page.waitForTimeout(1000);
+        }
       }
     }
 

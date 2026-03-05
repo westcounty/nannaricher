@@ -5,9 +5,25 @@ import { test, expect, Page } from '@playwright/test';
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 
+/** Bypass auth by injecting a mock user into localStorage */
+async function bypassAuth(page: Page, nickname = 'E2E测试员') {
+  await page.goto(BASE_URL);
+  await page.evaluate(({ nickname }) => {
+    const mockUser = { userId: `test-${Date.now()}`, username: 'e2e_tester', nickname };
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ sub: mockUser.userId, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 86400 }));
+    const mockToken = `${header}.${payload}.mock`;
+    localStorage.setItem('nannaricher_access_token', mockToken);
+    localStorage.setItem('nannaricher_refresh_token', 'mock-refresh');
+    localStorage.setItem('nannaricher_user', JSON.stringify(mockUser));
+  }, { nickname });
+  await page.reload();
+  await page.waitForTimeout(500);
+}
+
 test.describe('菜根人生游戏', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL);
+    await bypassAuth(page);
   });
 
   test('首页应该正确加载', async ({ page }) => {
@@ -39,13 +55,10 @@ test.describe('菜根人生游戏', () => {
   test('应该能够加入房间', async ({ page, context }) => {
     // 创建第一个页面并创建房间
     const page1 = await context.newPage();
-    await page1.goto(BASE_URL);
+    await bypassAuth(page1, '玩家1');
     await page1.getByRole('button', { name: /创建房间/i }).click();
 
-    const nameInput1 = page1.getByPlaceholder(/输入.*名字|你的名字/i);
-    if (await nameInput1.isVisible()) {
-      await nameInput1.fill('玩家1');
-    }
+    // Name should be pre-filled from auth bypass
     await page1.getByRole('button', { name: /确认|创建/i }).first().click();
 
     // 等待房间创建
@@ -57,7 +70,7 @@ test.describe('菜根人生游戏', () => {
     if (roomCode) {
       // 第二个页面加入房间
       const page2 = await context.newPage();
-      await page2.goto(BASE_URL);
+      await bypassAuth(page2, '玩家2');
       await page2.getByRole('button', { name: /加入房间/i }).click();
 
       const codeInput = page2.getByPlaceholder(/房间号|Room Code/i);
@@ -65,11 +78,7 @@ test.describe('菜根人生游戏', () => {
         await codeInput.fill(roomCode.trim());
       }
 
-      const nameInput2 = page2.getByPlaceholder(/输入.*名字|你的名字/i);
-      if (await nameInput2.isVisible()) {
-        await nameInput2.fill('玩家2');
-      }
-
+      // Name should be pre-filled from auth bypass
       await page2.getByRole('button', { name: /加入|确认/i }).first().click();
 
       // 验证加入成功
@@ -81,14 +90,11 @@ test.describe('菜根人生游戏', () => {
 test.describe('游戏机制', () => {
   test('投骰子应该移动棋子', async ({ page, context }) => {
     // 创建两个玩家的游戏（需要至少2人开始游戏）
-    await page.goto(BASE_URL);
+    // page already has auth from beforeEach
 
     // 快速创建房间流程
     await page.getByRole('button', { name: /创建房间/i }).click();
-    const nameInput = page.getByPlaceholder(/输入.*名字|你的名字/i);
-    if (await nameInput.isVisible()) {
-      await nameInput.fill('测试玩家1');
-    }
+    // Name pre-filled from auth
     await page.getByRole('button', { name: /确认|创建/i }).first().click();
 
     // 等待进入房间

@@ -2,6 +2,7 @@
 import { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
 import type { GameServer, GameSocket } from './types.js';
+import { verifyToken } from '../auth/jwt.js';
 
 export type { GameServer, GameSocket };
 
@@ -17,6 +18,19 @@ export function createSocketServer(httpServer: HttpServer): GameServer {
     cors: corsOptions,
     pingTimeout: 60000,
     pingInterval: 25000,
+  });
+
+  // JWT authentication middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload) {
+        socket.data.userId = payload.sub;
+      }
+    }
+    // Allow connection even without token (guest mode for development)
+    next();
   });
 
   return io;

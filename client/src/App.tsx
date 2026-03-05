@@ -1,10 +1,12 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { AccessibilityProvider } from './a11y/AccessibilityProvider';
 import { SocketProvider } from './context/SocketContext';
 import { ZustandBridge } from './context/SocketProvider';
 import { useGameStore } from './stores/gameStore';
+import { useAuthStore } from './stores/authStore';
 import { ResponsiveProvider } from './ui/layouts/ResponsiveLayout';
 import { Lobby } from './components';
+import { AuthScreen } from './components/AuthScreen';
 import { LoadingScreen } from './components/LoadingScreen';
 import './App.css';
 
@@ -39,7 +41,6 @@ function GameRouter() {
 
   // If we have a roomId but no game state yet (waiting room)
   if (roomId && gameState?.phase === 'waiting') {
-    // The Lobby component will handle the waiting room state
     return <Lobby />;
   }
 
@@ -47,18 +48,35 @@ function GameRouter() {
   return <Lobby />;
 }
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
+
+  useEffect(() => {
+    loadFromStorage();
+  }, []);
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <AccessibilityProvider>
-      <SocketProvider>
-        <ZustandBridge>
-          <ResponsiveProvider>
-            <div className="app">
-              <GameRouter />
-            </div>
-          </ResponsiveProvider>
-        </ZustandBridge>
-      </SocketProvider>
+      <AuthGate>
+        <SocketProvider>
+          <ZustandBridge>
+            <ResponsiveProvider>
+              <div className="app">
+                <GameRouter />
+              </div>
+            </ResponsiveProvider>
+          </ZustandBridge>
+        </SocketProvider>
+      </AuthGate>
     </AccessibilityProvider>
   );
 }

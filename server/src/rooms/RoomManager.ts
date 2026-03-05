@@ -18,10 +18,11 @@ function generateRoomCode(): string {
   return code;
 }
 
-function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: number): Player {
+function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: number, userId?: string): Player {
   return {
     id: `p${Date.now()}_${index}`,
     socketId,
+    userId,
     name,
     color: PLAYER_COLORS[index],
     money: diceCount === 2 ? 2000 : 3000,
@@ -69,11 +70,11 @@ export class RoomManager {
   private coordinators = new Map<string, GameCoordinator>();
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  createRoom(playerName: string, socketId: string, diceOption: 1 | 2) {
+  createRoom(playerName: string, socketId: string, diceOption: 1 | 2, userId?: string) {
     let roomId: string;
     do { roomId = generateRoomCode(); } while (this.rooms.has(roomId));
 
-    const player = createPlayer(playerName, socketId, diceOption, 0);
+    const player = createPlayer(playerName, socketId, diceOption, 0, userId);
     const room: Room = {
       roomId,
       hostSocketId: socketId,
@@ -86,13 +87,13 @@ export class RoomManager {
     return { roomId, playerId: player.id };
   }
 
-  joinRoom(roomId: string, playerName: string, socketId: string, diceOption: 1 | 2) {
+  joinRoom(roomId: string, playerName: string, socketId: string, diceOption: 1 | 2, userId?: string) {
     const room = this.rooms.get(roomId);
     if (!room) throw new Error('Room not found');
     if (room.players.length >= MAX_PLAYERS) throw new Error('Room is full');
     if (room.phase !== 'waiting') throw new Error('Game already started');
 
-    const player = createPlayer(playerName, socketId, diceOption, room.players.length);
+    const player = createPlayer(playerName, socketId, diceOption, room.players.length, userId);
     room.players.push(player);
     room.lastActivity = Date.now();
     return { playerId: player.id };

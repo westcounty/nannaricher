@@ -9,6 +9,8 @@ export { CurrentPlayerPanel } from './CurrentPlayerPanel';
 export { CreateRoom } from './CreateRoom';
 export { JoinRoom } from './JoinRoom';
 export { Lobby } from './Lobby';
+export { AuthScreen } from './AuthScreen';
+export { BattleHistory } from './BattleHistory';
 export { WaitingRoom } from './WaitingRoom';
 export { DiceRoller } from './DiceRoller';
 export { CardHand } from './CardHand';
