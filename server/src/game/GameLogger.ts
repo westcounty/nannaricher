@@ -4,8 +4,9 @@ import { join } from 'path';
 export interface GameLogRecord {
   timestamp: number;
   turn: number;
+  round?: number;
   playerId: string;
-  type: 'dice_roll' | 'move' | 'event' | 'card' | 'resource_change' | 'choice' | 'phase_change' | 'system';
+  type: 'dice_roll' | 'move' | 'event' | 'card' | 'resource_change' | 'choice' | 'phase_change' | 'turn_start' | 'turn_end' | 'system';
   message: string;
   data?: Record<string, unknown>;
 }
@@ -14,6 +15,7 @@ export class GameLogger {
   private records: GameLogRecord[] = [];
   private roomId: string;
   private startTime: number;
+  private gameSummary: Record<string, unknown> | null = null;
 
   constructor(roomId: string) {
     this.roomId = roomId;
@@ -22,6 +24,10 @@ export class GameLogger {
 
   log(record: Omit<GameLogRecord, 'timestamp'>): void {
     this.records.push({ ...record, timestamp: Date.now() });
+  }
+
+  setGameSummary(summary: Record<string, unknown>): void {
+    this.gameSummary = summary;
   }
 
   async persist(): Promise<string> {
@@ -36,6 +42,7 @@ export class GameLogger {
       startTime: this.startTime,
       endTime: Date.now(),
       totalRecords: this.records.length,
+      summary: this.gameSummary,
       records: this.records,
     }, null, 2));
 

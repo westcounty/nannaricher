@@ -50,6 +50,15 @@ export class GameCoordinator {
     // Wire up resource change broadcast for prominent stat change notifications
     this.engine.setResourceChangeCallback((data) => {
       this.io.to(this.roomId).emit('game:resource-change', data);
+      const state = this.engine.getState();
+      this.logger.log({
+        turn: state.turnNumber,
+        round: state.roundNumber,
+        playerId: data.playerId,
+        type: 'resource_change',
+        message: `${data.playerName} ${data.stat} ${data.delta >= 0 ? '+' : ''}${data.delta} → ${data.current}`,
+        data: { stat: data.stat, delta: data.delta, current: data.current },
+      });
     });
 
     // Wire up plan ability trigger broadcast
@@ -138,6 +147,29 @@ export class GameCoordinator {
   // Utility
   // --------------------------------------------------
 
+  private saveGameSummary(): void {
+    const state = this.engine.getState();
+    this.logger.setGameSummary({
+      roomId: this.roomId,
+      totalTurns: state.turnNumber,
+      totalRounds: state.roundNumber,
+      phase: state.phase,
+      winner: state.winner,
+      players: state.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        money: p.money,
+        gpa: p.gpa,
+        exploration: p.exploration,
+        majorPlan: p.majorPlan,
+        minorPlans: p.minorPlans,
+        isBankrupt: p.isBankrupt,
+        isInHospital: p.isInHospital,
+        position: p.position,
+      })),
+    });
+  }
+
   private addLog(playerId: string, message: string): void {
     const state = this.engine.getState();
     state.log.push({
@@ -146,7 +178,7 @@ export class GameCoordinator {
       message,
       timestamp: Date.now(),
     });
-    this.logger.log({ turn: state.turnNumber, playerId, type: 'system', message });
+    this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'system', message });
   }
 
   // --------------------------------------------------
@@ -409,6 +441,24 @@ export class GameCoordinator {
     const forcedDiceEffect = currentPlayer.effects.find(
       e => e.type === 'custom' && e.data?.forcedDice
     );
+
+    // Log turn start with player snapshot
+    this.logger.log({
+      turn: state.turnNumber,
+      round: state.roundNumber,
+      playerId: currentPlayer.id,
+      type: 'turn_start',
+      message: `${currentPlayer.name} 的回合开始`,
+      data: {
+        position: currentPlayer.position,
+        money: currentPlayer.money,
+        gpa: currentPlayer.gpa,
+        exploration: currentPlayer.exploration,
+        effects: currentPlayer.effects.map(e => e.type),
+        majorPlan: currentPlayer.majorPlan,
+        minorPlans: currentPlayer.minorPlans,
+      },
+    });
 
     state.pendingAction = {
       id: `roll_dice_${Date.now()}`,
@@ -1096,6 +1146,7 @@ export class GameCoordinator {
       state.winner = finalWinnerId;
       state.phase = 'finished';
       this.logger.log({ turn: state.turnNumber, playerId: finalWinnerId, type: 'phase_change', message: `Game won: ${finalCondition}`, data: { winnerId: finalWinnerId, condition: finalCondition } });
+      this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: finalWinnerId,
@@ -1122,6 +1173,7 @@ export class GameCoordinator {
     const winner = state.players.find(p => p.id === winnerId);
     if (winnerId && winner) {
       this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game force-ended: 毕业结算`, data: { winnerId, condition: '毕业结算' } });
+      this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: winnerId,
@@ -2350,7 +2402,9 @@ export class GameCoordinator {
     });
 
     this.addLog(playerId, `${currentPlayer.name} 投出了 ${values.join('+')}=${total}`);
-    this.logger.log({ turn: state.turnNumber, playerId, type: 'dice_roll', message: `Rolled ${values.join('+')}=${total}`, data: { values, total } });
+    this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'dice_roll', message: `Rolled ${values.join('+')}=${total}`, data: { values, total, backward: isBackward } });
+
+    const posBefore = { ...currentPlayer.position };
 
     // Move player
     if (isBackward) {
@@ -2358,6 +2412,8 @@ export class GameCoordinator {
     } else {
       this.engine.movePlayerForward(playerId, total);
     }
+
+    this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'move', message: `移动到 ${JSON.stringify(currentPlayer.position)}`, data: { from: posBefore, to: currentPlayer.position, steps: total, backward: isBackward } });
 
     // Handle landing
     this.handleCellLanding(playerId, currentPlayer.position);
@@ -2394,7 +2450,20 @@ export class GameCoordinator {
     const state = this.engine.getState();
     if (!state.pendingAction) return;
 
-    this.logger.log({ turn: state.turnNumber, playerId, type: 'choice', message: `Action choice: ${choice}`, data: { actionId, choice } });
+    this.logger.log({
+      turn: state.turnNumber,
+      round: state.roundNumber,
+      playerId,
+      type: 'choice',
+      message: `Action choice: ${choice}`,
+      data: {
+        actionId,
+        choice,
+        actionType: state.pendingAction.type,
+        prompt: state.pendingAction.prompt,
+        options: state.pendingAction.options?.map(o => ({ label: o.label, value: o.value })),
+      },
+    });
 
     const pendingActionId = state.pendingAction.id;
 
@@ -2756,6 +2825,7 @@ export class GameCoordinator {
       state.winner = winnerId;
       state.phase = 'finished';
       this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game won via plan: ${condition}`, data: { winnerId, condition } });
+      this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: winnerId,
