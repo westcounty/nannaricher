@@ -149,8 +149,9 @@ export function EventModal({
   return (
     <div
       className={`event-modal-overlay ${isClosing ? 'closing' : ''} ${isReadOnly ? 'read-only' : ''}`}
-      style={{ opacity: isClosing ? 0 : opacity }}
+      style={{ opacity: isClosing ? 0 : opacity, pointerEvents: 'auto' }}
       onClick={isReadOnly ? undefined : (hasOptions ? undefined : handleClose)}
+      onPointerDown={e => e.stopPropagation()}
     >
       <div
         className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''} ${isReadOnly ? 'read-only' : ''}`}

@@ -92,7 +92,9 @@ export function ChoiceDialog({
   return (
     <div
       className={`choice-dialog-overlay ${isClosing ? 'closing' : ''}`}
-      style={{ opacity: isClosing ? 0 : opacity }}
+      style={{ opacity: isClosing ? 0 : opacity, pointerEvents: 'auto' }}
+      onClick={e => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
     >
       <div
         className={`choice-dialog ${isClosing ? 'closing' : ''}`}
@@ -349,7 +351,9 @@ export function MultiSelectDialog({
   return (
     <div
       className={`choice-dialog-overlay ${isClosing ? 'closing' : ''}`}
-      style={{ opacity: isClosing ? 0 : opacity }}
+      style={{ opacity: isClosing ? 0 : opacity, pointerEvents: 'auto' }}
+      onClick={e => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
     >
       <div
         className={`choice-dialog multi-select ${isClosing ? 'closing' : ''}`}
