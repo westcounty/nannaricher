@@ -103,14 +103,14 @@ register('destiny_alternative_path', (ctx) => ({
 
 register('destiny_cross_college_exit', (ctx) => ({
   success: true,
-  message: `${ctx.card.name}：取消一个自己的已经固定的培养方案`,
-  effects: { custom: 'unfix_plan' },
+  message: `${ctx.card.name}：交换主修和辅修培养计划`,
+  effects: { custom: 'swap_major_minor' },
 }));
 
 register('destiny_professional_intention', (ctx) => ({
   success: true,
-  message: `${ctx.card.name}：提前一回合固定培养方案，GPA +0.1，探索值 +1`,
-  effects: { gpa: 0.1, exploration: 1, custom: 'early_plan_fix' },
+  message: `${ctx.card.name}：增加一个培养计划槽位，GPA +0.1，探索值 +1`,
+  effects: { gpa: 0.1, exploration: 1, custom: 'add_plan_slot' },
 }));
 
 register('destiny_familiar_route', (ctx) => ({

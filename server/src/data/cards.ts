@@ -86,7 +86,7 @@ export const destinyCards: Card[] = [
   {
     id: 'destiny_cross_college_exit',
     name: '跨院准出',
-    description: '单次使用，你可以取消一个自己的已经固定的培养方案',
+    description: '单次使用，你可以立即交换自己的主修培养计划和辅修培养计划，如果没有辅修培养计划则无事发生',
     deckType: 'destiny',
     holdable: true,
     singleUse: true,
@@ -96,12 +96,12 @@ export const destinyCards: Card[] = [
   {
     id: 'destiny_professional_intention',
     name: '专业意向',
-    description: '单次使用，你可以提前一回合固定一个培养方案，然后获得0.1GPA和1探索值',
+    description: '单次使用，你可以永久增加一个培养计划槽位，然后获得0.1GPA和1探索值',
     deckType: 'destiny',
     holdable: true,
     singleUse: true,
     returnToDeck: true,
-    effects: [{ stat: 'gpa', delta: 0.1 }, { stat: 'exploration', delta: 1 }],
+    effects: [],
   },
   {
     id: 'destiny_familiar_route',

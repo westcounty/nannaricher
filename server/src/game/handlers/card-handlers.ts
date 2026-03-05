@@ -1375,90 +1375,61 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 10. 跨院准出 — remove a confirmed plan
+  // 10. 跨院准出 — swap major and minor plan
   eventHandler.registerHandler('card_destiny_cross_college_exit', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
-    const crossPlanIds = player ? getPlayerPlanIds(player) : [];
-    if (!player || crossPlanIds.length === 0) {
-      engine.log('跨院准出：没有已确认的培养方案', playerId);
+    if (!player) return null;
+
+    if (player.minorPlans.length === 0) {
+      engine.log('跨院准出：没有辅修培养计划，无事发生', playerId);
       return null;
     }
 
-    const options = crossPlanIds.map(planId => {
-      const plan = player.trainingPlans.find(p => p.id === planId);
-      return { label: `取消: ${plan?.name || planId}`, value: `remove_plan_${planId}` };
-    });
-    options.push({ label: '不取消', value: 'skip_remove_plan' });
+    if (player.minorPlans.length === 1) {
+      // Only one minor — auto-swap
+      const oldMajor = player.majorPlan;
+      const oldMinor = player.minorPlans[0];
+      player.majorPlan = oldMinor;
+      player.minorPlans = oldMajor ? [oldMajor] : [];
+      const majorName = player.trainingPlans.find(p => p.id === oldMinor)?.name || oldMinor;
+      engine.log(`跨院准出：主修变为 ${majorName}`, playerId);
+      return null;
+    }
 
+    // Multiple minors — let player choose which to swap with major
+    const options = player.minorPlans.map(planId => {
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      return { label: plan?.name || planId, value: planId };
+    });
     const action = engine.createPendingAction(
-      playerId, 'choose_option', '选择要取消的培养方案:', options
+      playerId, 'choose_option', '跨院准出：选择一项辅修与主修交换', options
     );
     action.callbackHandler = 'card_cross_college_exit_callback';
     return action;
   });
 
   eventHandler.registerHandler('card_cross_college_exit_callback', (engine, playerId, choice) => {
-    if (choice && choice.startsWith('remove_plan_')) {
-      const planId = choice.replace('remove_plan_', '');
-      const player = engine.getPlayer(playerId);
-      if (player) {
-        if (player.majorPlan === planId) {
-          // Promote first minor to major, or set null
-          player.majorPlan = player.minorPlans.length > 0 ? player.minorPlans.shift()! : null;
-        } else {
-          player.minorPlans = player.minorPlans.filter(id => id !== planId);
-        }
-        const plan = player.trainingPlans.find(p => p.id === planId);
-        engine.log(`跨院准出：取消了培养方案 ${plan?.name || planId}`, playerId);
-      }
-    }
+    const player = engine.getPlayer(playerId);
+    if (!player || !choice) return null;
+
+    const oldMajor = player.majorPlan;
+    player.majorPlan = choice;
+    player.minorPlans = player.minorPlans.filter(id => id !== choice);
+    if (oldMajor) player.minorPlans.push(oldMajor);
+    const majorName = player.trainingPlans.find(p => p.id === choice)?.name || choice;
+    engine.log(`跨院准出：主修变为 ${majorName}`, playerId);
     return null;
   });
 
-  // 11. 专业意向 — confirm a plan early + bonus
+  // 11. 专业意向 — permanently add a plan slot + bonus
   eventHandler.registerHandler('card_destiny_professional_intention', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    const intentionPlanIds = getPlayerPlanIds(player);
-    const unconfirmed = player.trainingPlans.filter(p => !intentionPlanIds.includes(p.id));
-    if (unconfirmed.length === 0) {
-      engine.log('专业意向：没有未确认的培养方案', playerId);
-      return null;
-    }
-
-    const options = unconfirmed.map(p => ({
-      label: `确认: ${p.name}`, value: `early_confirm_${p.id}`,
-    }));
-    options.push({ label: '不确认', value: 'skip_early_confirm' });
-
-    const action = engine.createPendingAction(
-      playerId, 'choose_option', '专业意向：提前确认一个培养方案', options
-    );
-    action.callbackHandler = 'card_professional_intention_callback';
-    return action;
-  });
-
-  eventHandler.registerHandler('card_professional_intention_callback', (engine, playerId, choice) => {
-    if (choice && choice.startsWith('early_confirm_')) {
-      const planId = choice.replace('early_confirm_', '');
-      const player = engine.getPlayer(playerId);
-      if (player) {
-        const plan = player.trainingPlans.find(p => p.id === planId);
-        if (plan) {
-          if (player.majorPlan !== planId && !player.minorPlans.includes(planId)) {
-            if (!player.majorPlan) {
-              player.majorPlan = planId;
-            } else {
-              player.minorPlans.push(planId);
-            }
-          }
-          engine.log(`专业意向：提前确认了 ${plan.name}`, playerId);
-        }
-        engine.modifyPlayerGpa(playerId, 0.1);
-        engine.modifyPlayerExploration(playerId, 1);
-      }
-    }
+    player.planSlotLimit += 1;
+    engine.modifyPlayerGpa(playerId, 0.1);
+    engine.modifyPlayerExploration(playerId, 1);
+    engine.log(`专业意向：培养计划槽位上限增加到 ${player.planSlotLimit}，GPA +0.1，探索值 +1`, playerId);
     return null;
   });
 
