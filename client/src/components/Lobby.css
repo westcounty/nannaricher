@@ -9,7 +9,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 64px 24px 24px;
   background: var(--color-bg-main, #0F0A1A);
   color: var(--color-text-primary, #fff);
   font-family: var(--font-main);
@@ -234,13 +234,14 @@
 
 .create-room,
 .join-room {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 440px;
   background: var(--color-bg-surface, #1A1230);
   border: 1px solid rgba(139, 95, 191, 0.15);
   border-radius: 20px;
-  padding: 36px 32px 32px;
+  padding: 28px 32px 32px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
@@ -248,19 +249,18 @@
 .join-room h2,
 .waiting-room h2 {
   text-align: center;
-  margin-bottom: 28px;
-  font-size: 1.6rem;
+  margin-bottom: 24px;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #fff;
 }
 
-/* Back button — minimal pill */
+/* Back button — minimal pill, in normal flow */
 .back-button {
-  position: absolute;
-  top: 16px;
-  left: 16px;
+  align-self: flex-start;
   padding: 6px 14px;
+  margin-bottom: 12px;
   font-size: 0.85rem;
   font-family: var(--font-main);
   color: rgba(176, 176, 176, 0.9);
@@ -616,15 +616,34 @@
 
 @media (max-width: 520px) {
   .lobby {
-    padding: 20px 16px;
+    padding: 72px 16px 16px;
+    justify-content: flex-start;
   }
 
   .lobby-header {
-    margin-bottom: 36px;
+    margin-bottom: 16px;
   }
 
   .lobby-header h1 {
-    font-size: 2.5rem;
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+  }
+
+  .lobby-header .subtitle {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+  }
+
+  .lobby-header::after {
+    margin-top: 8px;
+    width: 50px;
+  }
+
+  /* Hide big header when form panels are shown */
+  .lobby:has(.create-room) .lobby-header,
+  .lobby:has(.join-room) .lobby-header,
+  .lobby:has(.waiting-room) .lobby-header {
+    display: none;
   }
 
   .lobby-buttons {
@@ -645,7 +664,7 @@
   .create-room,
   .join-room,
   .waiting-room {
-    padding: 28px 20px 24px;
+    padding: 24px 20px 24px;
     border-radius: 16px;
   }
 
