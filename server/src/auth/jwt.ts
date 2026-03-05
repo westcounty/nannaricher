@@ -38,7 +38,7 @@ export function verifyToken(token: string): VerifyResult | null {
   }
 
   try {
-    const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as JwtPayload;
+    const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256', 'HS384', 'HS512'] }) as JwtPayload;
     return { payload, verified: true };
   } catch {
     return null;
