@@ -1,0 +1,597 @@
+/* ============================================
+   CARD HAND — thumbnail list in ActionBar / mobile sheet
+   ============================================ */
+
+.card-hand {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+.card-hand::-webkit-scrollbar { display: none; }
+
+.card-hand-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.card-hand-header h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #aaa);
+}
+.card-count {
+  font-size: 0.7rem;
+  background: rgba(255,255,255,0.08);
+  color: var(--color-text-muted, #888);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.card-hand.empty {
+  justify-content: center;
+  padding: 8px;
+}
+.no-cards {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #666);
+}
+
+/* ============================================
+   CARD THUMBNAIL — individual mini card
+   ============================================ */
+
+.card-thumbnail {
+  flex-shrink: 0;
+  width: 56px;
+  height: 78px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+  /* Card face base */
+  background: linear-gradient(170deg, #1e1840 0%, #0f0a1a 100%);
+  border: 1.5px solid rgba(139, 95, 191, 0.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Top color band */
+.card-thumbnail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+  border-radius: 5px 5px 0 0;
+}
+.card-thumbnail.chance::before {
+  background: linear-gradient(135deg, #1565C0 0%, #42A5F5 100%);
+}
+.card-thumbnail.destiny::before {
+  background: linear-gradient(135deg, #7B1FA2 0%, #BA68C8 100%);
+}
+
+/* Hover / active */
+.card-thumbnail:hover {
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(94, 58, 141, 0.4);
+  border-color: rgba(201, 162, 39, 0.5);
+}
+.card-thumbnail:active {
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Type icon (corner) */
+.card-type-icon {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.9);
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Card name — center of thumbnail */
+.card-thumbnail .card-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 8px;
+  padding: 0 2px;
+  max-height: 32px;
+  overflow: hidden;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Effect summary — bottom */
+.card-thumbnail .card-effect-summary {
+  font-size: 8px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-top: auto;
+  padding-bottom: 2px;
+}
+
+/* Holdable indicator */
+.holdable-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--color-accent, #C9A227);
+  background: rgba(201, 162, 39, 0.15);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
+
+/* Timing badge (any_turn) */
+.card-thumbnail .timing-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF50;
+  box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
+  z-index: 1;
+}
+
+/* ============================================
+   CARD DETAIL — full card overlay/modal
+   ============================================ */
+
+.card-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  backdrop-filter: blur(4px);
+  animation: cardOverlayIn 0.2s ease;
+}
+
+@keyframes cardOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card-detail {
+  width: 280px;
+  max-height: 85vh;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  animation: cardSlideIn 0.3s ease;
+  /* Card face */
+  background: linear-gradient(175deg, #1e1840 0%, #110c22 100%);
+  border: 1.5px solid rgba(139, 95, 191, 0.3);
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.5),
+    0 0 40px rgba(94, 58, 141, 0.15);
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Close button */
+.card-detail .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.4);
+  color: rgba(255,255,255,0.7);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 0.15s;
+}
+.card-detail .close-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+/* ---- Header band ---- */
+.card-detail .card-header {
+  padding: 20px 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.card-detail .card-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.85;
+}
+.card-detail .card-header.chance::before {
+  background: linear-gradient(135deg, #0D47A1 0%, #1976D2 60%, #42A5F5 100%);
+}
+.card-detail .card-header.destiny::before {
+  background: linear-gradient(135deg, #4A148C 0%, #7B1FA2 60%, #AB47BC 100%);
+}
+
+/* Decorative pattern overlay */
+.card-detail .card-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.card-detail .card-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+.card-detail .card-type {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.card-detail .card-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  line-height: 1.2;
+}
+
+/* Badges row */
+.card-detail .card-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.card-detail .card-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+.card-badge--holdable {
+  background: rgba(201, 162, 39, 0.2);
+  color: #C9A227;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+}
+.card-badge--single-use {
+  background: rgba(244, 67, 54, 0.15);
+  color: #ef9a9a;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+.card-badge--any-turn {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81C784;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+.card-badge--own-turn {
+  background: rgba(255, 152, 0, 0.15);
+  color: #FFB74D;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+/* ---- Body ---- */
+.card-detail .card-body {
+  padding: 14px 16px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Description */
+.card-detail .card-description {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.8);
+}
+.card-detail .card-description p {
+  margin: 0;
+}
+
+/* Separator line */
+.card-detail .card-divider {
+  height: 1px;
+  background: rgba(139, 95, 191, 0.2);
+  border: none;
+  margin: 0;
+}
+
+/* Effects */
+.card-detail .card-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-detail .card-effects-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 2px;
+}
+
+.card-detail .effect-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.effect-pill--money {
+  background: rgba(76, 175, 80, 0.12);
+  color: #81C784;
+  border: 1px solid rgba(76, 175, 80, 0.25);
+}
+.effect-pill--gpa {
+  background: rgba(33, 150, 243, 0.12);
+  color: #64B5F6;
+  border: 1px solid rgba(33, 150, 243, 0.25);
+}
+.effect-pill--exploration {
+  background: rgba(255, 152, 0, 0.12);
+  color: #FFB74D;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+}
+.effect-pill--special {
+  background: rgba(171, 71, 188, 0.12);
+  color: #CE93D8;
+  border: 1px solid rgba(171, 71, 188, 0.25);
+}
+.effect-pill .effect-icon {
+  font-size: 14px;
+}
+.effect-pill .effect-delta {
+  font-weight: 700;
+}
+.effect-pill .effect-target {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Target selection */
+.card-detail .target-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-detail .target-selection h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+}
+.card-detail .target-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.card-detail .target-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.card-detail .target-player:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+}
+.card-detail .target-player.selected {
+  background: rgba(201, 162, 39, 0.15);
+  border-color: rgba(201, 162, 39, 0.5);
+  color: #C9A227;
+}
+.card-detail .player-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---- Actions footer ---- */
+.card-detail .card-actions {
+  padding: 12px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(139, 95, 191, 0.15);
+  background: rgba(0,0,0,0.15);
+}
+
+.card-detail .use-card-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+  /* Gold gradient */
+  background: linear-gradient(135deg, #B8941E 0%, #C9A227 50%, #D4AF37 100%);
+  color: #1a1230;
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+}
+.card-detail .use-card-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(201, 162, 39, 0.4);
+}
+.card-detail .use-card-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.card-detail .use-card-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Confirm state — red */
+.card-detail .use-card-btn--confirm {
+  background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(229, 57, 53, 0.3);
+}
+.card-detail .use-card-btn--confirm:hover:not(:disabled) {
+  box-shadow: 0 6px 18px rgba(229, 57, 53, 0.4);
+}
+
+.card-detail .cancel-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.card-detail .cancel-btn:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.7);
+}
+
+.card-detail .confirm-use-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.card-detail .confirm-use-group .use-card-btn {
+  flex: 1;
+}
+.card-detail .confirm-use-group .cancel-btn {
+  flex: 1;
+}
+
+.card-detail .not-your-turn {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  padding: 8px;
+}
+
+/* ============================================
+   ActionBar overrides — card thumbnails in 64px bar
+   ============================================ */
+
+.action-bar__cards .card-hand {
+  position: static;
+  background: transparent;
+  padding: 0;
+  border-top: none;
+  z-index: auto;
+  backdrop-filter: none;
+  gap: 6px;
+  overflow-y: visible;
+}
+.action-bar__cards .card-hand-header {
+  display: none;
+}
+.action-bar__cards .card-thumbnail {
+  width: 42px;
+  height: 58px;
+  border-radius: 5px;
+}
+.action-bar__cards .card-thumbnail .card-name {
+  font-size: 9px;
+  margin-top: 6px;
+  max-height: 24px;
+}
+.action-bar__cards .card-thumbnail .card-effect-summary {
+  display: none;
+}
+.action-bar__cards .card-thumbnail .holdable-indicator {
+  font-size: 6px;
+  padding: 0 2px;
+}
+.action-bar__cards .card-thumbnail::before {
+  height: 14px;
+}
+.action-bar__cards .card-hand.empty {
+  background: transparent;
+  padding: 0;
+  position: static;
+  border-top: none;
+}
+
+/* ============================================
+   Mobile sheet overrides — more room for cards
+   ============================================ */
+
+@media (max-width: 767px) {
+  .card-thumbnail {
+    width: 52px;
+    height: 72px;
+  }
+  .card-detail {
+    width: calc(100vw - 32px);
+    max-width: 300px;
+  }
+}

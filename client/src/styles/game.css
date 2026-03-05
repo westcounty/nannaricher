@@ -168,33 +168,7 @@
   }
 }
 
-/* Card Hand */
-.card-hand {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--color-bg-elevated);
-  padding: 12px 20px;
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  backdrop-filter: blur(10px);
-  z-index: 100;
-  border-top: 1px solid var(--game-border);
-}
-
-/* Card effect summary in thumbnail */
-.card-effect-summary {
-  font-size: 0.65rem;
-  color: var(--color-text-muted, #888);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  line-height: 1.2;
-  margin-top: 1px;
-}
+/* Card styles moved to cards.css */
 
 /* Player Panel */
 .player-panel {

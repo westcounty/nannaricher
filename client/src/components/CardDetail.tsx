@@ -1,6 +1,7 @@
 // client/src/components/CardDetail.tsx
 import { useState } from 'react';
 import type { Card, CardEffect, Player } from '@nannaricher/shared';
+import '../styles/cards.css';
 
 interface CardDetailProps {
   card: Card;
@@ -10,44 +11,48 @@ interface CardDetailProps {
   players?: Player[];
 }
 
+const STAT_NAMES: Record<string, string> = {
+  money: '金钱',
+  gpa: 'GPA',
+  exploration: '探索',
+};
+
+const STAT_ICONS: Record<string, string> = {
+  money: '\uD83D\uDCB0',
+  gpa: '\uD83D\uDCDA',
+  exploration: '\uD83D\uDD2D',
+};
+
+const TARGET_NAMES: Record<string, string> = {
+  self: '自己',
+  all: '所有玩家',
+  choose_player: '选择玩家',
+  richest: '最富有',
+  poorest: '最穷',
+  highest_gpa: 'GPA最高',
+  lowest_gpa: 'GPA最低',
+  highest_exp: '探索最高',
+  lowest_exp: '探索最低',
+};
+
+function getEffectPillClass(effect: CardEffect): string {
+  if (effect.stat) return `effect-pill effect-pill--${effect.stat}`;
+  return 'effect-pill effect-pill--special';
+}
+
+function formatDelta(effect: CardEffect): string {
+  if (effect.delta !== undefined) {
+    return effect.delta >= 0 ? `+${effect.delta}` : `${effect.delta}`;
+  }
+  if (effect.multiplier !== undefined) {
+    return `x${effect.multiplier} (骰)`;
+  }
+  return '';
+}
+
 export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardDetailProps) {
   const [selectedTarget, setSelectedTarget] = useState<string | undefined>(undefined);
   const [confirmingUse, setConfirmingUse] = useState(false);
-
-  const getEffectText = (effect: CardEffect): string => {
-    if (!effect.stat) return '特殊效果';
-
-    const statName = {
-      money: '金钱',
-      gpa: 'GPA',
-      exploration: '探索'
-    }[effect.stat] || effect.stat;
-
-    let deltaText = '';
-    if (effect.delta !== undefined) {
-      deltaText = effect.delta >= 0 ? `+${effect.delta}` : `${effect.delta}`;
-    } else if (effect.multiplier !== undefined) {
-      deltaText = `x${effect.multiplier}`;
-    }
-
-    const targetName = effect.target ? {
-      self: '自己',
-      all: '所有玩家',
-      choose_player: '选择玩家',
-      richest: '最富有的玩家',
-      poorest: '最穷的玩家',
-      highest_gpa: 'GPA最高',
-      lowest_gpa: 'GPA最低',
-      highest_exp: '探索最高',
-      lowest_exp: '探索最低'
-    }[effect.target] || effect.target : '目标';
-
-    return `${statName} ${deltaText} (${targetName})`;
-  };
-
-  const getDeckTypeLabel = (deckType: 'chance' | 'destiny'): string => {
-    return deckType === 'chance' ? '机遇卡' : '命运卡';
-  };
 
   const needsTargetSelection = card.effects.some(e => e.target === 'choose_player');
   const selectablePlayers = players.filter(p => !p.isBankrupt);
@@ -63,37 +68,56 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
 
   const cancelUse = () => setConfirmingUse(false);
 
+  const deckLabel = card.deckType === 'chance' ? '机遇卡' : '命运卡';
+  const hasEffects = card.effects.length > 0 && card.effects.some(e => e.stat);
+
   return (
     <div className="card-detail-overlay" onClick={onClose}>
       <div className="card-detail" onClick={(e) => e.stopPropagation()}>
-        <button className="close-btn" onClick={onClose}>x</button>
+        <button className="close-btn" onClick={onClose}>&times;</button>
 
+        {/* Header band */}
         <div className={`card-header ${card.deckType}`}>
-          <span className="card-type">{getDeckTypeLabel(card.deckType)}</span>
+          <span className="card-type">{deckLabel}</span>
           <h2 className="card-title">{card.name}</h2>
-          {card.holdable && <span className="holdable-badge">可保留</span>}
-          {card.singleUse && <span className="single-use-badge">一次性</span>}
+          <div className="card-badges">
+            {card.holdable && <span className="card-badge card-badge--holdable">可保留</span>}
+            {card.singleUse && <span className="card-badge card-badge--single-use">一次性</span>}
+            {card.useTiming === 'any_turn' && <span className="card-badge card-badge--any-turn">任意回合</span>}
+            {card.useTiming === 'own_turn' && <span className="card-badge card-badge--own-turn">本回合</span>}
+          </div>
         </div>
 
+        {/* Body */}
         <div className="card-body">
+          {/* Description */}
           <div className="card-description">
             <p>{card.description}</p>
           </div>
 
-          <div className="card-effects">
-            <h4>效果:</h4>
-            <ul>
-              {card.effects.map((effect, index) => (
-                <li key={index} className="effect-item">
-                  {getEffectText(effect)}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Effects as pills */}
+          {hasEffects && (
+            <>
+              <hr className="card-divider" />
+              <div className="card-effects">
+                <span className="card-effects-label">效果</span>
+                {card.effects.map((effect, index) => (
+                  <div key={index} className={getEffectPillClass(effect)}>
+                    <span className="effect-icon">{STAT_ICONS[effect.stat || ''] || '\u2728'}</span>
+                    <span className="effect-delta">{STAT_NAMES[effect.stat || ''] || '特殊'} {formatDelta(effect)}</span>
+                    {effect.target && (
+                      <span className="effect-target">({TARGET_NAMES[effect.target] || effect.target})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
+          {/* Target selection */}
           {needsTargetSelection && canUse && (
             <div className="target-selection">
-              <h4>选择目标玩家:</h4>
+              <h4>选择目标</h4>
               <div className="target-list">
                 {selectablePlayers.map((player) => (
                   <button
@@ -101,10 +125,7 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
                     className={`target-player ${selectedTarget === player.id ? 'selected' : ''}`}
                     onClick={() => setSelectedTarget(player.id)}
                   >
-                    <span
-                      className="player-color-dot"
-                      style={{ backgroundColor: player.color }}
-                    />
+                    <span className="player-color-dot" style={{ backgroundColor: player.color }} />
                     {player.name}
                   </button>
                 ))}
@@ -113,22 +134,15 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
           )}
         </div>
 
+        {/* Actions */}
         <div className="card-actions">
           {canUse ? (
             confirmingUse ? (
-              <div className="confirm-use-group" style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                <button
-                  className="use-card-btn"
-                  onClick={handleUse}
-                  style={{ flex: 1, background: '#e53935' }}
-                >
+              <div className="confirm-use-group">
+                <button className="use-card-btn use-card-btn--confirm" onClick={handleUse}>
                   确认使用
                 </button>
-                <button
-                  className="cancel-btn"
-                  onClick={cancelUse}
-                  style={{ flex: 1 }}
-                >
+                <button className="cancel-btn" onClick={cancelUse}>
                   取消
                 </button>
               </div>

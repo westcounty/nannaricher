@@ -56,30 +56,7 @@
   white-space: nowrap;
 }
 
-/* Override CardHand's fixed positioning when inside ActionBar */
-.action-bar__cards .card-hand {
-  position: static;
-  background: transparent;
-  padding: 4px 0;
-  border-top: none;
-  z-index: auto;
-  backdrop-filter: none;
-}
-
-.action-bar__cards .card-hand-header {
-  display: none;
-}
-
-.action-bar__cards .card-list {
-  flex-wrap: nowrap;
-}
-
-.action-bar__cards .card-hand.empty {
-  background: transparent;
-  padding: 4px 0;
-  position: static;
-  border-top: none;
-}
+/* Card overrides moved to cards.css */
 
 /* Right section: dice button */
 .action-bar__dice {

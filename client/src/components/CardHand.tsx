@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Card, Player } from '@nannaricher/shared';
 import { CardDetail } from './CardDetail';
 import { playSound } from '../audio/AudioManager';
+import '../styles/cards.css';
 
 const STAT_ICONS: Record<string, string> = {
   money: '\uD83D\uDCB0',
@@ -25,10 +26,9 @@ function buildEffectSummary(card: Card): string {
     }
   }
   if (parts.length > 0) return parts.join(' ');
-  // Fallback: truncate description
   if (card.description) {
-    return card.description.length > 15
-      ? card.description.slice(0, 15) + '\u2026'
+    return card.description.length > 12
+      ? card.description.slice(0, 12) + '\u2026'
       : card.description;
   }
   return '';
@@ -73,7 +73,7 @@ export function CardHand({ player, onUseCard, isCurrentPlayer, players = [] }: C
         <h3>手牌</h3>
         <span className="card-count">{player.heldCards.length}</span>
       </div>
-      <div className="card-list">
+      <div className="card-list" style={{ display: 'contents' }}>
         {player.heldCards.map((card) => {
           const summary = buildEffectSummary(card);
           return (
@@ -85,6 +85,7 @@ export function CardHand({ player, onUseCard, isCurrentPlayer, players = [] }: C
               <div className="card-type-icon">
                 {card.deckType === 'chance' ? '?' : '!'}
               </div>
+              {card.useTiming === 'any_turn' && <div className="timing-badge" title="任意回合可用" />}
               <div className="card-name">{card.name}</div>
               {summary && (
                 <div className="card-effect-summary">{summary}</div>
