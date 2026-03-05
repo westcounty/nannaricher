@@ -653,60 +653,32 @@ function analyzeResourceWinCorrelation() {
  * Chi-squared p-value approximation using the regularized incomplete gamma function.
  * Uses series expansion for small values and continued fraction for larger values.
  */
+/**
+ * Chi-squared p-value via Wilson-Hilferty normal approximation.
+ * Simple, robust, and accurate for df >= 1.
+ */
 function chiSquaredPValue(x, df) {
   if (x <= 0 || df <= 0) return 1;
-  // P-value = 1 - regularizedGammaP(df/2, x/2)
-  return 1 - regularizedGammaP(df / 2, x / 2);
+  // Wilson-Hilferty approximation: transform chi-squared to standard normal
+  const k = df;
+  const z = Math.cbrt(x / k) - (1 - 2 / (9 * k));
+  const se = Math.sqrt(2 / (9 * k));
+  const zScore = z / se;
+  // Standard normal survival function (1 - Phi(z))
+  return 1 - normalCDF(zScore);
 }
 
-function regularizedGammaP(a, x) {
-  if (x < 0) return 0;
-  if (x === 0) return 0;
-  if (x < a + 1) {
-    // Series expansion
-    let sum = 1 / a, term = 1 / a;
-    for (let n = 1; n < 200; n++) {
-      term *= x / (a + n);
-      sum += term;
-      if (Math.abs(term) < 1e-10 * Math.abs(sum)) break;
-    }
-    return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
-  } else {
-    // Continued fraction (Lentz's method)
-    return 1 - regularizedGammaQ(a, x);
-  }
-}
-
-function regularizedGammaQ(a, x) {
-  let f = 1e-30, c = 1e-30, d = 1 / (x + 1 - a);
-  let h = d;
-  for (let i = 1; i < 200; i++) {
-    const an = -i * (i - a);
-    const bn = x + 2 * i + 1 - a;
-    d = bn + an * d;
-    if (Math.abs(d) < 1e-30) d = 1e-30;
-    c = bn + an / c;
-    if (Math.abs(c) < 1e-30) c = 1e-30;
-    d = 1 / d;
-    const del = d * c;
-    h *= del;
-    if (Math.abs(del - 1) < 1e-10) break;
-  }
-  return h * Math.exp(-x + a * Math.log(x) - logGamma(a));
-}
-
-function logGamma(z) {
-  // Stirling's approximation for log(Gamma(z))
-  const coeffs = [76.18009172947146, -86.50532032941678, 24.01409824083091,
-    -1.231739572450155, 0.001208650973866179, -0.000005395239384953];
-  let x = z, y = z;
-  let tmp = x + 5.5;
-  tmp -= (x + 0.5) * Math.log(tmp);
-  let sum = 1.000000000190015;
-  for (let j = 0; j < 6; j++) {
-    sum += coeffs[j] / ++y;
-  }
-  return -tmp + Math.log(2.5066282746310005 * sum / x);
+/** Standard normal CDF using Abramowitz & Stegun approximation */
+function normalCDF(z) {
+  if (z < -8) return 0;
+  if (z > 8) return 1;
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1.0 + sign * y);
 }
 
 // ============================================================
