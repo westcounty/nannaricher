@@ -80,6 +80,16 @@ function getStatusText(
   if (pendingAction?.type === 'multi_vote') return '投票中';
   if (pendingAction?.type === 'chain_action') return '连锁行动';
 
+  // Plan selection phase
+  if (pendingAction?.id?.startsWith('plan_')) {
+    const selectingPlayer = gameState.players.find(p => p.id === pendingAction.playerId);
+    const name = selectingPlayer?.name || '玩家';
+    if (pendingAction.playerId === gameState.players[gameState.currentPlayerIndex]?.id && isMyTurn) {
+      return '升学选择 — 请选择培养计划';
+    }
+    return `升学选择 — 等待 ${name} 选择培养计划`;
+  }
+
   if (isMyTurn) return '你的回合 — 请操作';
   if (currentPlayerName) return `等待 ${currentPlayerName} 操作`;
 

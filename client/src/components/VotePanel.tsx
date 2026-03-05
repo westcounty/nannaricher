@@ -62,10 +62,10 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
   const handleVote = useCallback(
     (value: string) => {
       if (isSubmitted || hasVoted) return;
+      onVote(pendingAction.id, value);
       playSound('vote_cast');
       setSelectedOption(value);
       setIsSubmitted(true);
-      onVote(pendingAction.id, value);
     },
     [isSubmitted, hasVoted, onVote, pendingAction.id]
   );

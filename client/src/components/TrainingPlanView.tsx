@@ -96,7 +96,7 @@ export function TrainingPlanView({
       )}
 
       {/* 无计划时显示 */}
-      {!hasPlan && !isFreshman && (
+      {!hasPlan && !isFreshman && player.trainingPlans.length === 0 && (
         <p className="no-plans">暂无培养计划</p>
       )}
       {!hasPlan && isFreshman && player.trainingPlans.length === 0 && (

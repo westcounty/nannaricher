@@ -238,7 +238,7 @@ export function GameScreen() {
               </div>
 
               {/* Training Plan */}
-              {myPlayer && myPlayer.trainingPlans.length > 0 && (
+              {myPlayer && (myPlayer.trainingPlans.length > 0 || gameState.roundNumber === 1) && (
                 <div className="game-sidebar__section">
                   <TrainingPlanView
                     player={myPlayer}
