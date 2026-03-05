@@ -96,6 +96,17 @@ export class ViewportController {
     this.onKeyDownBound = this.onKeyDown.bind(this);
 
     this.attachEvents();
+    this.centerOnBoard();
+  }
+
+  /** Center the viewport on the board. */
+  centerOnBoard(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const centerX = METRO_BOARD_WIDTH / 2;
+    const centerY = METRO_BOARD_HEIGHT / 2;
+    this.panX = rect.width / 2 - (this.baseContainerX + centerX * this.baseContainerScale) * this.scale;
+    this.panY = rect.height / 2 - (this.baseContainerY + centerY * this.baseContainerScale) * this.scale;
+    this.applyTransform();
   }
 
   // ============================================
