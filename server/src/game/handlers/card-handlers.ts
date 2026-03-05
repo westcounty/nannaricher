@@ -360,13 +360,112 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return action;
   }
 
-  /** Add a plan to player's major/minor slot */
+  /** Add a plan to player's major/minor slot (temporary, may exceed limit) */
   function addPlanToPlayerSlot(player: Player, planId: string) {
     if (!player.majorPlan) {
       player.majorPlan = planId;
     } else if (!player.minorPlans.includes(planId) && player.majorPlan !== planId) {
       player.minorPlans.push(planId);
     }
+  }
+
+  /**
+   * After adding a plan via card, check if overflow and handle the full chain:
+   * 1. If overflow: choose which plans to keep
+   * 2. If >1 plan kept: choose major direction
+   * 3. Finally: apply bonus
+   * Returns a PendingAction if interaction needed, null if bonus was applied directly.
+   */
+  function handleCardPlanOverflow(
+    engine: GameEngine,
+    player: Player,
+    bonusFn: () => void,
+    cardName: string,
+  ): ReturnType<typeof engine.createPendingAction> | null {
+    const planIds = getPlayerPlanIds(player);
+    if (planIds.length <= player.planSlotLimit) {
+      // No overflow — apply bonus directly
+      bonusFn();
+      return null;
+    }
+
+    // Overflow: need to choose which plans to keep
+    const overflowId = `card_plan_overflow_${Date.now()}`;
+    const options = planIds.map(id => {
+      const plan = player.trainingPlans.find(p => p.id === id);
+      return {
+        label: plan?.name || id,
+        value: id,
+        description: plan ? `胜利条件: ${plan.winCondition}` : undefined,
+      };
+    });
+
+    const action = engine.createPendingAction(
+      player.id, 'choose_option',
+      `${cardName}：培养计划超出上限(${planIds.length}/${player.planSlotLimit})，选择要保留的：`,
+      options,
+    );
+    action.maxSelections = player.planSlotLimit;
+    action.minSelections = 1;
+    action.callbackHandler = overflowId;
+
+    eventHandler.registerHandler(overflowId, (_eng, pid, overflowChoice) => {
+      const p = engine.getPlayer(pid);
+      if (!p || !overflowChoice) { bonusFn(); return null; }
+
+      const keepIds = overflowChoice.split(',');
+      // Remove plans not in keepIds
+      const removedIds = getPlayerPlanIds(p).filter(id => !keepIds.includes(id));
+      for (const rid of removedIds) {
+        if (p.majorPlan === rid) p.majorPlan = null;
+        p.minorPlans = p.minorPlans.filter(id => id !== rid);
+        // Return removed plan to deck
+        const idx = p.trainingPlans.findIndex(tp => tp.id === rid);
+        if (idx >= 0) {
+          const [removed] = p.trainingPlans.splice(idx, 1);
+          engine.getState().cardDecks.training.push(removed);
+        }
+      }
+
+      // Now set major: if only 1 plan kept, auto-set as major
+      if (keepIds.length === 1) {
+        p.majorPlan = keepIds[0];
+        p.minorPlans = [];
+        bonusFn();
+        return null;
+      }
+
+      // Multiple plans: choose major
+      const majorId = `card_plan_major_${Date.now()}`;
+      const majorOptions = keepIds.map(id => {
+        const plan = p.trainingPlans.find(tp => tp.id === id);
+        return { label: plan?.name || id, value: id };
+      });
+      const majorAction = engine.createPendingAction(
+        pid, 'choose_option',
+        `${cardName}：选择你的主修方向`,
+        majorOptions,
+      );
+      majorAction.callbackHandler = majorId;
+
+      eventHandler.registerHandler(majorId, (_e, pid2, majorChoice) => {
+        const p2 = engine.getPlayer(pid2);
+        if (p2 && majorChoice) {
+          const oldMajor = p2.majorPlan;
+          p2.majorPlan = majorChoice;
+          p2.minorPlans = keepIds.filter(id => id !== majorChoice);
+          if (majorChoice !== oldMajor) {
+            engine.log(`${cardName}：主修方向变更为 ${p2.trainingPlans.find(tp => tp.id === majorChoice)?.name || majorChoice}`, pid2);
+          }
+        }
+        bonusFn();
+        return null;
+      });
+
+      return majorAction;
+    });
+
+    return action;
   }
 
   /** Swap one minor plan between two players */
@@ -403,6 +502,14 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       addPlanToPlayerSlot(player, planId);
       const plan = player.trainingPlans.find(p => p.id === planId);
       engine.log(`强基计划：加入培养计划 ${plan?.name || planId}`, playerId);
+
+      // Check overflow — may return pending action for plan selection
+      const overflowAction = handleCardPlanOverflow(engine, player, () => {
+        engine.modifyPlayerGpa(playerId, 0.2);
+        engine.log('强基计划：GPA +0.2', playerId);
+      }, '强基计划');
+      if (overflowAction) return overflowAction;
+      return null;  // bonus already applied by handleCardPlanOverflow
     }
     engine.modifyPlayerGpa(playerId, 0.2);
     engine.log('强基计划：GPA +0.2', playerId);
@@ -424,6 +531,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       addPlanToPlayerSlot(player, planId);
       const plan = player.trainingPlans.find(p => p.id === planId);
       engine.log(`国家专项：加入培养计划 ${plan?.name || planId}`, playerId);
+
+      const overflowAction = handleCardPlanOverflow(engine, player, () => {
+        engine.modifyPlayerMoney(playerId, 200);
+        engine.log('国家专项：金钱 +200', playerId);
+      }, '国家专项');
+      if (overflowAction) return overflowAction;
+      return null;
     }
     engine.modifyPlayerMoney(playerId, 200);
     engine.log('国家专项：金钱 +200', playerId);
@@ -445,6 +559,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       addPlanToPlayerSlot(player, planId);
       const plan = player.trainingPlans.find(p => p.id === planId);
       engine.log(`二次选拔：加入培养计划 ${plan?.name || planId}`, playerId);
+
+      const overflowAction = handleCardPlanOverflow(engine, player, () => {
+        engine.modifyPlayerExploration(playerId, 2);
+        engine.log('二次选拔：探索值 +2', playerId);
+      }, '二次选拔');
+      if (overflowAction) return overflowAction;
+      return null;
     }
     engine.modifyPlayerExploration(playerId, 2);
     engine.log('二次选拔：探索值 +2', playerId);
