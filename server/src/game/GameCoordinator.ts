@@ -12,9 +12,12 @@ import {
   INITIAL_TRAINING_DRAW,
   MAX_TRAINING_PLANS,
   PLAN_CONFIRM_INTERVAL,
+  TURNS_PER_ROUND,
+  TOTAL_ROUNDS,
   BASE_WIN_THRESHOLD,
   SALARY_PASS,
   SALARY_STOP,
+  getRoundName,
 } from '@nannaricher/shared';
 import { GameEngine } from './GameEngine.js';
 import { GameLogger } from './GameLogger.js';
@@ -178,31 +181,29 @@ export class GameCoordinator {
       state.turnNumber++;
     }
 
-    // Check if this is a plan confirmation round (every 6 turns)
-    if (nextIndex === 0 && state.turnNumber > 0 && state.turnNumber % PLAN_CONFIRM_INTERVAL === 0) {
-      // Find players with unconfirmed training plans (check delayPlanConfirm effect)
-      const playersWithPlans = state.players.filter(p => {
-        if (p.isBankrupt || p.isDisconnected) return false;
-        if (p.trainingPlans.length === 0 || p.confirmedPlans.length >= MAX_TRAINING_PLANS) return false;
-        // Check delayPlanConfirm effect (大类招生)
-        const delayIdx = p.effects.findIndex(e => e.type === 'custom' && e.data?.delayPlanConfirm);
-        if (delayIdx >= 0) {
-          p.effects.splice(delayIdx, 1);
-          return false;
-        }
-        return true;
+    // Check if a round (学年) just ended: every TURNS_PER_ROUND turns
+    if (nextIndex === 0 && state.turnNumber > 0 && state.turnNumber % TURNS_PER_ROUND === 0) {
+      state.roundNumber++;
+
+      // If all rounds are done → force end game
+      if (state.roundNumber > TOTAL_ROUNDS) {
+        this.forceEndGame();
+        return;
+      }
+
+      // Start plan redraw phase for the new round
+      const roundName = getRoundName(state.roundNumber);
+      this.addLog('system', `=== ${roundName}开始 === 升学阶段！`);
+      this.io.to(this.roomId).emit('game:announcement', {
+        message: `${roundName}开始！升学阶段 — 可以重选培养计划`,
+        type: 'info' as const,
       });
 
-      if (playersWithPlans.length > 0) {
-        this.addLog('system', `第 ${Math.floor(state.turnNumber / PLAN_CONFIRM_INTERVAL)} 轮升学阶段！可以确认培养方案`);
-        this.io.to(this.roomId).emit('game:announcement', {
-          message: `升学阶段开始！第 ${Math.floor(state.turnNumber / PLAN_CONFIRM_INTERVAL)} 轮`,
-          type: 'info' as const,
-        });
-
-        // Start confirmation chain: first eligible player
-        this.startPlanConfirmationForPlayer(playersWithPlans, 0);
-        return; // Don't proceed to normal roll yet
+      // All non-bankrupt, non-disconnected players participate in redraw
+      const eligiblePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
+      if (eligiblePlayers.length > 0) {
+        this.startPlanRedrawForPlayer(eligiblePlayers, 0);
+        return;
       }
     }
 
@@ -1038,18 +1039,45 @@ export class GameCoordinator {
   }
 
   // --------------------------------------------------
-  // Plan Confirmation Chain (升学阶段)
+  // Force End Game (学年结束结算)
   // --------------------------------------------------
 
+  /** Force end the game via the engine, emit win event. */
+  private forceEndGame(): void {
+    const state = this.engine.getState();
+    this.engine.forceEndGame();
+
+    const winnerId = state.winner;
+    const winner = state.players.find(p => p.id === winnerId);
+    if (winnerId && winner) {
+      this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game force-ended: 毕业结算`, data: { winnerId, condition: '毕业结算' } });
+      this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
+      this.io.to(this.roomId).emit('game:player-won', {
+        playerId: winnerId,
+        playerName: winner.name,
+        condition: '毕业结算',
+      });
+    }
+    this.onFinishedCallback?.();
+    this.broadcastState();
+  }
+
+  // --------------------------------------------------
+  // Plan Redraw Chain (升学阶段 — 计划重选)
+  // --------------------------------------------------
+
+  /** IDs of plans drawn in the current redraw phase, per player */
+  private redrawDrawnPlanIds: Map<string, string[]> = new Map();
+
   /**
-   * Start plan confirmation for a specific player in the eligible list.
-   * After this player finishes, chain to the next player.
+   * Start plan redraw for each eligible player in sequence.
+   * Each player: draw 3 plans → pick up to 2 → discard unconfirmed drawn → next player.
    */
-  private startPlanConfirmationForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
+  private startPlanRedrawForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
     const state = this.engine.getState();
 
     if (playerIdx >= eligiblePlayers.length) {
-      // All players done confirming — resume normal turn
+      // All players done — resume normal turn
       const currentPlayer = state.players[state.currentPlayerIndex];
       state.pendingAction = {
         id: `roll_dice_${Date.now()}`,
@@ -1063,62 +1091,357 @@ export class GameCoordinator {
     }
 
     const player = eligiblePlayers[playerIdx];
-    const unconfirmedPlans = player.trainingPlans
-      .filter(p => !player.confirmedPlans.includes(p.id));
 
-    if (unconfirmedPlans.length === 0 || player.confirmedPlans.length >= MAX_TRAINING_PLANS) {
-      // This player has nothing to confirm, skip to next
-      this.startPlanConfirmationForPlayer(eligiblePlayers, playerIdx + 1);
+    // Draw 3 training plans from deck
+    const drawnPlans: TrainingPlan[] = [];
+    for (let i = 0; i < 3; i++) {
+      const plan = this.engine.drawTrainingPlan(player.id);
+      if (plan) drawnPlans.push(plan);
+    }
+
+    if (drawnPlans.length === 0) {
+      // No plans available, skip to next player
+      this.addLog(player.id, `${player.name} 升学阶段：牌堆已空，跳过`);
+      this.startPlanRedrawForPlayer(eligiblePlayers, playerIdx + 1);
       return;
     }
 
-    // Store the eligible list + index for chaining
+    // Track which plans were drawn for cleanup later
+    this.redrawDrawnPlanIds.set(player.id, drawnPlans.map(p => p.id));
+
     const confirmContext = { eligiblePlayers, playerIdx };
 
+    // Multi-select: choose 0-2 plans to confirm at once
+    const options = drawnPlans.map(p => ({
+      label: p.name,
+      value: p.id,
+      description: [
+        `胜利条件: ${p.winCondition}`,
+        p.passiveAbility ? `被动能力: ${p.passiveAbility}` : null,
+      ].filter(Boolean).join('\n'),
+    }));
+
     state.pendingAction = {
-      id: `plan_confirm_${Date.now()}`,
+      id: `plan_redraw_${Date.now()}`,
       playerId: player.id,
       type: 'choose_option',
-      prompt: `升学阶段：${player.name}，是否确认一个培养方案？(已确认 ${player.confirmedPlans.length}/${MAX_TRAINING_PLANS})`,
-      options: [
-        ...unconfirmedPlans.map(p => ({ label: `确认: ${p.name}`, value: `confirm_plan_${p.id}` })),
-        { label: '跳过', value: 'skip_plan_confirm' },
-      ],
-      callbackHandler: 'plan_confirmation_handler',
+      prompt: `升学阶段：${player.name}，抽到${drawnPlans.length}张新计划，选择要确认的（0-2张）(已确认 ${player.confirmedPlans.length}/${MAX_TRAINING_PLANS})`,
+      options,
+      maxSelections: 2,
+      minSelections: 0,
+      callbackHandler: 'plan_redraw_handler',
       timeoutMs: 60000,
     };
 
-    // Register the handler (closure captures confirmContext)
-    // Always overwrite to use the latest context
-    this.engine.getEventHandler().registerHandler('plan_confirmation_handler', (eng, pid, choice) => {
-      if (choice && choice.startsWith('confirm_plan_')) {
-        const planId = choice.replace('confirm_plan_', '');
-        // Call handleConfirmPlan to trigger all on_confirm effects
-        this.handleConfirmPlan(pid, planId);
-
-        // Check for post-confirm pending actions (shehuixue, rengong, xiandai, daqi)
-        const confirmedPlayer = eng.getPlayer(pid);
-        if (confirmedPlayer) {
-          const postAction = this.createPostConfirmAction(confirmedPlayer, pid);
-          if (postAction) {
-            // Chain: post-confirm action → general move → next player
-            this.pendingConfirmContext = { ...confirmContext, needsGeneralMove: true };
-            return postAction;
-          }
-        }
-
-        // No post-confirm action needed, check slot overflow then general move
-        this.checkWinConditionSlotOverflow(pid, () => {
-          this.offerGeneralMoveOption(pid, confirmContext);
-        });
-        return null;
-      }
-      // Skipped — move to next player
-      this.startPlanConfirmationForPlayer(confirmContext.eligiblePlayers, confirmContext.playerIdx + 1);
+    this.engine.getEventHandler().registerHandler('plan_redraw_handler', (_eng, pid, choice) => {
+      this.handleRedrawResponse(pid, choice, confirmContext);
       return null;
     });
 
     this.broadcastState();
+  }
+
+  /**
+   * Handle the redraw multi-select response: parse selected plan IDs,
+   * mark them as confirmed, then run overflow check + effects.
+   */
+  private handleRedrawResponse(
+    playerId: string,
+    choice: string | undefined,
+    ctx: { eligiblePlayers: Player[]; playerIdx: number },
+  ): void {
+    const selectedIds = (!choice || choice === 'skip') ? [] : choice.split(',');
+    const player = this.engine.getPlayer(playerId);
+    if (!player) {
+      this.discardUnconfirmedDrawnPlans(playerId);
+      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      return;
+    }
+
+    if (selectedIds.length === 0) {
+      this.discardUnconfirmedDrawnPlans(playerId);
+      this.offerGeneralMoveOption(playerId, ctx);
+      return;
+    }
+
+    // Mark selected plans as confirmed (without triggering on_confirm effects yet)
+    for (const planId of selectedIds) {
+      const plan = player.trainingPlans.find(p => p.id === planId);
+      if (plan && !player.confirmedPlans.includes(planId)) {
+        plan.confirmed = true;
+        player.confirmedPlans.push(planId);
+        this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
+      }
+    }
+
+    // Check overflow first, then execute effects for plans still confirmed
+    this.checkPlanOverflow(playerId, () => {
+      const confirmedSelectedIds = selectedIds.filter(id => player.confirmedPlans.includes(id));
+      this.executeRedrawConfirmEffects(playerId, confirmedSelectedIds, ctx);
+    });
+  }
+
+  /**
+   * Execute on_confirm effects for each newly confirmed plan sequentially.
+   * If a plan triggers a post-confirm action (社会学院 etc.), wait for it to complete.
+   */
+  private executeRedrawConfirmEffects(
+    playerId: string,
+    remainingIds: string[],
+    ctx: { eligiblePlayers: Player[]; playerIdx: number },
+  ): void {
+    if (remainingIds.length === 0) {
+      this.discardUnconfirmedDrawnPlans(playerId);
+      this.offerGeneralMoveOption(playerId, ctx);
+      return;
+    }
+
+    const [currentPlanId, ...rest] = remainingIds;
+
+    // Trigger on_confirm effects for this plan
+    this.triggerPlanConfirmEffects(playerId, currentPlanId);
+
+    // Check for post-confirm pending actions (社会学院 etc.)
+    const player = this.engine.getPlayer(playerId);
+    if (player) {
+      const postAction = this.createPostConfirmAction(player, playerId);
+      if (postAction) {
+        this.pendingConfirmContext = {
+          ...ctx,
+          needsGeneralMove: false,
+          redrawContext: { remainingEffectIds: rest },
+        };
+        const state = this.engine.getState();
+        state.pendingAction = postAction;
+        this.broadcastState();
+        return;
+      }
+    }
+
+    // No post-confirm action needed — continue with remaining plans
+    this.executeRedrawConfirmEffects(playerId, rest, ctx);
+  }
+
+  /**
+   * Check if confirmed plans exceed MAX_TRAINING_PLANS.
+   * If so, show multi-select dialog to let player choose which plans to KEEP.
+   */
+  private checkPlanOverflow(playerId: string, onComplete: () => void): void {
+    const player = this.engine.getPlayer(playerId);
+    if (!player) { onComplete(); return; }
+
+    if (player.confirmedPlans.length <= MAX_TRAINING_PLANS) {
+      onComplete();
+      return;
+    }
+
+    const state = this.engine.getState();
+    const confirmedPlanDetails = player.confirmedPlans.map(id => {
+      const plan = player.trainingPlans.find(p => p.id === id);
+      return {
+        id,
+        name: plan?.name || id,
+        description: plan ? [
+          `胜利条件: ${plan.winCondition}`,
+          plan.passiveAbility ? `被动能力: ${plan.passiveAbility}` : null,
+        ].filter(Boolean).join('\n') : undefined,
+      };
+    });
+
+    state.pendingAction = {
+      id: `plan_overflow_${Date.now()}`,
+      playerId,
+      type: 'choose_option',
+      prompt: `你已确认${player.confirmedPlans.length}个计划（上限${MAX_TRAINING_PLANS}），请选择要保留的计划：`,
+      options: confirmedPlanDetails.map(p => ({
+        label: p.name,
+        value: p.id,
+        description: p.description,
+      })),
+      maxSelections: MAX_TRAINING_PLANS,
+      minSelections: 1,
+      callbackHandler: 'plan_overflow_callback',
+      timeoutMs: 30000,
+    };
+
+    this.engine.getEventHandler().registerHandler('plan_overflow_callback', (_eng, pid, choice) => {
+      const keepIds = (!choice || choice === 'skip') ? [] : choice.split(',');
+      const p = this.engine.getPlayer(pid);
+      if (p && keepIds.length > 0) {
+        const removedIds = p.confirmedPlans.filter(id => !keepIds.includes(id));
+        for (const removedId of removedIds) {
+          const plan = p.trainingPlans.find(tp => tp.id === removedId);
+          if (plan) plan.confirmed = false;
+          this.addLog(pid, `${p.name} 移除了培养计划: ${plan?.name || removedId}`);
+        }
+        p.confirmedPlans = p.confirmedPlans.filter(id => keepIds.includes(id));
+      }
+      onComplete();
+      return null;
+    });
+
+    this.broadcastState();
+  }
+
+  /**
+   * Discard unconfirmed plans drawn during redraw phase.
+   * Returns them to the bottom of the training deck.
+   */
+  private discardUnconfirmedDrawnPlans(playerId: string): void {
+    const player = this.engine.getPlayer(playerId);
+    const state = this.engine.getState();
+    const drawnIds = this.redrawDrawnPlanIds.get(playerId);
+    if (!player || !drawnIds) return;
+
+    const toReturn: TrainingPlan[] = [];
+    player.trainingPlans = player.trainingPlans.filter(p => {
+      if (drawnIds.includes(p.id) && !player.confirmedPlans.includes(p.id)) {
+        toReturn.push(p);
+        return false;
+      }
+      return true;
+    });
+
+    // Return to bottom of deck
+    for (const plan of toReturn) {
+      state.cardDecks.training.unshift(plan);
+    }
+
+    this.redrawDrawnPlanIds.delete(playerId);
+  }
+
+  /**
+   * Trigger on_confirm effects for a specific plan.
+   * Unlike handleConfirmPlan, this does NOT set plan.confirmed or add to confirmedPlans.
+   * It only triggers the on_confirm ability effects.
+   */
+  private triggerPlanConfirmEffects(playerId: string, planId: string): void {
+    const state = this.engine.getState();
+    const player = this.engine.getPlayer(playerId);
+    if (!player) return;
+
+    const plan = player.trainingPlans.find(p => p.id === planId);
+    if (!plan) return;
+
+    // --- PlanAbilities: on_confirm trigger (for this specific plan only) ---
+    const planAbilities = this.engine.getPlanAbilities();
+    const confirmResult = planAbilities.checkAbilityForPlan(planId, player, state, 'on_confirm');
+    if (confirmResult?.effects) {
+      const fx = confirmResult.effects;
+      if (confirmResult.message) {
+        this.addLog(playerId, confirmResult.message);
+      }
+
+      if (fx.moveToLine) {
+        this.engine.enterLine(playerId, fx.moveToLine, !fx.skipEntryFee);
+      }
+      if (fx.moveToCell) {
+        const cellIndex = boardData.mainBoard.findIndex(c => c.cornerType === fx.moveToCell || c.id === fx.moveToCell);
+        if (cellIndex >= 0) {
+          this.engine.movePlayerTo(playerId, { type: 'main', index: cellIndex });
+        }
+      }
+      if (fx.drawCard) {
+        const card = this.engine.drawCard(playerId, fx.drawCard);
+        if (card) {
+          if (card.holdable) {
+            this.engine.addCardToPlayer(playerId, card);
+            this.addLog(playerId, `${player.name} 获得${fx.drawCard === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
+          } else {
+            this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+          }
+        }
+      }
+      if (fx.money) this.engine.modifyPlayerMoney(playerId, fx.money);
+      if (fx.gpa) this.engine.modifyPlayerGpa(playerId, fx.gpa);
+      if (fx.exploration) this.engine.modifyPlayerExploration(playerId, fx.exploration);
+
+      // customEffect handling
+      if (fx.customEffect === 'guoji_target_draw') {
+        state.players.forEach(p => {
+          if (p.id !== playerId && !p.isBankrupt) {
+            const card = this.engine.drawCard(p.id, 'chance');
+            if (card) {
+              this.engine.addCardToPlayer(p.id, card);
+              this.addLog(p.id, `${p.name} 因国际关系学院能力获得机会卡: ${card.name}`);
+            }
+          }
+        });
+      }
+      if (fx.customEffect === 'xinxiguanli_redistribute') {
+        const activePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
+        const allCards = activePlayers.flatMap(p => {
+          const cards = [...p.heldCards];
+          p.heldCards = [];
+          return cards;
+        });
+        for (let i = allCards.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
+        }
+        let idx = 0;
+        for (const card of allCards) {
+          activePlayers[idx % activePlayers.length].heldCards.push(card);
+          idx++;
+        }
+        this.addLog(playerId, '信息管理学院能力：所有玩家手牌已重新分配');
+      }
+      if (fx.customEffect === 'shengming_maimen') {
+        const shieldCard: Card = {
+          id: 'maimen_shield',
+          name: '麦门护盾',
+          description: '抵消下一次负面效果',
+          deckType: 'chance',
+          holdable: true,
+          singleUse: true,
+          returnToDeck: false,
+          effects: [],
+        };
+        this.engine.addCardToPlayer(playerId, shieldCard);
+        this.addLog(playerId, `${player.name} 获得麦门护盾卡`);
+      }
+      if (fx.customEffect === 'gongguan_negative_balance') {
+        const negCard: Card = {
+          id: 'negative_balance',
+          name: '余额为负',
+          description: '使目标玩家金钱变为负数',
+          deckType: 'chance',
+          holdable: true,
+          singleUse: true,
+          returnToDeck: false,
+          effects: [],
+        };
+        this.engine.addCardToPlayer(playerId, negCard);
+        this.addLog(playerId, `${player.name} 获得余额为负卡`);
+      }
+      if (fx.customEffect === 'shehuixue_reduce_threshold') {
+        player.modifiedWinThresholds['plan_shehuixue_pending'] = 1;
+      }
+      if (fx.customEffect === 'rengong_reduce_threshold') {
+        player.modifiedWinThresholds['plan_rengong_pending'] = 1;
+      }
+      if (fx.customEffect === 'xiandai_assign_card') {
+        player.modifiedWinThresholds['plan_xiandai_pending'] = 1;
+      }
+      if (fx.customEffect === 'daqi_draw_three') {
+        player.modifiedWinThresholds['plan_daqi_pending'] = 1;
+      }
+      if (plan.id === 'plan_faxue') {
+        player.lawyerShield = true;
+        this.addLog(playerId, '法学院能力：获得法律护盾（一次免除金钱损失）');
+      }
+      if (plan.id === 'plan_haiwai') {
+        if (!player.effects.find(e => e.type === 'custom' && e.data?.foodLineOptional)) {
+          this.engine.addEffectToPlayer(playerId, {
+            id: `haiwai_food_optional_${Date.now()}`,
+            type: 'custom',
+            turnsRemaining: 999,
+            data: { foodLineOptional: true },
+          });
+        }
+        this.addLog(playerId, '海外教育学院能力：食堂线改为可选进入');
+      }
+    }
   }
 
   /** Storage for confirmation chain context across async actions */
@@ -1126,6 +1449,7 @@ export class GameCoordinator {
     eligiblePlayers: Player[];
     playerIdx: number;
     needsGeneralMove?: boolean;
+    redrawContext?: { remainingEffectIds?: string[] };
   } | null = null;
 
   /**
@@ -1317,10 +1641,18 @@ export class GameCoordinator {
       return;
     }
 
-    // All post-confirm actions done, check overflow then offer general move
-    if (this.pendingConfirmContext.needsGeneralMove) {
-      const ctx = this.pendingConfirmContext;
-      this.pendingConfirmContext = null;
+    const ctx = this.pendingConfirmContext;
+    this.pendingConfirmContext = null;
+
+    // Handle redraw context (plan redraw phase)
+    if (ctx.redrawContext) {
+      // Continue executing effects for remaining plans
+      this.executeRedrawConfirmEffects(playerId, ctx.redrawContext.remainingEffectIds || [], ctx);
+      return;
+    }
+
+    // Original behavior: general move option
+    if (ctx.needsGeneralMove) {
       this.checkWinConditionSlotOverflow(playerId, () => {
         this.offerGeneralMoveOption(playerId, ctx);
       });
@@ -1411,7 +1743,7 @@ export class GameCoordinator {
     // Check if plan-specific effect already moved the player to a line
     // If they're currently in a line, skip the general move option
     if (!player || player.position.type === 'line') {
-      this.startPlanConfirmationForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
       return;
     }
 
@@ -1448,7 +1780,7 @@ export class GameCoordinator {
         }
       }
       // Chain to next player
-      this.startPlanConfirmationForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+      this.startPlanRedrawForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
       return null;
     });
 
@@ -1963,7 +2295,9 @@ export class GameCoordinator {
         this.broadcastState();
       } else {
         // Check if this was a pre-turn plan bonus or plan confirmation
-        const isPlanConfirm = pendingActionId.startsWith('plan_confirm_') || pendingActionId.startsWith('general_move_');
+        const isPlanConfirm = pendingActionId.startsWith('plan_confirm_') || pendingActionId.startsWith('general_move_')
+          || pendingActionId.startsWith('plan_redraw_') || pendingActionId.startsWith('plan_overflow_')
+          || pendingActionId.startsWith('win_slot_overflow_');
         const isPlanBonus = pendingActionId.startsWith('jisuanji_') || pendingActionId.startsWith('kuangyaming_')
           || pendingActionId.startsWith('wuli_') || pendingActionId.startsWith('huaxue_')
           || pendingActionId.startsWith('shuxue_');
@@ -2228,10 +2562,8 @@ export class GameCoordinator {
       return { error: '已达到最大确认计划数' };
     }
 
-    // Check if it's the right turn interval (every 6 turns)
-    if (state.turnNumber % PLAN_CONFIRM_INTERVAL !== 0 && state.phase === 'playing') {
-      return { error: `只能在第 ${PLAN_CONFIRM_INTERVAL} 的倍数回合确认计划` };
-    }
+    // Turn interval check removed — confirmation is now server-driven
+    // via pendingAction chains (升学阶段 redraw or setup phase)
 
     plan.confirmed = true;
     if (!player.confirmedPlans.includes(plan.id)) {
@@ -2240,145 +2572,8 @@ export class GameCoordinator {
 
     this.addLog(playerId, `${player.name} 确认了培养计划: ${plan.name}`);
 
-    // --- PlanAbilities: on_confirm trigger ---
-    const planAbilities = this.engine.getPlanAbilities();
-    const confirmResult = planAbilities.checkAbilities(player, state, 'on_confirm');
-    if (confirmResult?.effects) {
-      const fx = confirmResult.effects;
-      if (confirmResult.message) {
-        this.addLog(playerId, confirmResult.message);
-      }
-
-      // moveToLine: enter a specific line (免费)
-      if (fx.moveToLine) {
-        this.engine.enterLine(playerId, fx.moveToLine, !fx.skipEntryFee);
-      }
-      // moveToCell: teleport to a named corner/cell
-      if (fx.moveToCell) {
-        const cellIndex = boardData.mainBoard.findIndex(c => c.cornerType === fx.moveToCell || c.id === fx.moveToCell);
-        if (cellIndex >= 0) {
-          this.engine.movePlayerTo(playerId, { type: 'main', index: cellIndex });
-        }
-      }
-      // drawCard: draw a card immediately
-      if (fx.drawCard) {
-        const card = this.engine.drawCard(playerId, fx.drawCard);
-        if (card) {
-          if (card.holdable) {
-            this.engine.addCardToPlayer(playerId, card);
-            this.addLog(playerId, `${player.name} 获得${fx.drawCard === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
-          } else {
-            this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
-          }
-        }
-      }
-      // money/gpa/exploration direct effects
-      if (fx.money) this.engine.modifyPlayerMoney(playerId, fx.money);
-      if (fx.gpa) this.engine.modifyPlayerGpa(playerId, fx.gpa);
-      if (fx.exploration) this.engine.modifyPlayerExploration(playerId, fx.exploration);
-
-      // customEffect handling for on_confirm plans
-      if (fx.customEffect === 'guoji_target_draw') {
-        // 国际关系学院: Let all other players draw a chance card
-        state.players.forEach(p => {
-          if (p.id !== playerId && !p.isBankrupt) {
-            const card = this.engine.drawCard(p.id, 'chance');
-            if (card) {
-              this.engine.addCardToPlayer(p.id, card);
-              this.addLog(p.id, `${p.name} 因国际关系学院能力获得机会卡: ${card.name}`);
-            }
-          }
-        });
-      }
-      if (fx.customEffect === 'xinxiguanli_redistribute') {
-        // 信息管理学院: Shuffle all active players' cards and redistribute evenly
-        const activePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
-        const allCards = activePlayers.flatMap(p => {
-          const cards = [...p.heldCards];
-          p.heldCards = [];
-          return cards;
-        });
-        // Shuffle
-        for (let i = allCards.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
-        }
-        // Distribute evenly
-        let idx = 0;
-        for (const card of allCards) {
-          activePlayers[idx % activePlayers.length].heldCards.push(card);
-          idx++;
-        }
-        this.addLog(playerId, '信息管理学院能力：所有玩家手牌已重新分配');
-      }
-      if (fx.customEffect === 'shengming_maimen') {
-        // 生命科学学院: Give player a special shield card
-        const shieldCard: Card = {
-          id: 'maimen_shield',
-          name: '麦门护盾',
-          description: '抵消下一次负面效果',
-          deckType: 'chance',
-          holdable: true,
-          singleUse: true,
-          returnToDeck: false,
-          effects: [],
-        };
-        this.engine.addCardToPlayer(playerId, shieldCard);
-        this.addLog(playerId, `${player.name} 获得麦门护盾卡`);
-      }
-      if (fx.customEffect === 'gongguan_negative_balance') {
-        // 工程管理学院: Give player a negative balance card
-        const negCard: Card = {
-          id: 'negative_balance',
-          name: '余额为负',
-          description: '使目标玩家金钱变为负数',
-          deckType: 'chance',
-          holdable: true,
-          singleUse: true,
-          returnToDeck: false,
-          effects: [],
-        };
-        this.engine.addCardToPlayer(playerId, negCard);
-        this.addLog(playerId, `${player.name} 获得余额为负卡`);
-      }
-      if (fx.customEffect === 'shehuixue_reduce_threshold') {
-        // 社会学院: Optionally reduce win threshold from 20 to 15
-        // This is handled as a PendingAction returned from handleConfirmPlan
-        // We set a flag that the confirmation flow will check
-        player.modifiedWinThresholds['plan_shehuixue_pending'] = 1;
-      }
-      if (fx.customEffect === 'rengong_reduce_threshold') {
-        // 人工智能学院: Optionally reduce GPA gap threshold from 2.0 to 1.5
-        player.modifiedWinThresholds['plan_rengong_pending'] = 1;
-      }
-      if (fx.customEffect === 'xiandai_assign_card') {
-        // 现代工程学院: Draw a destiny card and assign to a chosen player
-        // Handled as post-confirm pending action
-        player.modifiedWinThresholds['plan_xiandai_pending'] = 1;
-      }
-      if (fx.customEffect === 'daqi_draw_three') {
-        // 大气科学学院: Draw 3 cards, pick 1 to execute
-        // Handled as post-confirm pending action
-        player.modifiedWinThresholds['plan_daqi_pending'] = 1;
-      }
-      // faxue: set lawyerShield on confirm
-      if (plan.id === 'plan_faxue') {
-        player.lawyerShield = true;
-        this.addLog(playerId, '法学院能力：获得法律护盾（一次免除金钱损失）');
-      }
-      // haiwai: permanently make food line optional
-      if (plan.id === 'plan_haiwai') {
-        if (!player.effects.find(e => e.type === 'custom' && e.data?.foodLineOptional)) {
-          this.engine.addEffectToPlayer(playerId, {
-            id: `haiwai_food_optional_${Date.now()}`,
-            type: 'custom',
-            turnsRemaining: 999,
-            data: { foodLineOptional: true },
-          });
-        }
-        this.addLog(playerId, '海外教育学院能力：食堂线改为可选进入');
-      }
-    }
+    // Trigger on_confirm effects via shared helper
+    this.triggerPlanConfirmEffects(playerId, planId);
 
     // Check if all players have confirmed plans in setup phase
     if (state.phase === 'setup_plans') {

@@ -173,7 +173,7 @@ export function pendingActionToChoices(pendingAction: PendingAction): {
     options: (pendingAction.options || []).map(opt => ({
       label: opt.label,
       value: opt.value,
-      description: (opt as { description?: string }).description,
+      description: opt.description,
     })),
   };
 }

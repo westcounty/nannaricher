@@ -427,13 +427,42 @@ export function GameScreen() {
       {/* Event Modal */}
       {currentEvent && <GameEventModal />}
 
-      {/* Choice Dialog */}
+      {/* Multi-Select Choice Dialog (e.g. plan redraw) */}
       {hasPendingAction &&
         !isVoting &&
         !isChainAction &&
         !currentEvent &&
         gameState.pendingAction?.options &&
-        gameState.pendingAction.options.length > 0 && (
+        gameState.pendingAction.options.length > 0 &&
+        (gameState.pendingAction.maxSelections ?? 1) > 1 && (
+          <MultiSelectDialog
+            title="选择培养计划"
+            prompt={gameState.pendingAction.prompt}
+            options={gameState.pendingAction.options.map(opt => ({
+              label: opt.label,
+              value: opt.value,
+              description: opt.description,
+            }))}
+            minSelections={gameState.pendingAction.minSelections ?? 0}
+            maxSelections={gameState.pendingAction.maxSelections!}
+            onConfirm={(selectedIds) => {
+              if (gameState.pendingAction) {
+                const choice = selectedIds.length > 0 ? selectedIds.join(',') : 'skip';
+                chooseAction(gameState.pendingAction.id, choice);
+              }
+            }}
+            timeout={gameState.pendingAction.timeoutMs}
+          />
+        )}
+
+      {/* Choice Dialog (single select) */}
+      {hasPendingAction &&
+        !isVoting &&
+        !isChainAction &&
+        !currentEvent &&
+        gameState.pendingAction?.options &&
+        gameState.pendingAction.options.length > 0 &&
+        (gameState.pendingAction.maxSelections ?? 1) <= 1 && (
           <ChoiceDialog
             title={pendingActionToChoices(gameState.pendingAction).title}
             prompt={gameState.pendingAction.prompt}

@@ -52,6 +52,24 @@ export class PlanAbilityHandler {
   }
 
   /**
+   * Check a specific plan's ability for the given trigger.
+   * Unlike checkAbilities(), this only evaluates the specified plan.
+   */
+  checkAbilityForPlan(
+    planId: string,
+    player: Player,
+    state: GameState,
+    trigger: AbilityTrigger,
+    extra?: Partial<RegistryContext>,
+  ): RegistryResult | null {
+    const ability = getPlanAbility(planId);
+    if (!ability || ability.trigger !== trigger) return null;
+    const ctx: RegistryContext = { player, state, trigger, ...extra };
+    const result = ability.apply(ctx);
+    return result?.activated ? result : null;
+  }
+
+  /**
    * Legacy interface -- backward compatible with GameEngine callers.
    * Maps the old event/cellId context into registry trigger types.
    */
