@@ -8,6 +8,9 @@ import { useGameStore } from '../stores/gameStore';
 import type { GameState, PendingAction } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
 
+let _lastEventKey = '';
+let _lastEventTime = 0;
+
 /**
  * Compare previous and new game state and play appropriate sounds.
  * Called on every `game:state-update` BEFORE the store is updated.
@@ -223,6 +226,15 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       }
       if (data.pendingAction?.id) {
         lastEventActionIdRef.current = data.pendingAction.id;
+      }
+      // Time-window deduplication to prevent double-triggering
+      const pa = data.pendingAction;
+      if (pa) {
+        const eventKey = `${pa.playerId}:${pa.type}:${pa.prompt}`;
+        const now = Date.now();
+        if (eventKey === _lastEventKey && now - _lastEventTime < 500) return;
+        _lastEventKey = eventKey;
+        _lastEventTime = now;
       }
       store.getState().setCurrentEvent({
         title: data.title,
