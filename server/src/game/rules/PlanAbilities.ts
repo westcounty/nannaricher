@@ -1,6 +1,6 @@
 // server/src/game/rules/PlanAbilities.ts
 // Refactored to delegate to plan-registry instead of a monolithic switch/case
-import { Player, GameState, getPlayerPlanIds } from '@nannaricher/shared';
+import { Player, GameState } from '@nannaricher/shared';
 import {
   getPlanAbility,
   PlanAbilityContext as RegistryContext,
@@ -32,8 +32,9 @@ export interface PlanAbilityResult {
 
 export class PlanAbilityHandler {
   /**
-   * Check all confirmed plan abilities for the given trigger point.
-   * Returns the first activated result, or null if nothing fired.
+   * Check the player's major plan ability for the given trigger point.
+   * Only the major plan's passive effects are active.
+   * Returns the activated result, or null if nothing fired.
    */
   checkAbilities(
     player: Player,
@@ -41,13 +42,15 @@ export class PlanAbilityHandler {
     trigger: AbilityTrigger,
     extra?: Partial<RegistryContext>,
   ): RegistryResult | null {
-    for (const planId of getPlayerPlanIds(player)) {
-      const ability = getPlanAbility(planId);
-      if (!ability || ability.trigger !== trigger) continue;
-      const ctx: RegistryContext = { player, state, trigger, ...extra };
-      const result = ability.apply(ctx);
-      if (result?.activated) return result;
-    }
+    // 只有主修方向的被动效果生效
+    if (!player.majorPlan) return null;
+
+    const ability = getPlanAbility(player.majorPlan);
+    if (!ability || ability.trigger !== trigger) return null;
+
+    const ctx: RegistryContext = { player, state, trigger, ...extra };
+    const result = ability.apply(ctx);
+    if (result?.activated) return result;
     return null;
   }
 
@@ -119,7 +122,8 @@ export class PlanAbilityHandler {
    * Software engineering plan extends the bankruptcy threshold to -1000.
    */
   canGoBankrupt(player: Player): boolean {
-    if (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian')) {
+    // 只有主修为软件学院时才有破产保护（被动效果仅主修生效）
+    if (player.majorPlan === 'plan_ruanjian') {
       return player.money < -1000;
     }
     return player.money < 0;

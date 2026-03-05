@@ -290,8 +290,8 @@ export class GameEngine implements IGameEngine {
     const oldGpa = player.gpa;
     let newGpa = player.gpa + actualDelta;
 
-    // Check philosophy plan ability: GPA floor of 3.0
-    if ((player.majorPlan === 'plan_zhexue' || player.minorPlans.includes('plan_zhexue')) && newGpa < 3.0 && oldGpa >= 3.0) {
+    // Check philosophy plan ability: GPA floor of 3.0 (passive, major only)
+    if (player.majorPlan === 'plan_zhexue' && newGpa < 3.0 && oldGpa >= 3.0) {
       newGpa = 3.0;
       this.log('哲学系能力：GPA下限保持在3.0', playerId);
     }
@@ -1293,8 +1293,8 @@ export class GameEngine implements IGameEngine {
       return;
     }
 
-    // Software plan allows negative balance up to -1000
-    const hasSoftwarePlan = player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian');
+    // Software plan allows negative balance up to -1000 (passive, major only)
+    const hasSoftwarePlan = player.majorPlan === 'plan_ruanjian';
     if (hasSoftwarePlan && player.money >= -1000) {
       return;
     }
@@ -1304,8 +1304,9 @@ export class GameEngine implements IGameEngine {
       this.log(`破产！`, playerId);
 
       // Check if this triggers other players' win conditions (e.g., Law School plan)
+      // Win conditions can trigger from both major and minor plans
       for (const p of this.state.players) {
-        if (p.id !== playerId && (p.majorPlan === 'plan_faxue' || p.minorPlans.includes('plan_faxue'))) {
+        if (p.id !== playerId && getPlayerPlanIds(p).includes('plan_faxue')) {
           const faxueDisabled = (p.disabledWinConditions ?? []).includes('plan_faxue');
           if (!faxueDisabled) {
             this.declareWinner(p.id, '场上出现破产玩家（法学院）');

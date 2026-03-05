@@ -20,11 +20,18 @@ export class WinConditionChecker {
       if (baseResult.won) return baseResult;
     }
 
-    // 检查每个已确认的培养计划（如果未被禁用）
+    // 检查所有已加入列表的计划（主修+辅修均可触发胜利）
     for (const planId of getPlayerPlanIds(player)) {
       if (disabled.includes(planId)) continue;
       const result = this.checkPlanWinCondition(player, planId, state, history);
-      if (result.won) return result;
+      if (result.won) {
+        const plan = player.trainingPlans.find(p => p.id === planId);
+        const direction = planId === player.majorPlan ? '主修' : '辅修';
+        return {
+          ...result,
+          condition: `${direction}「${plan?.name || planId}」: ${result.condition}`,
+        };
+      }
     }
 
     return { won: false, condition: null, planId: null };
