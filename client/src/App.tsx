@@ -7,6 +7,7 @@ import { useAuthStore } from './stores/authStore';
 import { ResponsiveProvider } from './ui/layouts/ResponsiveLayout';
 import { Lobby } from './components';
 import { AuthScreen } from './components/AuthScreen';
+import { NicknamePrompt } from './components/NicknamePrompt';
 import { LoadingScreen } from './components/LoadingScreen';
 import './App.css';
 
@@ -50,6 +51,7 @@ function GameRouter() {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const needsNickname = useAuthStore((s) => s.needsNickname);
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
 
   useEffect(() => {
@@ -58,6 +60,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <AuthScreen />;
+  }
+
+  if (needsNickname()) {
+    return <NicknamePrompt />;
   }
 
   return <>{children}</>;

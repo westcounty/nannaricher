@@ -35,6 +35,8 @@ interface AuthState {
   loadFromStorage: () => void;
   setError: (error: string | null) => void;
   getDisplayName: () => string;
+  needsNickname: () => boolean;
+  setNickname: (nickname: string) => void;
 }
 
 function getDeviceFingerprint(): string {
@@ -68,16 +70,17 @@ function clearStorage(): void {
   localStorage.removeItem(STORAGE_KEYS.user);
 }
 
-async function fetchUserProfile(accessToken: string): Promise<{ nickname?: string; username?: string } | null> {
+async function fetchUserProfile(accessToken: string): Promise<{ nickname?: string; username?: string; phone?: string } | null> {
   try {
-    const res = await fetch(`${AUTH_API}/v1/users/me`, {
+    const res = await fetch(`${AUTH_API}/v1/profile`, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (res.ok) {
       const data = await res.json();
       return {
-        nickname: data.nickname || data.nicknameDisplay || data.nickname_display,
-        username: data.usernameDisplay || data.username_display || data.username,
+        nickname: data.nickname,
+        username: data.username,
+        phone: data.phone,
       };
     }
   } catch { /* ignore */ }
@@ -312,5 +315,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user } = get();
     if (!user) return '游客';
     return user.nickname || user.username || user.phone || '未知用户';
+  },
+
+  needsNickname: () => {
+    const { user } = get();
+    if (!user) return false;
+    // If nickname is missing or looks like a phone mask (138****1234), prompt to set one
+    if (!user.nickname) return true;
+    return /^\d{3}\*{4}\d{4}$/.test(user.nickname);
+  },
+
+  setNickname: (nickname: string) => {
+    const { user, accessToken, refreshToken } = get();
+    if (!user) return;
+    const updatedUser = { ...user, nickname };
+    set({ user: updatedUser });
+    if (accessToken && refreshToken) {
+      saveToStorage(accessToken, refreshToken, updatedUser);
+    }
+    // Sync to tuchan-api (fire-and-forget)
+    if (accessToken) {
+      fetch(`${AUTH_API}/v1/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ nickname }),
+      }).catch(() => {});
+    }
   },
 }));
