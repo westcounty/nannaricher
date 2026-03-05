@@ -261,6 +261,7 @@ export class ViewportController {
       this.dragStartPanX = this.panX;
       this.dragStartPanY = this.panY;
       this.cancelAnimation();
+      this.canvas.setPointerCapture(e.pointerId);
     } else if (this.activePointers.size === 2) {
       // Two pointers: start pinch-to-zoom
       this.isDragging = false;
@@ -423,7 +424,7 @@ export class ViewportController {
     this.canvas.addEventListener('pointermove', this.onPointerMoveBound);
     this.canvas.addEventListener('pointerup', this.onPointerUpBound);
     this.canvas.addEventListener('pointercancel', this.onPointerUpBound);
-    this.canvas.addEventListener('pointerleave', this.onPointerUpBound);
+    this.canvas.addEventListener('lostpointercapture', this.onPointerUpBound);
     this.canvas.addEventListener('wheel', this.onWheelBound, { passive: false });
     // Keyboard navigation (canvas must be focusable)
     if (!this.canvas.hasAttribute('tabindex')) {
@@ -441,7 +442,7 @@ export class ViewportController {
     this.canvas.removeEventListener('pointermove', this.onPointerMoveBound);
     this.canvas.removeEventListener('pointerup', this.onPointerUpBound);
     this.canvas.removeEventListener('pointercancel', this.onPointerUpBound);
-    this.canvas.removeEventListener('pointerleave', this.onPointerUpBound);
+    this.canvas.removeEventListener('lostpointercapture', this.onPointerUpBound);
     this.canvas.removeEventListener('wheel', this.onWheelBound);
     this.canvas.removeEventListener('keydown', this.onKeyDownBound);
   }
