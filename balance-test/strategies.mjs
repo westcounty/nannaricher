@@ -1,11 +1,13 @@
 /**
  * AI Strategies for game balance testing
  *
- * Four strategies simulate different player approaches:
+ * Six strategies simulate different player approaches:
  * - random: baseline, all choices random
  * - greedy_gpa: prioritize GPA growth
  * - greedy_money: prioritize money accumulation
  * - greedy_explore: prioritize exploration value
+ * - plan_focused: prioritize resources matching major plan win condition
+ * - balanced: prioritize the weakest resource dimension
  */
 
 // Plan categorization by win condition focus
@@ -280,6 +282,123 @@ class GreedyExploreStrategy extends BaseStrategy {
   }
 }
 
+class PlanFocusedStrategy extends BaseStrategy {
+  constructor() { super('plan_focused'); }
+
+  chooseOption(options, state, pa, playerId) {
+    if (!options || options.length === 0) return null;
+    if (options.length === 1) return options[0].value;
+
+    // Plan selection — pick a plan matching our focus
+    if (options.some(o => isPlanOption(o.label))) {
+      // Try to pick a plan with a unique win condition type
+      const focuses = options.map(o => ({ opt: o, focus: PLAN_FOCUS[o.label] || 'special' }));
+      // Prefer lines/special — they have unique plan-specific win conditions
+      const preferred = focuses.find(f => f.focus === 'lines') || focuses.find(f => f.focus === 'special');
+      if (preferred) return preferred.opt.value;
+      return rand(options).value;
+    }
+
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.3 ? 'adjust' : 'keep';
+    }
+
+    // Determine our plan's resource focus from state
+    const me = state?.players?.find(p => p.id === playerId);
+    const planName = me?.majorPlan ? getMajorPlanNameFromState(me) : null;
+    const myFocus = planName ? PLAN_FOCUS[planName] : null;
+
+    if (this._isLineEntry(options)) {
+      const enter = options.find(o => o.value.startsWith('enter_'));
+      if (enter) {
+        // Always enter lines if plan focuses on lines
+        if (myFocus === 'lines') return enter.value;
+        const lid = this._getLineId(enter.value);
+        const prob = (myFocus === 'gpa' && lid === 'study') ? 0.9
+          : (myFocus === 'money' && lid === 'money') ? 0.9
+          : (myFocus === 'explore' && lid === 'explore') ? 0.9
+          : 0.4;
+        if (options.find(o => o.value === 'skip')) {
+          return Math.random() < prob ? enter.value : 'skip';
+        }
+        return enter.value;
+      }
+    }
+
+    // Score options by plan focus
+    let best = null, bestScore = -Infinity;
+    for (const opt of options) {
+      const a = analyzeLabel(opt.label || '');
+      let score = a.money + a.gpa + a.explore + Math.random() * 0.1;
+      if (myFocus === 'gpa') score += a.gpa * 2;
+      else if (myFocus === 'money') score += a.money * 2;
+      else if (myFocus === 'explore') score += a.explore * 2;
+      if (score > bestScore) { bestScore = score; best = opt; }
+    }
+    return (best && bestScore > -Infinity) ? best.value : rand(options).value;
+  }
+}
+
+class BalancedStrategy extends BaseStrategy {
+  constructor() { super('balanced'); }
+
+  chooseOption(options, state, pa, playerId) {
+    if (!options || options.length === 0) return null;
+    if (options.length === 1) return options[0].value;
+
+    if (options.some(o => isPlanOption(o.label))) {
+      // Pick a plan with balanced focus
+      const focuses = options.map(o => ({ opt: o, focus: PLAN_FOCUS[o.label] || 'special' }));
+      const balanced = focuses.find(f => f.focus === 'gpa') || focuses.find(f => f.focus === 'explore');
+      if (balanced) return balanced.opt.value;
+      return rand(options).value;
+    }
+
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.4 ? 'adjust' : 'keep';
+    }
+
+    if (this._isLineEntry(options)) {
+      const enter = options.find(o => o.value.startsWith('enter_'));
+      if (enter) {
+        // Balanced: enter most lines at moderate probability
+        const lid = this._getLineId(enter.value);
+        const prob = { study: 0.6, money: 0.6, suzhou: 0.5, explore: 0.6, xianlin: 0.5, gulou: 0.6 }[lid] ?? 0.5;
+        if (options.find(o => o.value === 'skip')) {
+          return Math.random() < prob ? enter.value : 'skip';
+        }
+        return enter.value;
+      }
+    }
+
+    // Score each option — prioritize the resource we have least of
+    const me = state?.players?.find(p => p.id === playerId);
+    const moneyNorm = me ? me.money / 3000 : 0.5;
+    const gpaNorm = me ? me.gpa / 5.0 : 0.5;
+    const exploreNorm = me ? me.exploration / 30 : 0.5;
+    const minResource = Math.min(moneyNorm, gpaNorm, exploreNorm);
+
+    let best = null, bestScore = -Infinity;
+    for (const opt of options) {
+      const a = analyzeLabel(opt.label || '');
+      let score = a.money + a.gpa + a.explore + Math.random() * 0.1;
+      // Boost the weakest resource
+      if (minResource === moneyNorm) score += a.money * 2;
+      else if (minResource === gpaNorm) score += a.gpa * 2;
+      else score += a.explore * 2;
+      if (score > bestScore) { bestScore = score; best = opt; }
+    }
+    return (best && bestScore > -Infinity) ? best.value : rand(options).value;
+  }
+}
+
+/** Helper to get major plan name from player state object */
+function getMajorPlanNameFromState(player) {
+  if (!player?.majorPlan) return null;
+  const plan = (player.trainingPlans || []).find(tp => tp.id === player.majorPlan);
+  return plan ? plan.name : null;
+}
+
 // ============================================================
 // Factory
 // ============================================================
@@ -289,6 +408,8 @@ const STRATEGY_MAP = {
   greedy_gpa: () => new GreedyGpaStrategy(),
   greedy_money: () => new GreedyMoneyStrategy(),
   greedy_explore: () => new GreedyExploreStrategy(),
+  plan_focused: () => new PlanFocusedStrategy(),
+  balanced: () => new BalancedStrategy(),
 };
 
 export const STRATEGY_NAMES = Object.keys(STRATEGY_MAP);

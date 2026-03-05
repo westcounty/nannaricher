@@ -165,6 +165,40 @@ export interface ServerToClientEvents {
   'game:player-won': (data: { playerId: string; playerName: string; condition: string }) => void;
   'game:resource-change': (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => void;
   'game:chat': (data: { playerName: string; message: string }) => void;
+  'game:plan-ability-trigger': (data: {
+    playerId: string;
+    planId: string;
+    planName: string;
+    trigger: string;
+    message: string;
+    effects?: Record<string, unknown>;
+    turn: number;
+    round: number;
+  }) => void;
+  'game:line-exit-summary': (data: {
+    playerId: string;
+    lineId: string;
+    lineName: string;
+    entryTurn: number;
+    exitTurn: number;
+    deltas: { money: number; gpa: number; exploration: number };
+    turn: number;
+    round: number;
+  }) => void;
+  'game:vote-result': (data: {
+    cardId: string;
+    results: Record<string, string[]>;
+    winnerOption: string;
+    turn: number;
+    round: number;
+  }) => void;
+  'game:chain-result': (data: {
+    cardId: string;
+    chainLength: number;
+    participants: string[];
+    turn: number;
+    round: number;
+  }) => void;
 }
 
 // === Player History Tracking ===

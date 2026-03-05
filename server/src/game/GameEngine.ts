@@ -22,6 +22,7 @@ import { createTrainingDeck } from '../data/trainingPlans.js';
 import { EventHandler, GameEngine as IGameEngine } from './EventHandler.js';
 import { WinConditionChecker } from './rules/WinConditionChecker.js';
 import { PlanAbilityHandler } from './rules/PlanAbilities.js';
+import type { AbilityTrigger, PlanAbilityContext as RegistryContext, PlanAbilityResult as RegistryResult } from './handlers/plan-registry.js';
 import { CardEffectHandler } from './rules/CardEffectHandler.js';
 import { StateTracker } from './history/StateTracker.js';
 import { DelayedEffectManager } from './effects/DelayedEffectManager.js';
@@ -51,6 +52,15 @@ export class GameEngine implements IGameEngine {
     stat: 'money' | 'gpa' | 'exploration';
     delta: number;
     current: number;
+  }) => void) | null = null;
+  private planAbilityCallback: ((data: {
+    playerId: string; planId: string; planName: string;
+    trigger: string; message: string; effects?: Record<string, unknown>;
+  }) => void) | null = null;
+  private lineExitCallback: ((data: {
+    playerId: string; lineId: string; lineName: string;
+    entryTurn: number; exitTurn: number;
+    deltas: { money: number; gpa: number; exploration: number };
   }) => void) | null = null;
 
   constructor(roomId: string) {
@@ -207,7 +217,7 @@ export class GameEngine implements IGameEngine {
 
     // Check plan abilities for money loss protection (faxue lawyerShield)
     if (delta < 0) {
-      const abilityResult = this.planAbilities.checkAbilities(player, this.state, 'on_money_loss');
+      const abilityResult = this.checkAbilitiesAndBroadcast(player, this.state, 'on_money_loss');
       if (abilityResult?.effects?.blockMoneyLoss) {
         // Consume the shield after use
         player.lawyerShield = false;
@@ -360,7 +370,7 @@ export class GameEngine implements IGameEngine {
     }
 
     // --- PlanAbilities: on_move (teleport/direct moves) ---
-    const moveResult = this.planAbilities.checkAbilities(player, this.state, 'on_move');
+    const moveResult = this.checkAbilitiesAndBroadcast(player, this.state, 'on_move');
     if (moveResult?.effects) {
       if (moveResult.message) this.log(moveResult.message, playerId);
       if (moveResult.effects.exploration) {
@@ -588,6 +598,22 @@ export class GameEngine implements IGameEngine {
         lastExit.explorationAfter = exitExploration;
         lastExit.moneyBefore = entrySnapshot.money;
         lastExit.moneyAfter = exitMoney;
+      }
+
+      // Broadcast line exit summary
+      if (this.lineExitCallback) {
+        this.lineExitCallback({
+          playerId,
+          lineId,
+          lineName: line?.name || lineId,
+          entryTurn: entrySnapshot.turn,
+          exitTurn: this.state.turnNumber,
+          deltas: {
+            money: exitMoney - entrySnapshot.money,
+            gpa: exitGpa - entrySnapshot.gpa,
+            exploration: exitExploration - entrySnapshot.exploration,
+          },
+        });
       }
 
       this.lineEntrySnapshots.delete(snapshotKey);
@@ -1358,6 +1384,38 @@ export class GameEngine implements IGameEngine {
 
   setResourceChangeCallback(cb: typeof this.resourceChangeCallback): void {
     this.resourceChangeCallback = cb;
+  }
+
+  setPlanAbilityCallback(cb: typeof this.planAbilityCallback): void {
+    this.planAbilityCallback = cb;
+  }
+
+  setLineExitCallback(cb: typeof this.lineExitCallback): void {
+    this.lineExitCallback = cb;
+  }
+
+  /**
+   * Wrapper around planAbilities.checkAbilities that also broadcasts the trigger.
+   */
+  checkAbilitiesAndBroadcast(
+    player: Player,
+    state: GameState,
+    trigger: AbilityTrigger,
+    extra?: Partial<RegistryContext>,
+  ): RegistryResult | null {
+    const result = this.planAbilities.checkAbilities(player, state, trigger, extra);
+    if (result?.activated && this.planAbilityCallback) {
+      const plan = (player.trainingPlans || []).find(p => p.id === player.majorPlan);
+      this.planAbilityCallback({
+        playerId: player.id,
+        planId: player.majorPlan || '',
+        planName: plan?.name || '',
+        trigger,
+        message: result.message || '',
+        effects: result.effects,
+      });
+    }
+    return result;
   }
 
   rollDiceAndBroadcast(playerId: string, count?: number): number[] {

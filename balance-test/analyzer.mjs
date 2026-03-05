@@ -416,6 +416,300 @@ function analyzeWinTiming() {
 }
 
 // ============================================================
+// New Analysis Functions (Phase 3)
+// ============================================================
+
+function analyzePlanAbilities() {
+  const stats = {}; // { [planName]: { triggers: { [trigger]: { count, effects: [] } }, totalTriggers } }
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      const majorPlan = getPlayerMajorPlan(p);
+      for (const t of (p.planAbilityTriggers || [])) {
+        const planName = t.planName || majorPlan || 'unknown';
+        if (!stats[planName]) stats[planName] = { triggers: {}, totalTriggers: 0, games: 0 };
+        if (!stats[planName].triggers[t.trigger]) stats[planName].triggers[t.trigger] = { count: 0, messages: [] };
+        stats[planName].triggers[t.trigger].count++;
+        stats[planName].totalTriggers++;
+        if (t.message && stats[planName].triggers[t.trigger].messages.length < 3) {
+          stats[planName].triggers[t.trigger].messages.push(t.message);
+        }
+      }
+    }
+    // Count games per plan
+    for (const p of game.players || []) {
+      const majorPlan = getPlayerMajorPlan(p);
+      if (majorPlan && stats[majorPlan]) stats[majorPlan].games++;
+    }
+  }
+  return stats;
+}
+
+function analyzeLineDeltas() {
+  const stats = {}; // { [lineId]: { entries, moneyDeltas, gpaDeltas, exploreDeltas } }
+  for (const game of validGames) {
+    for (const summary of (game.allLineExitSummaries || [])) {
+      const id = summary.lineId;
+      if (!stats[id]) stats[id] = {
+        name: summary.lineName || id, entries: 0,
+        moneyDeltas: [], gpaDeltas: [], exploreDeltas: [],
+        turnsSpent: [],
+      };
+      stats[id].entries++;
+      stats[id].moneyDeltas.push(summary.deltas?.money || 0);
+      stats[id].gpaDeltas.push(summary.deltas?.gpa || 0);
+      stats[id].exploreDeltas.push(summary.deltas?.exploration || 0);
+      if (summary.entryTurn !== undefined && summary.exitTurn !== undefined) {
+        stats[id].turnsSpent.push(summary.exitTurn - summary.entryTurn);
+      }
+    }
+  }
+  return stats;
+}
+
+function analyzeDiceFairness() {
+  const counts = new Array(13).fill(0); // index 0 unused, 1-12 for totals
+  const singleCounts = new Array(7).fill(0); // index 0 unused, 1-6 for single die
+  let totalRolls = 0;
+
+  for (const game of validGames) {
+    for (const d of (game.allDiceResults || [])) {
+      if (!d.values) continue;
+      for (const v of d.values) {
+        if (v >= 1 && v <= 6) singleCounts[v]++;
+      }
+      if (d.total >= 1 && d.total <= 12) counts[d.total]++;
+      totalRolls++;
+    }
+  }
+
+  const totalSingleDice = singleCounts.reduce((s, v) => s + v, 0);
+
+  // Chi-squared test for single die fairness
+  let chiSquared = 0;
+  const expected = totalSingleDice / 6;
+  for (let i = 1; i <= 6; i++) {
+    chiSquared += (singleCounts[i] - expected) ** 2 / (expected || 1);
+  }
+  // p-value approximation (df=5)
+  const pValue = chiSquaredPValue(chiSquared, 5);
+
+  return { counts, singleCounts, totalRolls, totalSingleDice, chiSquared, pValue };
+}
+
+function analyzeHospitalBankruptcy() {
+  const byPlan = {}; // { [planName]: { total, hospitalPlayers, bankruptPlayers, hospitalWins, noHospitalWins, hospitalWinTotal, noHospitalTotal } }
+  let totalPlayers = 0, totalHospital = 0, totalBankrupt = 0;
+
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      totalPlayers++;
+      const majorPlan = getPlayerMajorPlan(p);
+      const planKey = majorPlan || 'unknown';
+      if (!byPlan[planKey]) byPlan[planKey] = {
+        total: 0, hospitalPlayers: 0, bankruptPlayers: 0,
+        hospitalWins: 0, noHospitalWins: 0, hospitalTotal: 0, noHospitalTotal: 0,
+      };
+      byPlan[planKey].total++;
+      const hadHospital = (p.hospitalEntries || 0) > 0 || p.isInHospital;
+      const hadBankrupt = (p.bankruptOccurrences || 0) > 0 || p.isBankrupt;
+      if (hadHospital) {
+        totalHospital++;
+        byPlan[planKey].hospitalPlayers++;
+        byPlan[planKey].hospitalTotal++;
+        if (p.isWinner) byPlan[planKey].hospitalWins++;
+      } else {
+        byPlan[planKey].noHospitalTotal++;
+        if (p.isWinner) byPlan[planKey].noHospitalWins++;
+      }
+      if (hadBankrupt) { totalBankrupt++; byPlan[planKey].bankruptPlayers++; }
+    }
+  }
+  return { totalPlayers, totalHospital, totalBankrupt, byPlan };
+}
+
+function analyzeFreshmanBuff() {
+  // Compare resource changes in round 1 vs round 2
+  const round1 = { money: [], gpa: [], explore: [] };
+  const round2 = { money: [], gpa: [], explore: [] };
+
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      for (const rc of (p.resourceChanges || [])) {
+        if (rc.delta <= 0) continue; // Only positive changes
+        const bucket = rc.round === 1 ? round1 : rc.round === 2 ? round2 : null;
+        if (!bucket) continue;
+        if (rc.stat === 'money') bucket.money.push(rc.delta);
+        else if (rc.stat === 'gpa') bucket.gpa.push(rc.delta);
+        else if (rc.stat === 'exploration') bucket.explore.push(rc.delta);
+      }
+    }
+  }
+  return { round1, round2 };
+}
+
+function planWinRateChiSquared() {
+  // Chi-squared test for plan win rate homogeneity
+  const planStats = {};
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      const plan = getPlayerMajorPlan(p);
+      if (!plan) continue;
+      if (!planStats[plan]) planStats[plan] = { total: 0, wins: 0 };
+      planStats[plan].total++;
+      if (p.isWinner) planStats[plan].wins++;
+    }
+  }
+
+  const plans = Object.entries(planStats).filter(([, s]) => s.total >= 20);
+  if (plans.length < 2) return { chiSquared: 0, df: 0, pValue: 1, plans: [] };
+
+  const totalWins = plans.reduce((s, [, st]) => s + st.wins, 0);
+  const totalN = plans.reduce((s, [, st]) => s + st.total, 0);
+  const overallRate = totalWins / totalN;
+
+  let chiSquared = 0;
+  for (const [, s] of plans) {
+    const expectedWins = s.total * overallRate;
+    const expectedLosses = s.total * (1 - overallRate);
+    chiSquared += (s.wins - expectedWins) ** 2 / (expectedWins || 1);
+    chiSquared += ((s.total - s.wins) - expectedLosses) ** 2 / (expectedLosses || 1);
+  }
+
+  const df = plans.length - 1;
+  const pValue = chiSquaredPValue(chiSquared, df);
+
+  return { chiSquared, df, pValue, planCount: plans.length, overallRate };
+}
+
+function giniCoefficient(values) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
+  let sumNumerator = 0;
+  for (let i = 0; i < n; i++) {
+    sumNumerator += (2 * (i + 1) - n - 1) * sorted[i];
+  }
+  const meanVal = mean(sorted);
+  if (meanVal === 0) return 0;
+  return sumNumerator / (n * n * meanVal);
+}
+
+function analyzeResourceGini() {
+  const moneyValues = [];
+  const gpaValues = [];
+  const exploreValues = [];
+
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      moneyValues.push(Math.max(0, p.finalMoney ?? 0));
+      gpaValues.push(p.finalGpa ?? 0);
+      exploreValues.push(p.finalExploration ?? 0);
+    }
+  }
+
+  return {
+    moneyGini: giniCoefficient(moneyValues),
+    gpaGini: giniCoefficient(gpaValues),
+    exploreGini: giniCoefficient(exploreValues),
+  };
+}
+
+function pearsonCorrelation(x, y) {
+  const n = Math.min(x.length, y.length);
+  if (n < 3) return 0;
+  const mx = mean(x.slice(0, n)), my = mean(y.slice(0, n));
+  let num = 0, dx2 = 0, dy2 = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = x[i] - mx, dy = y[i] - my;
+    num += dx * dy;
+    dx2 += dx * dx;
+    dy2 += dy * dy;
+  }
+  const denom = Math.sqrt(dx2 * dy2);
+  return denom === 0 ? 0 : num / denom;
+}
+
+function analyzeResourceWinCorrelation() {
+  const money = [], gpa = [], explore = [], wins = [];
+  for (const game of validGames) {
+    for (const p of game.players || []) {
+      money.push(p.finalMoney ?? 0);
+      gpa.push(p.finalGpa ?? 0);
+      explore.push(p.finalExploration ?? 0);
+      wins.push(p.isWinner ? 1 : 0);
+    }
+  }
+  return {
+    moneyWinCorr: pearsonCorrelation(money, wins),
+    gpaWinCorr: pearsonCorrelation(gpa, wins),
+    exploreWinCorr: pearsonCorrelation(explore, wins),
+    moneyGpaCorr: pearsonCorrelation(money, gpa),
+    moneyExploreCorr: pearsonCorrelation(money, explore),
+    gpaExploreCorr: pearsonCorrelation(gpa, explore),
+  };
+}
+
+/**
+ * Chi-squared p-value approximation using the regularized incomplete gamma function.
+ * Uses series expansion for small values and continued fraction for larger values.
+ */
+function chiSquaredPValue(x, df) {
+  if (x <= 0 || df <= 0) return 1;
+  // P-value = 1 - regularizedGammaP(df/2, x/2)
+  return 1 - regularizedGammaP(df / 2, x / 2);
+}
+
+function regularizedGammaP(a, x) {
+  if (x < 0) return 0;
+  if (x === 0) return 0;
+  if (x < a + 1) {
+    // Series expansion
+    let sum = 1 / a, term = 1 / a;
+    for (let n = 1; n < 200; n++) {
+      term *= x / (a + n);
+      sum += term;
+      if (Math.abs(term) < 1e-10 * Math.abs(sum)) break;
+    }
+    return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
+  } else {
+    // Continued fraction (Lentz's method)
+    return 1 - regularizedGammaQ(a, x);
+  }
+}
+
+function regularizedGammaQ(a, x) {
+  let f = 1e-30, c = 1e-30, d = 1 / (x + 1 - a);
+  let h = d;
+  for (let i = 1; i < 200; i++) {
+    const an = -i * (i - a);
+    const bn = x + 2 * i + 1 - a;
+    d = bn + an * d;
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = bn + an / c;
+    if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-10) break;
+  }
+  return h * Math.exp(-x + a * Math.log(x) - logGamma(a));
+}
+
+function logGamma(z) {
+  // Stirling's approximation for log(Gamma(z))
+  const coeffs = [76.18009172947146, -86.50532032941678, 24.01409824083091,
+    -1.231739572450155, 0.001208650973866179, -0.000005395239384953];
+  let x = z, y = z;
+  let tmp = x + 5.5;
+  tmp -= (x + 0.5) * Math.log(tmp);
+  let sum = 1.000000000190015;
+  for (let j = 0; j < 6; j++) {
+    sum += coeffs[j] / ++y;
+  }
+  return -tmp + Math.log(2.5066282746310005 * sum / x);
+}
+
+// ============================================================
 // Report Generation
 // ============================================================
 function generateReport() {
@@ -429,6 +723,15 @@ function generateReport() {
   const yearSnapshots = analyzePerYearSnapshots();
   const eventEffects = analyzeEventEffects();
   const winTiming = analyzeWinTiming();
+  // Phase 3: new analyses
+  const planAbilityStats = analyzePlanAbilities();
+  const lineDeltaStats = analyzeLineDeltas();
+  const diceStats = analyzeDiceFairness();
+  const hospitalStats = analyzeHospitalBankruptcy();
+  const freshmanStats = analyzeFreshmanBuff();
+  const planChiSq = planWinRateChiSquared();
+  const giniStats = analyzeResourceGini();
+  const corrStats = analyzeResourceWinCorrelation();
 
   const totalPlayers = validGames.reduce((s, g) => s + (g.players?.length || 0), 0);
   const lines = [];
@@ -826,8 +1129,170 @@ function generateReport() {
     }
   }
 
+  // ---- Plan Ability Analysis (New) ----
+  w('## 11. 培养计划被动能力分析');
+  w('');
+  {
+    const entries = Object.entries(planAbilityStats)
+      .filter(([, s]) => s.totalTriggers > 0)
+      .sort((a, b) => b[1].totalTriggers - a[1].totalTriggers);
+
+    if (entries.length > 0) {
+      w('| 培养计划 | 触发类型 | 总触发次数 | 每局平均触发 | 效果描述 |');
+      w('|---------|---------|----------|-----------|---------|');
+      for (const [planName, s] of entries) {
+        const perGame = s.games > 0 ? (s.totalTriggers / s.games).toFixed(1) : '-';
+        for (const [trigger, t] of Object.entries(s.triggers)) {
+          const msg = t.messages[0] || '-';
+          w(`| ${planName} | ${trigger} | ${t.count} | ${perGame} | ${msg.substring(0, 40)} |`);
+        }
+      }
+    } else {
+      w('暂无被动能力触发数据（需运行带新事件广播的模拟）。');
+    }
+  }
+  w('');
+
+  // ---- Line Delta Analysis (New) ----
+  w('## 12. 线路资源收支分析');
+  w('');
+  {
+    const entries = Object.entries(lineDeltaStats).sort((a, b) => b[1].entries - a[1].entries);
+    if (entries.length > 0) {
+      w('| 线路 | 进入次数 | 平均金钱收支 | 平均GPA收支 | 平均探索收支 | 平均停留回合 |');
+      w('|------|---------|-----------|----------|----------|-----------|');
+      for (const [, s] of entries) {
+        const avgMoney = mean(s.moneyDeltas);
+        const avgGpa = mean(s.gpaDeltas);
+        const avgExplore = mean(s.exploreDeltas);
+        const avgTurns = mean(s.turnsSpent);
+        w(`| ${s.name} | ${s.entries} | ${avgMoney >= 0 ? '+' : ''}${avgMoney.toFixed(0)} | ${avgGpa >= 0 ? '+' : ''}${avgGpa.toFixed(2)} | ${avgExplore >= 0 ? '+' : ''}${avgExplore.toFixed(1)} | ${avgTurns.toFixed(1)} |`);
+      }
+    } else {
+      w('暂无线路收支数据（需运行带新事件广播的模拟）。');
+    }
+  }
+  w('');
+
+  // ---- Dice Fairness Analysis (New) ----
+  w('## 13. 骰子公平性分析');
+  w('');
+  {
+    if (diceStats.totalSingleDice > 0) {
+      const expected = diceStats.totalSingleDice / 6;
+      w('### 13.1 单个骰子点数分布');
+      w('');
+      w('| 点数 | 出现次数 | 实际频率 | 理论频率 | 偏差 |');
+      w('|------|---------|---------|---------|------|');
+      for (let i = 1; i <= 6; i++) {
+        const actual = diceStats.singleCounts[i] / diceStats.totalSingleDice;
+        const theoryPct = (1 / 6 * 100).toFixed(2);
+        const diff = ((actual - 1 / 6) * 100).toFixed(2);
+        w(`| ${i} | ${diceStats.singleCounts[i]} | ${(actual * 100).toFixed(2)}% | ${theoryPct}% | ${diff >= 0 ? '+' : ''}${diff}pp |`);
+      }
+      w('');
+      w(`**Chi-squared 统计量**: ${diceStats.chiSquared.toFixed(4)} (df=5)`);
+      w(`**p-value**: ${diceStats.pValue.toFixed(4)} ${diceStats.pValue > 0.05 ? '(骰子公平 ✓)' : '(⚠ 骰子可能不公平)'}`);
+      w(`**总投掷次数**: ${diceStats.totalRolls} (${diceStats.totalSingleDice} 个骰子面)`);
+    } else {
+      w('暂无骰子数据（需运行带新事件广播的模拟）。');
+    }
+  }
+  w('');
+
+  // ---- Hospital/Bankruptcy Analysis (New) ----
+  w('## 14. 医院/破产分析');
+  w('');
+  {
+    w(`| 指标 | 数值 |`);
+    w(`|------|------|`);
+    w(`| 总玩家数 | ${hospitalStats.totalPlayers} |`);
+    w(`| 进入过医院 | ${hospitalStats.totalHospital} (${pct(hospitalStats.totalHospital, hospitalStats.totalPlayers)}) |`);
+    w(`| 经历过破产 | ${hospitalStats.totalBankrupt} (${pct(hospitalStats.totalBankrupt, hospitalStats.totalPlayers)}) |`);
+    w('');
+
+    const planEntries = Object.entries(hospitalStats.byPlan)
+      .filter(([, s]) => s.total >= 10)
+      .sort((a, b) => (b[1].hospitalPlayers / b[1].total) - (a[1].hospitalPlayers / a[1].total));
+
+    if (planEntries.length > 0) {
+      w('### 14.1 医院/破产率（按培养计划）');
+      w('');
+      w('| 培养计划 | 样本 | 医院进入率 | 破产率 | 有医院胜率 | 无医院胜率 |');
+      w('|---------|------|---------|-------|----------|----------|');
+      for (const [plan, s] of planEntries) {
+        const hospRate = pct(s.hospitalPlayers, s.total);
+        const bankRate = pct(s.bankruptPlayers, s.total);
+        const hospWinRate = s.hospitalTotal > 0 ? pct(s.hospitalWins, s.hospitalTotal) : '-';
+        const noHospWinRate = s.noHospitalTotal > 0 ? pct(s.noHospitalWins, s.noHospitalTotal) : '-';
+        w(`| ${plan} | ${s.total} | ${hospRate} | ${bankRate} | ${hospWinRate} | ${noHospWinRate} |`);
+      }
+    }
+  }
+  w('');
+
+  // ---- Freshman Buff Analysis (New) ----
+  w('## 15. 大一Buff影响量化');
+  w('');
+  {
+    w('大一通用buff：GPA增加效果翻倍');
+    w('');
+    w('| 资源 | 第1轮(大一)平均正增长 | 第2轮(大二)平均正增长 | Buff倍率 |');
+    w('|------|-------------------|-------------------|---------|');
+    const r1m = mean(freshmanStats.round1.money), r2m = mean(freshmanStats.round2.money);
+    const r1g = mean(freshmanStats.round1.gpa), r2g = mean(freshmanStats.round2.gpa);
+    const r1e = mean(freshmanStats.round1.explore), r2e = mean(freshmanStats.round2.explore);
+    w(`| 金钱 | +${r1m.toFixed(0)} (n=${freshmanStats.round1.money.length}) | +${r2m.toFixed(0)} (n=${freshmanStats.round2.money.length}) | ${r2m > 0 ? (r1m / r2m).toFixed(2) : '-'}x |`);
+    w(`| GPA | +${r1g.toFixed(3)} (n=${freshmanStats.round1.gpa.length}) | +${r2g.toFixed(3)} (n=${freshmanStats.round2.gpa.length}) | ${r2g > 0 ? (r1g / r2g).toFixed(2) : '-'}x |`);
+    w(`| 探索值 | +${r1e.toFixed(1)} (n=${freshmanStats.round1.explore.length}) | +${r2e.toFixed(1)} (n=${freshmanStats.round2.explore.length}) | ${r2e > 0 ? (r1e / r2e).toFixed(2) : '-'}x |`);
+    w('');
+    w('> GPA的Buff倍率应接近2.0（因为大一GPA增加翻倍），金钱和探索值应接近1.0。');
+  }
+  w('');
+
+  // ---- Comprehensive Statistics (New) ----
+  w('## 16. 综合统计分析');
+  w('');
+
+  // Plan win rate chi-squared
+  w('### 16.1 培养计划胜率齐性检验');
+  w('');
+  w(`| 指标 | 数值 |`);
+  w(`|------|------|`);
+  w(`| 参与检验计划数 | ${planChiSq.planCount} |`);
+  w(`| 总体胜率 | ${(planChiSq.overallRate * 100).toFixed(2)}% |`);
+  w(`| Chi-squared | ${planChiSq.chiSquared.toFixed(2)} (df=${planChiSq.df}) |`);
+  w(`| p-value | ${planChiSq.pValue.toFixed(4)} |`);
+  w(`| 结论 | ${planChiSq.pValue < 0.05 ? '⚠ 各计划胜率存在显著差异 (p<0.05)' : '各计划胜率无显著差异 ✓'} |`);
+  w('');
+
+  // Gini coefficient
+  w('### 16.2 资源分配基尼系数');
+  w('');
+  w('基尼系数衡量资源分配的不平等程度（0=完全平等, 1=完全不平等）');
+  w('');
+  w(`| 资源 | 基尼系数 | 评价 |`);
+  w(`|------|---------|------|`);
+  const giniEval = (g) => g < 0.3 ? '较平等' : g < 0.5 ? '中等差距' : '差距较大';
+  w(`| 金钱 | ${giniStats.moneyGini.toFixed(3)} | ${giniEval(giniStats.moneyGini)} |`);
+  w(`| GPA | ${giniStats.gpaGini.toFixed(3)} | ${giniEval(giniStats.gpaGini)} |`);
+  w(`| 探索值 | ${giniStats.exploreGini.toFixed(3)} | ${giniEval(giniStats.exploreGini)} |`);
+  w('');
+
+  // Correlation matrix
+  w('### 16.3 资源-胜率 Pearson 相关矩阵');
+  w('');
+  w('| | 胜率 | 金钱 | GPA | 探索值 |');
+  w('|------|------|------|-----|-------|');
+  w(`| 金钱 | ${corrStats.moneyWinCorr.toFixed(3)} | 1 | ${corrStats.moneyGpaCorr.toFixed(3)} | ${corrStats.moneyExploreCorr.toFixed(3)} |`);
+  w(`| GPA | ${corrStats.gpaWinCorr.toFixed(3)} | ${corrStats.moneyGpaCorr.toFixed(3)} | 1 | ${corrStats.gpaExploreCorr.toFixed(3)} |`);
+  w(`| 探索值 | ${corrStats.exploreWinCorr.toFixed(3)} | ${corrStats.moneyExploreCorr.toFixed(3)} | ${corrStats.gpaExploreCorr.toFixed(3)} | 1 |`);
+  w('');
+  w('> 相关系数接近1表示强正相关，接近-1表示强负相关，接近0表示无关。');
+  w('');
+
   // ---- Balance Recommendations ----
-  w('## 11. 平衡性调整建议');
+  w('## 17. 平衡性调整建议');
   w('');
   const recommendations = [];
 
@@ -900,6 +1365,33 @@ function generateReport() {
     }
   }
 
+  // Dice fairness issue
+  if (diceStats.pValue < 0.01 && diceStats.totalSingleDice > 100) {
+    recommendations.push({
+      priority: 'HIGH',
+      category: '骰子公平性异常',
+      details: [`- Chi-squared p-value = ${diceStats.pValue.toFixed(4)}`, '- 建议检查随机数生成器实现'],
+    });
+  }
+
+  // Plan win rate heterogeneity
+  if (planChiSq.pValue < 0.01) {
+    recommendations.push({
+      priority: 'MEDIUM',
+      category: '培养计划胜率存在显著差异',
+      details: [`- Chi-squared = ${planChiSq.chiSquared.toFixed(2)}, p = ${planChiSq.pValue.toFixed(4)}`, '- 需审查高胜率和低胜率计划的平衡性'],
+    });
+  }
+
+  // Resource inequality
+  if (giniStats.moneyGini > 0.5) {
+    recommendations.push({
+      priority: 'LOW',
+      category: '金钱分配不均',
+      details: [`- 基尼系数: ${giniStats.moneyGini.toFixed(3)}`, '- 部分玩家金钱过多或过少'],
+    });
+  }
+
   // Strategy dominance
   const stratRanks = Object.entries(economy.byStrategy)
     .map(([name, s]) => ({ name, winRate: s.total > 0 ? s.wins / s.total : 0, total: s.total }))
@@ -932,7 +1424,7 @@ function generateReport() {
   }
 
   // ---- Raw Data Summary ----
-  w('## 12. 数据说明');
+  w('## 18. 数据说明');
   w('');
   w(`- 数据来源: ${inputPath}`);
   w(`- 总模拟局数: ${rawData.length} (有效: ${validGames.length})`);

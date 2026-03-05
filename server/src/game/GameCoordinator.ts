@@ -51,6 +51,26 @@ export class GameCoordinator {
     this.engine.setResourceChangeCallback((data) => {
       this.io.to(this.roomId).emit('game:resource-change', data);
     });
+
+    // Wire up plan ability trigger broadcast
+    this.engine.setPlanAbilityCallback((data) => {
+      const state = this.engine.getState();
+      this.io.to(this.roomId).emit('game:plan-ability-trigger', {
+        ...data,
+        turn: state.turnNumber,
+        round: state.roundNumber,
+      });
+    });
+
+    // Wire up line exit summary broadcast
+    this.engine.setLineExitCallback((data) => {
+      const state = this.engine.getState();
+      this.io.to(this.roomId).emit('game:line-exit-summary', {
+        ...data,
+        turn: state.turnNumber,
+        round: state.roundNumber,
+      });
+    });
   }
 
   // --------------------------------------------------
@@ -217,7 +237,7 @@ export class GameCoordinator {
 
     // --- PlanAbilities: on_turn_start check ---
     const planAbilities = this.engine.getPlanAbilities();
-    const turnAbility = planAbilities.checkAbilities(currentPlayer, state, 'on_turn_start');
+    const turnAbility = this.engine.checkAbilitiesAndBroadcast(currentPlayer, state, 'on_turn_start');
     if (turnAbility?.effects?.customEffect) {
       if (turnAbility.message) this.addLog(currentPlayer.id, turnAbility.message);
       const ce = turnAbility.effects.customEffect;
@@ -1943,7 +1963,7 @@ export class GameCoordinator {
 
       // --- PlanAbilities: on_cell_enter check ---
       if (player) {
-        const cellAbility = planAbilities.checkAbilities(player, state, 'on_cell_enter', { cellId: cell.id });
+        const cellAbility = this.engine.checkAbilitiesAndBroadcast(player, state, 'on_cell_enter', { cellId: cell.id });
         if (cellAbility?.effects) {
           const fx = cellAbility.effects;
           if (cellAbility.message) this.addLog(playerId, cellAbility.message);
@@ -2520,6 +2540,18 @@ export class GameCoordinator {
           counts[option] = pids.length;
         }
 
+        // Broadcast vote result for balance analysis
+        if (cardId) {
+          const winnerOption = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+          this.io.to(this.roomId).emit('game:vote-result', {
+            cardId,
+            results: groups,
+            winnerOption,
+            turn: state.turnNumber,
+            round: state.roundNumber,
+          });
+        }
+
         try {
           if (cardId) {
             this.resolveMultiVoteCard(cardId, groups, counts);
@@ -2568,6 +2600,16 @@ export class GameCoordinator {
           if (cardId) {
             const responses = state.pendingAction.responses;
             const continueCount = Object.values(responses).filter(r => r === 'continue').length;
+
+            // Broadcast chain result for balance analysis
+            this.io.to(this.roomId).emit('game:chain-result', {
+              cardId,
+              chainLength: continueCount,
+              participants: chainOrder,
+              turn: state.turnNumber,
+              round: state.roundNumber,
+            });
+
             this.engine.getEventHandler().execute(`chain_${cardId}_end_${continueCount}`, playerId);
           }
 

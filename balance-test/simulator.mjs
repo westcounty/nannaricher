@@ -98,6 +98,16 @@ class PlayerAgent {
     this.eventsTriggers = [];   // { turn, round, title, description, playerId }
     this.cardsDrawn = [];       // { turn, round, deckType, cardName }
     this.roundSnapshots = {};   // { [round]: { money, gpa, exploration } } - end of round values
+    // New: enhanced telemetry
+    this.planAbilityTriggers = [];  // { turn, round, planId, planName, trigger, message, effects }
+    this.lineExitSummaries = [];    // { turn, round, lineId, lineName, entryTurn, exitTurn, deltas }
+    this.diceResults = [];          // { playerId, values, total }
+    this.voteResults = [];          // { cardId, results, winnerOption, turn, round }
+    this.chainResults = [];         // { cardId, chainLength, participants, turn, round }
+    this.hospitalEntries = 0;
+    this.bankruptOccurrences = 0;
+    this._prevInHospital = false;
+    this._prevBankrupt = false;
   }
 
   connect(serverUrl) {
@@ -122,6 +132,11 @@ class PlayerAgent {
             money: me.money, gpa: me.gpa, exploration: me.exploration,
             turn: state.turnNumber,
           };
+          // Track hospital/bankrupt state transitions
+          if (me.isInHospital && !this._prevInHospital) this.hospitalEntries++;
+          this._prevInHospital = !!me.isInHospital;
+          if (me.isBankrupt && !this._prevBankrupt) this.bankruptOccurrences++;
+          this._prevBankrupt = !!me.isBankrupt;
         }
       }
       const resolvers = this._stateResolvers.splice(0);
@@ -141,6 +156,21 @@ class PlayerAgent {
       const round = this.latestState?.roundNumber || 0;
       const turn = this.latestState?.turnNumber || 0;
       this.cardsDrawn.push({ turn, round, deckType: data.deckType, cardName: data.card?.name || 'unknown' });
+    });
+    s.on('game:dice-result', (data) => {
+      this.diceResults.push({ playerId: data.playerId, values: data.values, total: data.total });
+    });
+    s.on('game:plan-ability-trigger', (data) => {
+      this.planAbilityTriggers.push(data);
+    });
+    s.on('game:line-exit-summary', (data) => {
+      this.lineExitSummaries.push(data);
+    });
+    s.on('game:vote-result', (data) => {
+      this.voteResults.push(data);
+    });
+    s.on('game:chain-result', (data) => {
+      this.chainResults.push(data);
     });
     s.on('game:player-won', (data) => { this.winner = data; });
     s.on('room:error', (data) => { this.errors.push(data.message); });
@@ -345,11 +375,23 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
           roundSnapshots: agent?.roundSnapshots || {},
           // Detailed resource change log
           resourceChanges: (agent?.resourceChanges || []).filter(rc => rc.playerId === p.id),
+          // New: enhanced telemetry per player
+          planAbilityTriggers: (agent?.planAbilityTriggers || []).filter(t => t.playerId === p.id),
+          lineExitSummaries: (agent?.lineExitSummaries || []).filter(s => s.playerId === p.id),
+          diceResults: (agent?.diceResults || []).filter(d => d.playerId === p.id),
+          hospitalEntries: agent?.hospitalEntries || 0,
+          bankruptOccurrences: agent?.bankruptOccurrences || 0,
         };
       }),
       // Aggregate event and card data for the whole game
       events: agents.flatMap(a => a.eventsTriggers),
       cardsDrawn: agents.flatMap(a => a.cardsDrawn),
+      // New: aggregate game-level telemetry (use only first agent to avoid broadcast duplication)
+      allDiceResults: agents[0]?.diceResults || [],
+      allPlanAbilityTriggers: agents[0]?.planAbilityTriggers || [],
+      allLineExitSummaries: agents[0]?.lineExitSummaries || [],
+      voteResults: agents[0]?.voteResults || [],
+      chainResults: agents[0]?.chainResults || [],
       errors: agents.flatMap(a => a.errors),
     };
   } catch (err) {
