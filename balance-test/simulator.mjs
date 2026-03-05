@@ -4,6 +4,12 @@
  * Runs batch game simulations via Socket.IO against the real server.
  * Adaptive game count: runs until statistical confidence is achieved.
  *
+ * Updated for the new training plan system:
+ * - No more setup_plans phase (game starts directly in playing)
+ * - No more game:confirm-plan event
+ * - Plans use majorPlan/minorPlans instead of confirmedPlans
+ * - Yearly plan selection happens via choose_option PendingActions
+ *
  * Usage: node balance-test/simulator.mjs [options]
  *   --server=URL      Server URL (default: http://localhost:3001)
  *   --min-games=N     Minimum games to run (default: 500)
@@ -45,6 +51,35 @@ const CONFIG = {
 };
 
 // ============================================================
+// Helper: extract player plan info from new data model
+// ============================================================
+function getPlayerPlanNames(player) {
+  const names = [];
+  if (player.majorPlan) {
+    const plan = (player.trainingPlans || []).find(tp => tp.id === player.majorPlan);
+    if (plan) names.push(plan.name);
+  }
+  for (const minorId of (player.minorPlans || [])) {
+    const plan = (player.trainingPlans || []).find(tp => tp.id === minorId);
+    if (plan) names.push(plan.name);
+  }
+  return names;
+}
+
+function getPlayerPlanIds(player) {
+  const ids = [];
+  if (player.majorPlan) ids.push(player.majorPlan);
+  ids.push(...(player.minorPlans || []));
+  return ids;
+}
+
+function getMajorPlanName(player) {
+  if (!player.majorPlan) return null;
+  const plan = (player.trainingPlans || []).find(tp => tp.id === player.majorPlan);
+  return plan ? plan.name : null;
+}
+
+// ============================================================
 // PlayerAgent
 // ============================================================
 class PlayerAgent {
@@ -58,6 +93,11 @@ class PlayerAgent {
     this.winner = null;
     this.errors = [];
     this._stateResolvers = [];
+    // Detailed event tracking
+    this.resourceChanges = [];  // { turn, round, stat, delta, current, playerId }
+    this.eventsTriggers = [];   // { turn, round, title, description, playerId }
+    this.cardsDrawn = [];       // { turn, round, deckType, cardName }
+    this.roundSnapshots = {};   // { [round]: { money, gpa, exploration } } - end of round values
   }
 
   connect(serverUrl) {
@@ -74,8 +114,33 @@ class PlayerAgent {
     const s = this.socket;
     s.on('game:state-update', (state) => {
       this.latestState = state;
+      // Track round snapshots for per-year resource progression
+      if (state.roundNumber && state.players) {
+        const me = state.players.find(p => p.id === this.playerId);
+        if (me) {
+          this.roundSnapshots[state.roundNumber] = {
+            money: me.money, gpa: me.gpa, exploration: me.exploration,
+            turn: state.turnNumber,
+          };
+        }
+      }
       const resolvers = this._stateResolvers.splice(0);
       resolvers.forEach(r => r(state));
+    });
+    s.on('game:resource-change', (data) => {
+      const round = this.latestState?.roundNumber || 0;
+      const turn = this.latestState?.turnNumber || 0;
+      this.resourceChanges.push({ turn, round, ...data });
+    });
+    s.on('game:event-trigger', (data) => {
+      const round = this.latestState?.roundNumber || 0;
+      const turn = this.latestState?.turnNumber || 0;
+      this.eventsTriggers.push({ turn, round, title: data.title, description: data.description, playerId: data.playerId });
+    });
+    s.on('game:card-drawn', (data) => {
+      const round = this.latestState?.roundNumber || 0;
+      const turn = this.latestState?.turnNumber || 0;
+      this.cardsDrawn.push({ turn, round, deckType: data.deckType, cardName: data.card?.name || 'unknown' });
     });
     s.on('game:player-won', (data) => { this.winner = data; });
     s.on('room:error', (data) => { this.errors.push(data.message); });
@@ -126,7 +191,6 @@ class PlayerAgent {
   startGame() { this.socket.emit('game:start'); }
   rollDice() { this.socket.emit('game:roll-dice'); }
   chooseAction(actionId, choice) { this.socket.emit('game:choose-action', { actionId, choice }); }
-  confirmPlan(planId) { this.socket.emit('game:confirm-plan', { planId }); }
   disconnect() { if (this.socket) this.socket.disconnect(); }
 }
 
@@ -151,57 +215,22 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
 
     // Create room & join (stagger joins, longer delays for bigger games)
     const { roomId } = await agents[0].createRoom(diceOption);
-    const joinDelay = playerCount >= 5 ? 400 : 200;
+    const joinDelay = playerCount >= 5 ? 600 : 200;
     for (let i = 1; i < agents.length; i++) {
       await agents[i].joinRoom(roomId, diceOption);
       await sleep(joinDelay);
     }
     await sleep(500);
 
-    // Start game
+    // Start game — goes directly to 'playing' phase (no setup_plans)
     agents[0].startGame();
 
-    // Wait for setup_plans
+    // Wait for playing phase
     try {
-      await agents[0].waitForState(s => s.phase === 'setup_plans', 8000);
-    } catch { /* may already be past this phase */ }
+      await agents[0].waitForState(s => s.phase === 'playing' || s.phase === 'rolling_dice' || s.phase === 'making_choice', 10_000);
+    } catch { /* proceed anyway */ }
 
-    await sleep(100);
-
-    // Setup plans: each agent picks 1 plan via strategy
-    let state = agents[0].latestState;
-    if (state?.phase === 'setup_plans') {
-      // Use each agent's own state for accurate plan info
-      for (const agent of agents) {
-        const agentState = agent.latestState || state;
-        const player = agentState.players.find(p => p.id === agent.playerId);
-        if (player && player.trainingPlans?.length > 0) {
-          const planId = agent.strategy.pickPlan(player.trainingPlans);
-          if (planId) agent.confirmPlan(planId);
-          await sleep(150);
-        }
-      }
-
-      // Wait for playing phase
-      try {
-        await agents[0].waitForState(s => s.phase === 'playing', 10_000);
-      } catch {
-        // Retry: some agents might not have confirmed
-        state = agents[0].latestState;
-        if (state?.phase === 'setup_plans') {
-          for (const agent of agents) {
-            const player = state.players.find(p => p.id === agent.playerId);
-            if (player) {
-              const unc = player.trainingPlans?.find(tp => !tp.confirmed);
-              if (unc) { agent.confirmPlan(unc.id); await sleep(100); }
-            }
-          }
-          try {
-            await agents[0].waitForState(s => s.phase === 'playing', 8000);
-          } catch { /* proceed anyway */ }
-        }
-      }
-    }
+    await sleep(200);
 
     // Main game loop - simple poll-based approach for reliability
     let lastActionId = '';
@@ -214,7 +243,7 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
       if (agents.some(a => a.winner)) break;
 
       // Use freshest state from any agent
-      state = agents[0].latestState;
+      let state = agents[0].latestState;
       for (const a of agents) {
         if (a.latestState?.turnNumber > (state?.turnNumber || 0)) {
           state = a.latestState;
@@ -267,40 +296,60 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
     }
 
     // Collect results
-    state = agents[0].latestState;
+    const finalState = agents[0].latestState;
     const winnerInfo = agents.find(a => a.winner)?.winner || null;
 
     result = {
       gameId,
       config: { playerCount, diceOption, strategyNames },
-      totalTurns: state?.turnNumber || 0,
-      totalRounds: state?.roundNumber || 0,
+      totalTurns: finalState?.turnNumber || 0,
+      totalRounds: finalState?.roundNumber || 0,
       duration: (Date.now() - startTime) / 1000,
-      phase: state?.phase || 'unknown',
+      phase: finalState?.phase || 'unknown',
       winner: winnerInfo ? {
         playerName: winnerInfo.playerName,
         condition: winnerInfo.condition || 'unknown',
       } : null,
-      players: (state?.players || []).map((p, idx) => {
+      players: (finalState?.players || []).map((p) => {
         const agent = agents.find(a => a.playerId === p.id);
+        const planNames = getPlayerPlanNames(p);
+        const planIds = getPlayerPlanIds(p);
         return {
           name: p.name,
           strategy: agent?.strategy?.name || 'unknown',
-          confirmedPlans: (p.trainingPlans || []).filter(tp => tp.confirmed).map(tp => tp.name),
-          allPlanIds: (p.confirmedPlans || []),
+          majorPlan: getMajorPlanName(p),
+          majorPlanId: p.majorPlan || null,
+          minorPlans: (p.minorPlans || []).map(id => {
+            const plan = (p.trainingPlans || []).find(tp => tp.id === id);
+            return plan ? plan.name : id;
+          }),
+          minorPlanIds: p.minorPlans || [],
+          allPlanNames: planNames,
+          allPlanIds: planIds,
+          planSlotLimit: p.planSlotLimit || 2,
           finalMoney: p.money,
           finalGpa: p.gpa,
           finalExploration: p.exploration,
-          finalScore: p.gpa * 10 + p.exploration + p.money / 100,
+          finalScore: p.gpa * 10 + p.exploration,
           isBankrupt: p.isBankrupt || false,
           isWinner: winnerInfo?.playerName === p.name,
           linesVisited: p.linesVisited || [],
+          lineEventsTriggered: p.lineEventsTriggered || {},
           isInHospital: p.isInHospital || false,
           hospitalVisits: p.hospitalVisits || 0,
           diceCount: p.diceCount || 1,
           heldCards: p.heldCards?.length || 0,
+          position: p.position || null,
+          effects: (p.effects || []).map(e => e.type),
+          // Per-round resource snapshots (end-of-round values)
+          roundSnapshots: agent?.roundSnapshots || {},
+          // Detailed resource change log
+          resourceChanges: (agent?.resourceChanges || []).filter(rc => rc.playerId === p.id),
         };
       }),
+      // Aggregate event and card data for the whole game
+      events: agents.flatMap(a => a.eventsTriggers),
+      cardsDrawn: agents.flatMap(a => a.cardsDrawn),
       errors: agents.flatMap(a => a.errors),
     };
   } catch (err) {
@@ -410,24 +459,12 @@ async function handlePendingAction(agents, state, pa) {
     }
 
     case 'draw_training_plan': {
-      if (pa.playerId === 'all') {
-        for (const agent of agents) {
-          const player = state.players.find(p => p.id === agent.playerId);
-          if (player) {
-            const unc = player.trainingPlans?.find(tp => !tp.confirmed);
-            if (unc) agent.confirmPlan(unc.id);
-            await sleep(30);
-          }
-        }
-      } else {
-        const agent = findAgent(pa.playerId);
-        if (agent) {
-          const player = state.players.find(p => p.id === agent.playerId);
-          if (player) {
-            const planId = agent.strategy.pickPlan(player.trainingPlans || []);
-            if (planId) agent.confirmPlan(planId);
-          }
-        }
+      // Legacy handler — new system uses choose_option for plan selection
+      // This handles any remaining draw_training_plan actions via choose_option fallback
+      const agent = findAgent(pa.playerId);
+      if (agent && pa.options?.length > 0) {
+        const choice = agent.strategy.chooseOption(pa.options, state, pa, agent.playerId);
+        agent.chooseAction(pa.id, choice || pa.options[0].value);
       }
       break;
     }
@@ -462,12 +499,12 @@ function wilsonInterval(successes, total, z = 1.96) {
 }
 
 function checkConfidence(results) {
-  // Count plan appearances and wins
+  // Count plan appearances and wins (using new majorPlan/minorPlans model)
   const planStats = {};
   for (const game of results) {
     if (!game.players) continue;
     for (const p of game.players) {
-      for (const planName of (p.confirmedPlans || [])) {
+      for (const planName of (p.allPlanNames || [])) {
         if (!planStats[planName]) planStats[planName] = { total: 0, wins: 0 };
         planStats[planName].total++;
         if (p.isWinner) planStats[planName].wins++;
@@ -515,11 +552,13 @@ function checkConfidence(results) {
 // ============================================================
 function getPlayerCount() {
   if (CONFIG.fixedPlayers) return CONFIG.fixedPlayers;
-  // Weighted distribution: 2-4 player games (5-6 have socket join issues)
+  // Weighted distribution: 2-6 player games
   const weights = [
-    { count: 2, weight: 25 },
-    { count: 3, weight: 40 },
-    { count: 4, weight: 35 },
+    { count: 2, weight: 15 },
+    { count: 3, weight: 25 },
+    { count: 4, weight: 25 },
+    { count: 5, weight: 20 },
+    { count: 6, weight: 15 },
   ];
   const total = weights.reduce((s, w) => s + w.weight, 0);
   let r = Math.random() * total;
@@ -671,15 +710,21 @@ async function main() {
   console.log(`  Total games:     ${allResults.length}`);
   console.log(`  Valid games:     ${validGames.length}`);
   console.log(`  Error games:     ${errorGames.length}`);
+  const earlyWins = winGames.filter(r => r.winner.condition !== '毕业结算');
+  const graduationWins = winGames.filter(r => r.winner.condition === '毕业结算');
   console.log(`  Games with win:  ${winGames.length} (${(winGames.length / validGames.length * 100).toFixed(1)}%)`);
+  console.log(`    Early wins:    ${earlyWins.length} (${(earlyWins.length / validGames.length * 100).toFixed(1)}%)`);
+  console.log(`    Graduation:    ${graduationWins.length} (${(graduationWins.length / validGames.length * 100).toFixed(1)}%)`);
+  const avgTurns = validGames.reduce((s, r) => s + (r.totalTurns || 0), 0) / validGames.length;
+  console.log(`  Avg turns/game:  ${avgTurns.toFixed(1)}`);
   console.log(`  Duration:        ${elapsed}s`);
   console.log(`  Output:          ${CONFIG.outputPath}`);
 
-  // Quick plan win rate preview
+  // Quick plan win rate preview (using new data model)
   const planStats = {};
   for (const game of validGames) {
     for (const p of game.players || []) {
-      for (const planName of (p.confirmedPlans || [])) {
+      for (const planName of (p.allPlanNames || [])) {
         if (!planStats[planName]) planStats[planName] = { total: 0, wins: 0 };
         planStats[planName].total++;
         if (p.isWinner) planStats[planName].wins++;

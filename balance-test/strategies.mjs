@@ -91,6 +91,11 @@ function analyzeLabel(label) {
   return s;
 }
 
+/** Check if an option label looks like a plan name */
+function isPlanOption(label) {
+  return !!PLAN_FOCUS[label];
+}
+
 // ============================================================
 // Strategy classes
 // ============================================================
@@ -98,15 +103,36 @@ function analyzeLabel(label) {
 class BaseStrategy {
   constructor(name) { this.name = name; }
 
-  pickPlan(plans) {
-    const unconfirmed = plans.filter(p => !p.confirmed);
-    if (unconfirmed.length === 0) return null;
-    return rand(unconfirmed).id;
+  /** Pick plan from options by focus preference (returns option value) */
+  pickPlanFromOptions(options, prefs) {
+    if (!prefs) return rand(options).value;
+    // Find options that match plan names
+    for (const focus of prefs) {
+      const match = options.find(o => PLAN_FOCUS[o.label] === focus);
+      if (match) return match.value;
+    }
+    return rand(options).value;
   }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+
+    // Plan selection: options are plan names
+    if (options.some(o => isPlanOption(o.label))) {
+      return this.pickPlanFromOptions(options);
+    }
+
+    // "不调整/调整" choice for yearly plan selection
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.4 ? 'adjust' : 'keep';
+    }
+
+    // Major plan selection (options labeled 主修:xxx)
+    if (pa?.prompt?.includes('主修') && options.length >= 2) {
+      return rand(options).value;
+    }
+
     return rand(options).value;
   }
 
@@ -140,19 +166,19 @@ class RandomStrategy extends BaseStrategy {
 class GreedyGpaStrategy extends BaseStrategy {
   constructor() { super('greedy_gpa'); }
 
-  pickPlan(plans) {
-    const unc = plans.filter(p => !p.confirmed);
-    if (unc.length === 0) return null;
-    for (const focus of STRATEGY_PLAN_PREFS.greedy_gpa) {
-      const m = unc.find(p => PLAN_FOCUS[p.name] === focus);
-      if (m) return m.id;
-    }
-    return unc[0].id;
-  }
-
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+
+    // Plan selection
+    if (options.some(o => isPlanOption(o.label))) {
+      return this.pickPlanFromOptions(options, STRATEGY_PLAN_PREFS.greedy_gpa);
+    }
+
+    // Yearly plan adjustment: GPA strategy adjusts more often
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.5 ? 'adjust' : 'keep';
+    }
 
     // Line entry decision
     if (this._isLineEntry(options)) {
@@ -181,19 +207,18 @@ class GreedyGpaStrategy extends BaseStrategy {
 class GreedyMoneyStrategy extends BaseStrategy {
   constructor() { super('greedy_money'); }
 
-  pickPlan(plans) {
-    const unc = plans.filter(p => !p.confirmed);
-    if (unc.length === 0) return null;
-    for (const focus of STRATEGY_PLAN_PREFS.greedy_money) {
-      const m = unc.find(p => PLAN_FOCUS[p.name] === focus);
-      if (m) return m.id;
-    }
-    return unc[0].id;
-  }
-
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+
+    // Plan selection
+    if (options.some(o => isPlanOption(o.label))) {
+      return this.pickPlanFromOptions(options, STRATEGY_PLAN_PREFS.greedy_money);
+    }
+
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.35 ? 'adjust' : 'keep';
+    }
 
     if (this._isLineEntry(options)) {
       const enter = options.find(o => o.value.startsWith('enter_'));
@@ -220,19 +245,18 @@ class GreedyMoneyStrategy extends BaseStrategy {
 class GreedyExploreStrategy extends BaseStrategy {
   constructor() { super('greedy_explore'); }
 
-  pickPlan(plans) {
-    const unc = plans.filter(p => !p.confirmed);
-    if (unc.length === 0) return null;
-    for (const focus of STRATEGY_PLAN_PREFS.greedy_explore) {
-      const m = unc.find(p => PLAN_FOCUS[p.name] === focus);
-      if (m) return m.id;
-    }
-    return unc[0].id;
-  }
-
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+
+    // Plan selection
+    if (options.some(o => isPlanOption(o.label))) {
+      return this.pickPlanFromOptions(options, STRATEGY_PLAN_PREFS.greedy_explore);
+    }
+
+    if (options.some(o => o.value === 'keep' || o.value === 'adjust')) {
+      return Math.random() < 0.45 ? 'adjust' : 'keep';
+    }
 
     if (this._isLineEntry(options)) {
       const enter = options.find(o => o.value.startsWith('enter_'));
