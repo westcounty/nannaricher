@@ -102,21 +102,52 @@ function spawnDoorEffect(
   layer: Container, x: number, y: number,
   duration: number, tweenEngine: TweenEngine, color: number,
 ): void {
-  // Two panels that slide open
-  const panelW = 20;
-  const panelH = 40;
+  // Two panels that slide open (enhanced)
+  const panelW = 24;
+  const panelH = 44;
   for (const side of [-1, 1]) {
     const panel = new Graphics();
     panel.rect(-panelW / 2, -panelH / 2, panelW, panelH);
-    panel.fill({ color, alpha: 0.6 });
+    panel.fill({ color, alpha: 0.7 });
     panel.x = x;
     panel.y = y;
     layer.addChild(panel);
 
     tweenEngine.to(panel, {
-      x: x + side * 25,
+      x: x + side * 30,
       alpha: 0,
     }, duration, EASINGS.easeOut).then(() => cleanup(panel));
+  }
+
+  // Theme color glow ring expanding outward
+  const glow = new Graphics();
+  glow.circle(0, 0, 8);
+  glow.stroke({ width: 3, color, alpha: 0.6 });
+  glow.x = x;
+  glow.y = y;
+  layer.addChild(glow);
+
+  Promise.all([
+    tweenEngine.to(glow.scale, { x: 5, y: 5 }, duration * 1.1, EASINGS.easeOut),
+    tweenEngine.to(glow, { alpha: 0 }, duration * 1.1, EASINGS.easeOut),
+  ]).then(() => cleanup(glow));
+
+  // Small particles in line color
+  for (let i = 0; i < 6; i++) {
+    const dot = new Graphics();
+    dot.circle(0, 0, 2);
+    dot.fill({ color, alpha: 0.8 });
+    dot.x = x;
+    dot.y = y;
+    layer.addChild(dot);
+
+    const angle = (Math.PI * 2 * i) / 6;
+    const dist = 15 + Math.random() * 15;
+    tweenEngine.to(dot, {
+      x: x + Math.cos(angle) * dist,
+      y: y + Math.sin(angle) * dist,
+      alpha: 0,
+    }, duration * 0.8, EASINGS.easeOut).then(() => cleanup(dot));
   }
 }
 
