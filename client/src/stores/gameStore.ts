@@ -77,7 +77,6 @@ interface GameStore {
   isLoading: boolean;
   error: string | null;
   isRolling: boolean;
-  missedEvents: string[];
 
   // === Computed Properties (function form) ===
   isMyTurn: () => boolean;
@@ -91,11 +90,6 @@ interface GameStore {
   notifications: NotificationItem[];
   addNotification: (msg: string, type?: 'info' | 'warning' | 'success') => void;
   removeNotification: (id: string) => void;
-
-  // === Opponent Notifications ===
-  opponentNotifications: string[];
-  addOpponentNotification: (msg: string) => void;
-  removeOpponentNotification: (msg: string) => void;
 
   // === State Setters ===
   setGameState: (state: GameState) => void;
@@ -111,8 +105,6 @@ interface GameStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
-  addMissedEvent: (event: string) => void;
-  clearMissedEvents: () => void;
   resetToLobby: () => void;
 
   // === Socket Actions (injected by SocketProvider) ===
@@ -141,9 +133,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isLoading: true,
   error: null,
   isRolling: false,
-  missedEvents: [],
   notifications: [],
-  opponentNotifications: [],
 
   // --- Computed Properties ---
   isMyTurn: () => {
@@ -216,12 +206,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setRolling: (rolling) => set({ isRolling: rolling }),
 
-  addMissedEvent: (event) => set((state) => ({
-    missedEvents: [...state.missedEvents, event].slice(-20),
-  })),
-
-  clearMissedEvents: () => set({ missedEvents: [] }),
-
   addNotification: (msg, type = 'info') => set((state) => ({
     notifications: [...state.notifications, {
       id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -235,14 +219,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     notifications: state.notifications.filter(n => n.id !== id),
   })),
 
-  addOpponentNotification: (msg) => set((state) => ({
-    opponentNotifications: [...state.opponentNotifications, msg],
-  })),
-
-  removeOpponentNotification: (msg) => set((state) => ({
-    opponentNotifications: state.opponentNotifications.filter((n) => n !== msg),
-  })),
-
   resetToLobby: () => set({
     gameState: null,
     roomId: null,
@@ -254,9 +230,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isRolling: false,
     isLoading: false,
     error: null,
-    missedEvents: [],
     notifications: [],
-    opponentNotifications: [],
   }),
 
   // --- Socket Actions ---

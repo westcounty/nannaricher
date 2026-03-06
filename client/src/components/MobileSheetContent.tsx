@@ -21,6 +21,7 @@ export interface MobileSheetContentProps {
   playerId: string | null;
   isMyTurn: boolean;
   useCard: (cardId: string, targetPlayerId?: string) => void;
+  onPlayerClick?: (playerId: string) => void;
 }
 
 export function MobileSheetContent({
@@ -34,6 +35,7 @@ export function MobileSheetContent({
   playerId,
   isMyTurn,
   useCard: onUseCard,
+  onPlayerClick,
 }: MobileSheetContentProps) {
   switch (activePanel) {
     case 'hand':
@@ -57,6 +59,7 @@ export function MobileSheetContent({
               player={player}
               isCurrentTurn={player.id === currentPlayer?.id}
               isLocalPlayer={player.id === playerId}
+              onClick={onPlayerClick}
             />
           ))}
           {/* Training plan in players panel for mobile */}

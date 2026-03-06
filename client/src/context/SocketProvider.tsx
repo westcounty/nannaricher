@@ -20,7 +20,6 @@ function diffAndPlaySounds(
   prev: GameState | null,
   next: GameState,
   localPlayerId: string | null,
-  addMissedEvent: (event: string) => void,
 ): void {
   if (!prev) return;
 
@@ -29,9 +28,6 @@ function diffAndPlaySounds(
   // Round changed
   if (next.roundNumber > prev.roundNumber) {
     playSound('round_start');
-    if (isHidden) {
-      addMissedEvent(`第${next.roundNumber}轮开始`);
-    }
   }
 
   // Current player changed — turn start / end
@@ -50,10 +46,7 @@ function diffAndPlaySounds(
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('菜根人生', { body: '轮到你了！' });
         }
-        addMissedEvent('轮到你了！');
       }
-    } else if (isHidden && nextPlayer) {
-      addMissedEvent(`${nextPlayer.name} 开始操作`);
     }
   }
 
@@ -63,9 +56,6 @@ function diffAndPlaySounds(
 
   if (prevActionType !== 'multi_vote' && nextActionType === 'multi_vote') {
     playSound('vote_start');
-    if (isHidden) {
-      addMissedEvent('发起了投票');
-    }
   }
   if (prevActionType === 'multi_vote' && nextActionType !== 'multi_vote') {
     playSound('vote_end');
@@ -79,62 +69,27 @@ function diffAndPlaySounds(
     if (prevLocal && nextLocal) {
       if (!prevLocal.isInHospital && nextLocal.isInHospital) {
         playSound('hospital_enter');
-        if (isHidden) addMissedEvent('你进入了医院');
       }
       if (!prevLocal.isBankrupt && nextLocal.isBankrupt) {
         playSound('bankrupt');
-        if (isHidden) addMissedEvent('你破产了');
-      }
-      // Track stat changes while hidden
-      if (isHidden) {
-        const moneyDiff = nextLocal.money - prevLocal.money;
-        if (moneyDiff !== 0) {
-          addMissedEvent(`金钱 ${moneyDiff > 0 ? '+' : ''}${moneyDiff}`);
-        }
-        const gpaDiff = nextLocal.gpa - prevLocal.gpa;
-        if (Math.abs(gpaDiff) >= 0.1) {
-          addMissedEvent(`GPA ${gpaDiff > 0 ? '+' : ''}${gpaDiff.toFixed(1)}`);
-        }
-        const expDiff = nextLocal.exploration - prevLocal.exploration;
-        if (expDiff !== 0) {
-          addMissedEvent(`探索值 ${expDiff > 0 ? '+' : ''}${expDiff}`);
-        }
       }
     }
   }
 
-  // Track other players' bankruptcies
-  if (isHidden) {
-    for (const nextP of next.players) {
-      if (nextP.id === localPlayerId) continue;
-      const prevP = prev.players.find((p) => p.id === nextP.id);
-      if (prevP && !prevP.isBankrupt && nextP.isBankrupt) {
-        addMissedEvent(`${nextP.name} 破产了`);
-      }
-    }
-  }
-
-  // Opponent major event notifications (always, not just when hidden)
+  // Opponent major status changes (always, not just when hidden)
   for (const nextPlayer of next.players) {
     if (nextPlayer.id === localPlayerId) continue;
     const prevPlayer = prev.players.find((p) => p.id === nextPlayer.id);
     if (!prevPlayer) continue;
 
     const name = nextPlayer.name;
-    const moneyDelta = nextPlayer.money - prevPlayer.money;
-
-    if (moneyDelta >= 1000) {
-      useGameStore.getState().addOpponentNotification(`${name} 获得了 +${moneyDelta}\uD83D\uDCB0`);
-    } else if (moneyDelta <= -1000) {
-      useGameStore.getState().addOpponentNotification(`${name} 失去了 ${moneyDelta}\uD83D\uDCB0`);
-    }
 
     if (!prevPlayer.isBankrupt && nextPlayer.isBankrupt) {
-      useGameStore.getState().addOpponentNotification(`${name} 破产了！`);
+      useGameStore.getState().addNotification(`${name} 破产了！`, 'warning');
     }
 
     if (!prevPlayer.isInHospital && nextPlayer.isInHospital) {
-      useGameStore.getState().addOpponentNotification(`${name} 住院了！`);
+      useGameStore.getState().addNotification(`${name} 住院了！`, 'warning');
     }
   }
 }
@@ -188,7 +143,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     // ------ Game event listeners -> store updates ------
     const handleStateUpdate = (state: GameState) => {
       const localPlayerId = store.getState().playerId;
-      diffAndPlaySounds(prevStateRef.current, state, localPlayerId, store.getState().addMissedEvent);
+      diffAndPlaySounds(prevStateRef.current, state, localPlayerId);
       prevStateRef.current = state;
       store.getState().setGameState(state);
     };
@@ -288,14 +243,22 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Other players' non-epic events -> downgrade to toast (reduce interruption)
+      // Other players' non-epic events -> downgrade to toast with effect summary
       const localPlayerId = store.getState().playerId;
       const isOtherPlayerEvent = data.pendingAction
         && data.pendingAction.playerId !== localPlayerId
         && data.pendingAction.playerId !== 'all';
       if (isOtherPlayerEvent && effectiveSeverity !== 'epic') {
+        // Build compact effect summary
+        const effectParts: string[] = [];
+        if (data.effects) {
+          if (data.effects.money) effectParts.push(`\uD83D\uDCB0${data.effects.money > 0 ? '+' : ''}${data.effects.money}`);
+          if (data.effects.gpa) effectParts.push(`\uD83D\uDCDA${data.effects.gpa > 0 ? '+' : ''}${data.effects.gpa}`);
+          if (data.effects.exploration) effectParts.push(`\uD83D\uDDFA\uFE0F${data.effects.exploration > 0 ? '+' : ''}${data.effects.exploration}`);
+        }
+        const suffix = effectParts.length > 0 ? ` (${effectParts.join(' ')})` : '';
         store.getState().addNotification(
-          `${data.title}: ${data.description}`,
+          `${data.title}: ${data.description}${suffix}`,
           'info',
         );
         playSound('event_trigger');
@@ -339,14 +302,9 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       setTimeout(() => store.getState().setVoteResult(null), 5000);
     };
 
-    const handleResourceChange = (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {
-      const statNames: Record<string, string> = { money: '资金', gpa: 'GPA', exploration: '探索值' };
-      const sign = data.delta > 0 ? '+' : '';
-      const type = data.delta > 0 ? 'success' : 'warning';
-      store.getState().addNotification(
-        `${data.playerName} ${statNames[data.stat] || data.stat} ${sign}${data.delta}`,
-        type as 'success' | 'warning',
-      );
+    const handleResourceChange = (_data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {
+      // Resource change notifications removed — event-trigger toasts and player cards
+      // already convey this information without noise.
     };
 
     const handleCardUseError = ({ message }: { message: string }) => {

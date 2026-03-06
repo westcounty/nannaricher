@@ -21,9 +21,10 @@ interface CompactPlayerCardProps {
   player: Player;
   isCurrentTurn?: boolean;
   isLocalPlayer?: boolean;
+  onClick?: (playerId: string) => void;
 }
 
-export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer = false }: CompactPlayerCardProps) {
+export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer = false, onClick }: CompactPlayerCardProps) {
   const classNames = [
     'compact-player',
     isCurrentTurn && 'compact-player--current-turn',
@@ -35,7 +36,12 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
   const initial = player.name.charAt(0);
 
   return (
-    <div className={classNames} title={player.isBankrupt ? '已破产' : undefined}>
+    <div
+      className={classNames}
+      title={player.isBankrupt ? '已破产' : undefined}
+      onClick={() => onClick?.(player.id)}
+      style={{ cursor: onClick ? 'pointer' : undefined }}
+    >
       <div
         className="compact-player__avatar"
         style={{ backgroundColor: player.color }}

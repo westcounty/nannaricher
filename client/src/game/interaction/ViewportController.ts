@@ -10,7 +10,7 @@ import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3.0;
-const DEFAULT_ZOOM = 1.0;
+const DEFAULT_ZOOM = 2.2;
 const ZOOM_STEP = 0.1;
 const PAN_ANIMATE_DURATION = 400; // ms
 const DOUBLE_CLICK_THRESHOLD = 300; // ms
@@ -137,13 +137,26 @@ export class ViewportController {
     this.applyTransform();
   }
 
-  /** Reset zoom to 1x and center the viewport. */
+  /** Reset zoom to default level and trigger focus request (centers on current player). */
   resetZoom(): void {
+    // If we have a focus request callback, use focusOnSelf instead
+    if (this.onFocusRequest) {
+      this.onFocusRequest();
+      return;
+    }
+
+    // Fallback: animate to default zoom centered on board
     this.cancelAnimation();
     const startScale = this.scale;
     const startPanX = this.panX;
     const startPanY = this.panY;
     const startTime = performance.now();
+
+    const rect = this.canvas.getBoundingClientRect();
+    const centerX = METRO_BOARD_WIDTH / 2;
+    const centerY = METRO_BOARD_HEIGHT / 2;
+    const targetPanX = rect.width / 2 - (this.baseContainerX + centerX * this.baseContainerScale) * DEFAULT_ZOOM;
+    const targetPanY = rect.height / 2 - (this.baseContainerY + centerY * this.baseContainerScale) * DEFAULT_ZOOM;
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
@@ -151,8 +164,8 @@ export class ViewportController {
       const eased = easeOutCubic(progress);
 
       this.scale = startScale + (DEFAULT_ZOOM - startScale) * eased;
-      this.panX = startPanX + (0 - startPanX) * eased;
-      this.panY = startPanY + (0 - startPanY) * eased;
+      this.panX = startPanX + (targetPanX - startPanX) * eased;
+      this.panY = startPanY + (targetPanY - startPanY) * eased;
       this.applyTransform();
 
       if (progress < 1) {
@@ -213,6 +226,53 @@ export class ViewportController {
     const targetPanY = canvasCenterY - screenY;
 
     this.panTo(targetPanX, targetPanY, true);
+  }
+
+  /** Focus on self: reset zoom to default level and center on a world-space coordinate. */
+  focusOnSelf(worldX: number, worldY: number): void {
+    this.cancelAnimation();
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasCenterX = rect.width / 2;
+    const canvasCenterY = rect.height / 2;
+
+    const startScale = this.scale;
+    const startPanX = this.panX;
+    const startPanY = this.panY;
+
+    const targetScale = DEFAULT_ZOOM;
+    const screenX = this.baseContainerX * targetScale + worldX * this.baseContainerScale * targetScale;
+    const screenY = this.baseContainerY * targetScale + worldY * this.baseContainerScale * targetScale;
+    const targetPanX = canvasCenterX - screenX;
+    const targetPanY = canvasCenterY - screenY;
+
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / PAN_ANIMATE_DURATION, 1);
+      const eased = easeOutCubic(progress);
+
+      this.scale = startScale + (targetScale - startScale) * eased;
+      this.panX = startPanX + (targetPanX - startPanX) * eased;
+      this.panY = startPanY + (targetPanY - startPanY) * eased;
+      this.applyTransform();
+
+      if (progress < 1) {
+        this.animationFrameId = requestAnimationFrame(animate);
+      } else {
+        this.animationFrameId = null;
+      }
+    };
+
+    this.animationFrameId = requestAnimationFrame(animate);
+  }
+
+  /** Set interaction enabled state (for disabling during modals). */
+  setInteractionEnabled(enabled: boolean): void {
+    if (enabled) {
+      this.enable();
+    } else {
+      this.disable();
+    }
   }
 
   /** Enable all viewport interactions. */

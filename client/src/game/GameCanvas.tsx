@@ -1,8 +1,8 @@
 // client/src/game/GameCanvas.tsx
-// Thin React wrapper (~90 lines) that manages PixiJS Application lifecycle
+// Thin React wrapper that manages PixiJS Application lifecycle
 // and delegates rendering to the layered GameStage architecture.
 
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Application, Container } from 'pixi.js';
 import type { GameState, Position } from '@nannaricher/shared';
 import { DESIGN_TOKENS } from '../styles/tokens';
@@ -21,16 +21,27 @@ import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
 interface GameCanvasProps {
   gameState: GameState;
   currentPlayerId: string | null;
+  localPlayerId: string | null;
   onCellClick?: (cellId: string, position: Position) => void;
   onCellHover?: (info: CellHoverInfo | null) => void;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({
+export interface GameCanvasHandle {
+  /** Focus viewport on a specific player by ID */
+  focusOnPlayer(playerId: string): void;
+  /** Reset viewport to default zoom centered on local player */
+  focusOnSelf(): void;
+  /** Enable or disable canvas interactions (for modal overlay) */
+  setInteractionEnabled(enabled: boolean): void;
+}
+
+export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
   gameState,
   currentPlayerId,
+  localPlayerId,
   onCellClick,
   onCellHover,
-}) => {
+}, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const stageRef = useRef<GameStage | null>(null);
@@ -41,6 +52,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const viewportRef = useRef<ViewportController | null>(null);
   const stationLayerRef = useRef<StationLayer | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
+  const initialFocusDoneRef = useRef(false);
+
+  // Expose imperative methods to parent
+  useImperativeHandle(ref, () => ({
+    focusOnPlayer(playerId: string) {
+      if (!playerLayerRef.current || !viewportRef.current) return;
+      const pos = playerLayerRef.current.getPlayerPosition(playerId);
+      if (pos) viewportRef.current.focusOnPlayer(pos.x, pos.y);
+    },
+    focusOnSelf() {
+      if (!playerLayerRef.current || !viewportRef.current || !localPlayerId) return;
+      const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
+      if (pos) viewportRef.current.focusOnSelf(pos.x, pos.y);
+    },
+    setInteractionEnabled(enabled: boolean) {
+      viewportRef.current?.setInteractionEnabled(enabled);
+      // Also clear hover when disabling
+      if (!enabled) onCellHover?.(null);
+    },
+  }), [localPlayerId, onCellHover]);
 
   // Initialize PixiJS Application + layered stage
   useEffect(() => {
@@ -110,20 +141,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const mainContainer = stage.getMainContainer();
       const vc = new ViewportController(mainContainer, app.canvas as HTMLCanvasElement);
       vc.onFocusRequest = () => {
-        // Focus on current player when Home key is pressed
-        if (playerLayerRef.current && gameState) {
-          const cp = gameState.players[gameState.currentPlayerIndex];
-          if (cp) {
-            const pos = playerLayerRef.current.getPlayerPosition(cp.id);
-            if (pos) vc.focusOnPlayer(pos.x, pos.y);
-          }
+        // Focus on local player (self) when Home key / reset is pressed
+        if (playerLayerRef.current && localPlayerId) {
+          const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
+          if (pos) vc.focusOnSelf(pos.x, pos.y);
         }
       };
       viewportRef.current = vc;
 
+      // Push initial state and do initial focus
+      stage.updateState(gameState, currentPlayerId);
+      playerLayer.update(gameState, currentPlayerId);
+
+      // Initial focus on local player after a short delay (let positions settle)
+      requestAnimationFrame(() => {
+        if (localPlayerId && playerLayerRef.current && viewportRef.current) {
+          const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
+          if (pos) {
+            viewportRef.current.focusOnSelf(pos.x, pos.y);
+            initialFocusDoneRef.current = true;
+          }
+        }
+      });
+
       // Deferred resize: wait for next frame so CSS layout fully settles after
-      // canvas element insertion. This catches race conditions where the initial
-      // getBoundingClientRect() ran before flex recalculation completed.
+      // canvas element insertion.
       requestAnimationFrame(() => {
         const settledRect = container.getBoundingClientRect();
         if (settledRect.width > 0 && settledRect.height > 0 &&
@@ -220,13 +262,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
     }
-    // Auto-focus on current player when turn changes
+
+    // Auto-focus on local player when it becomes their turn
     if (prevStateRef.current &&
         prevStateRef.current.currentPlayerIndex !== gameState.currentPlayerIndex &&
-        playerLayerRef.current && viewportRef.current) {
-      const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-      if (currentPlayer) {
-        const pos = playerLayerRef.current.getPlayerPosition(currentPlayer.id);
+        playerLayerRef.current && viewportRef.current && localPlayerId) {
+      const newCurrentPlayer = gameState.players[gameState.currentPlayerIndex];
+      if (newCurrentPlayer && newCurrentPlayer.id === localPlayerId) {
+        // It's now my turn — focusOnSelf with zoom reset
+        const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
+        if (pos) viewportRef.current.focusOnSelf(pos.x, pos.y);
+      } else if (newCurrentPlayer) {
+        // Someone else's turn — just pan to them without changing zoom
+        const pos = playerLayerRef.current.getPlayerPosition(newCurrentPlayer.id);
         if (pos) viewportRef.current.focusOnPlayer(pos.x, pos.y);
       }
     }
@@ -283,6 +331,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }}
     />
   );
-};
+});
+
+GameCanvas.displayName = 'GameCanvas';
 
 export default GameCanvas;

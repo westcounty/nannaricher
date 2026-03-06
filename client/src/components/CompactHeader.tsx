@@ -78,7 +78,7 @@ export function CompactHeader({ gameState, playerId: _playerId, isMyTurn, curren
 function getStatusText(
   gameState: GameState,
   isMyTurn: boolean,
-  currentPlayerName?: string,
+  _currentPlayerName?: string,
 ): string {
   const { phase, pendingAction } = gameState;
 
@@ -99,7 +99,7 @@ function getStatusText(
   }
 
   if (isMyTurn) return '你的回合 — 请操作';
-  if (currentPlayerName) return `等待 ${currentPlayerName} 操作`;
 
+  // Non-turn status handled by ActionPromptBar — avoid duplication
   return '';
 }

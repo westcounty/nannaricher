@@ -11,7 +11,7 @@ import { MobileStatusBar } from './MobileStatusBar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { ChatPanel } from './ChatPanel';
 import { GameLog } from './GameLog';
-import { GameCanvas } from '../game/GameCanvas';
+import { GameCanvas, type GameCanvasHandle } from '../game/GameCanvas';
 import { GameEventModal } from './EventModal';
 import { ChoiceDialog, pendingActionToChoices, MultiSelectDialog } from './ChoiceDialog';
 import { VotePanel } from './VotePanel';
@@ -29,10 +29,8 @@ import { MobileSheetContent } from './MobileSheetContent';
 import { MiniPlayerOverlay } from './MiniPlayerOverlay';
 import { ActionPromptBar } from './ActionPromptBar';
 import { TurnOverlay } from './TurnOverlay';
-import { MissedEventsPanel } from './MissedEventsPanel';
 import { ZoomHint } from './ZoomHint';
 import { SettlementScreen } from './SettlementScreen';
-import { OpponentToast } from './OpponentToast';
 import { NotificationFeed } from './NotificationFeed';
 import { EpicEventModal } from './EpicEventModal';
 import { playSound } from '../audio/AudioManager';
@@ -90,6 +88,7 @@ export function GameScreen() {
   const rollDice = socketActions?.rollDice ?? (() => {});
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
+  const canvasRef = useRef<GameCanvasHandle>(null);
 
   // Mobile/tablet panel state
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
@@ -219,6 +218,31 @@ export function GameScreen() {
     }
   };
 
+  // Focus viewport on a specific player's position
+  const handlePlayerCardClick = (targetPlayerId: string) => {
+    canvasRef.current?.focusOnPlayer(targetPlayerId);
+  };
+
+  // Reset viewport to default zoom centered on local player
+  const handleResetViewport = () => {
+    canvasRef.current?.focusOnSelf();
+  };
+
+  // Detect if any modal/overlay is active (to disable canvas interactions)
+  const hasModalOverlay = !!(
+    currentEvent ||
+    drawnCard ||
+    (hasPendingAction && !isVoting && !isChainAction && gameState.pendingAction?.options?.length) ||
+    isVoting ||
+    isChainAction ||
+    winner
+  );
+
+  // Disable canvas interactions when modals are open
+  useEffect(() => {
+    canvasRef.current?.setInteractionEnabled(!hasModalOverlay);
+  }, [hasModalOverlay]);
+
   return (
     <div className={`game-screen layout-${layout}`}>
       {/* ============ HEADER ============ */}
@@ -234,15 +258,43 @@ export function GameScreen() {
         <>
           <div className="game-main layout-desktop">
             {/* Board area */}
-            <div className="board-area">
+            <div className="board-area" style={{ position: 'relative' }}>
               <div className="board-canvas-container">
                 <GameCanvas
+                  ref={canvasRef}
                   gameState={gameState}
                   currentPlayerId={currentPlayer?.id || null}
+                  localPlayerId={playerId}
                   onCellClick={() => {}}
                   onCellHover={handleCellHover}
                 />
               </div>
+              {/* Reset viewport button */}
+              <button
+                onClick={handleResetViewport}
+                title="复位视角"
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  zIndex: 10,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(15,10,26,0.8)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#e2e8f0',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                }}
+              >
+                ⌂
+              </button>
             </div>
 
             {/* Sidebar */}
@@ -255,6 +307,7 @@ export function GameScreen() {
                     player={player}
                     isCurrentTurn={player.id === currentPlayer?.id}
                     isLocalPlayer={player.id === playerId}
+                    onClick={handlePlayerCardClick}
                   />
                 ))}
               </div>
@@ -327,16 +380,45 @@ export function GameScreen() {
           <div className="board-area" style={{ position: 'relative' }}>
             <div className="board-canvas-container">
               <GameCanvas
+                ref={canvasRef}
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
+                localPlayerId={playerId}
                 onCellClick={() => {}}
                 onCellHover={handleCellHover}
               />
             </div>
+            {/* Reset viewport button */}
+            <button
+              onClick={handleResetViewport}
+              title="复位视角"
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                zIndex: 10,
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(15,10,26,0.8)',
+                backdropFilter: 'blur(8px)',
+                color: '#e2e8f0',
+                fontSize: 18,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              ⌂
+            </button>
             <MiniPlayerOverlay
               players={allPlayers}
               currentPlayerId={currentPlayer?.id || null}
               localPlayerId={playerId}
+              onPlayerClick={handlePlayerCardClick}
             />
             <ZoomHint />
           </div>
@@ -381,6 +463,7 @@ export function GameScreen() {
                 playerId={playerId}
                 isMyTurn={isMyTurn}
                 useCard={useCard}
+                onPlayerClick={handlePlayerCardClick}
               />
             </div>
           </div>
@@ -527,8 +610,6 @@ export function GameScreen() {
       <VoteResultModal />
       <EventDiceOverlay />
 
-      {/* Opponent event toasts */}
-      <OpponentToast />
 
       {/* Settlement Screen (replaces old Winner Modal) */}
       {winner && (
@@ -542,8 +623,6 @@ export function GameScreen() {
         />
       )}
 
-      {/* Missed Events Panel */}
-      <MissedEventsPanel />
 
       {/* Cell Tooltip */}
       <CellTooltip

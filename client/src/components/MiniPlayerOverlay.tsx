@@ -10,12 +10,14 @@ export interface MiniPlayerOverlayProps {
   players: Player[];
   currentPlayerId: string | null;
   localPlayerId: string | null;
+  onPlayerClick?: (playerId: string) => void;
 }
 
 export function MiniPlayerOverlay({
   players,
   currentPlayerId,
   localPlayerId,
+  onPlayerClick,
 }: MiniPlayerOverlayProps) {
   const others = players.filter((p) => p.id !== localPlayerId);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -24,6 +26,7 @@ export function MiniPlayerOverlay({
 
   const handleDotClick = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
+    onPlayerClick?.(id);
   };
 
   return (

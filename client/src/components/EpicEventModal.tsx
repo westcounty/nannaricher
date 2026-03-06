@@ -27,7 +27,7 @@ export function EpicEventModal() {
   // Auto-dismiss read-only after 4s
   useEffect(() => {
     if (isReadOnly) {
-      const t = setTimeout(() => handleClose(), 4000);
+      const t = setTimeout(() => handleClose(), 3000);
       return () => clearTimeout(t);
     }
   }, [isReadOnly]);

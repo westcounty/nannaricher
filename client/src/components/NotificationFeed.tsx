@@ -5,7 +5,7 @@ import { useGameStore } from '../stores/gameStore';
 import type { NotificationItem } from '../stores/gameStore';
 import '../styles/notification-feed.css';
 
-const DISMISS_MS = 6000;
+const DISMISS_MS = 3000;
 
 function NotificationEntry({ item }: { item: NotificationItem }) {
   const removeNotification = useGameStore((s) => s.removeNotification);
