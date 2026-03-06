@@ -37,7 +37,8 @@ import { NotificationFeed } from './NotificationFeed';
 import { playSound } from '../audio/AudioManager';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
-import type { BoardCell, BoardLine } from '@nannaricher/shared';
+import type { BoardCell, BoardLine, Player } from '@nannaricher/shared';
+import { getRoundName, LINE_CONFIGS } from '@nannaricher/shared';
 // getPlayerPlanIds import removed — plan selection now server-driven
 import { boardData } from '../data/board';
 import './ChatPanel.css';
@@ -50,6 +51,17 @@ type PanelId = 'hand' | 'players' | 'more';
 
 // Sidebar tab for desktop
 type SidebarTab = 'chat' | 'log';
+
+function formatPositionShort(player: Player): string {
+  if (player.isInHospital) return '\u533B\u9662';
+  if (player.isAtDing) return '\u9F0E';
+  const pos = player.position;
+  if (pos.type === 'line') {
+    const lineConfig = LINE_CONFIGS.find(l => l.id === pos.lineId);
+    return lineConfig ? lineConfig.name : pos.lineId;
+  }
+  return `\u4E3B\u73AF #${pos.index}`;
+}
 
 // ============================================
 // GameScreen Component
@@ -394,7 +406,11 @@ export function GameScreen() {
          ============================================ */}
 
       {/* Turn Overlay */}
-      <TurnOverlay isMyTurn={isMyTurn} />
+      <TurnOverlay
+        isMyTurn={isMyTurn}
+        playerPosition={myPlayer ? formatPositionShort(myPlayer) : undefined}
+        roundInfo={gameState ? `${getRoundName(gameState.roundNumber)} \u7B2C${((gameState.turnNumber - 1) % 6) + 1}\u56DE\u5408` : undefined}
+      />
 
       {/* Dice Roller Overlay — visible to ALL players */}
       {showDiceOverlay && (() => {
