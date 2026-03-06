@@ -157,3 +157,25 @@
     box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.1);
   }
 }
+
+.compact-player__plans {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 8px 4px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.compact-player__plan-tag {
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.compact-player__plan-tag--major {
+  color: rgba(201, 162, 39, 0.85);
+  background: rgba(201, 162, 39, 0.1);
+}

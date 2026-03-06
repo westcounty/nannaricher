@@ -81,6 +81,22 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
           <span className="compact-player__effect-count">{player.effects.length}效果</span>
         </div>
       )}
+      {player.trainingPlans.length > 0 && (
+        <div className="compact-player__plans">
+          {player.trainingPlans.map(plan => {
+            const isMajor = plan.id === player.majorPlan;
+            return (
+              <span
+                key={plan.id}
+                className={`compact-player__plan-tag ${isMajor ? 'compact-player__plan-tag--major' : ''}`}
+                title={`${isMajor ? '[主修]' : '[辅修]'} ${plan.name}: ${plan.winCondition}`}
+              >
+                {isMajor ? '\u2605' : '\u2606'}{plan.name.slice(0, 4)}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
