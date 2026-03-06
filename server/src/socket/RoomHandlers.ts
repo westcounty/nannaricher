@@ -130,10 +130,12 @@ export function registerRoomHandlers(
       socket.emit('game:state-update', state);
 
       // If there's a pending action for this player, re-send the event trigger
+      // (skip roll_dice — that's handled by ActionBar, not a modal)
       if (state.pendingAction &&
+          state.pendingAction.type !== 'roll_dice' &&
           (state.pendingAction.playerId === data.playerId || state.pendingAction.playerId === 'all')) {
         socket.emit('game:event-trigger', {
-          title: '等待操作',
+          title: state.pendingAction.prompt.slice(0, 20) || '事件',
           description: state.pendingAction.prompt,
           pendingAction: state.pendingAction,
         });
