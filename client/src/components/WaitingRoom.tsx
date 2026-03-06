@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
+import { useGameStore } from '../stores/gameStore';
 import { Player, MIN_PLAYERS } from '@nannaricher/shared';
 
 interface WaitingRoomProps {
@@ -153,6 +154,19 @@ export function WaitingRoom({
           等待房主开始游戏...
         </p>
       )}
+
+      <button
+        className="leave-room-button"
+        onClick={() => {
+          if (!socket) return;
+          socket.emit('room:leave');
+          sessionStorage.removeItem('nannaricher_roomId');
+          sessionStorage.removeItem('nannaricher_playerId');
+          useGameStore.getState().resetToLobby();
+        }}
+      >
+        离开房间
+      </button>
     </div>
   );
 }

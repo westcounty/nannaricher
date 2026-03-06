@@ -613,6 +613,23 @@
   border-radius: 10px;
 }
 
+.leave-room-button {
+  display: block;
+  margin: 16px auto 0;
+  padding: 8px 24px;
+  background: rgba(180, 80, 80, 0.2);
+  color: #e88;
+  border: 1px solid rgba(180, 80, 80, 0.3);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.leave-room-button:hover {
+  background: rgba(180, 80, 80, 0.35);
+}
+
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }

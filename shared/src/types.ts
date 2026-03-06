@@ -162,6 +162,8 @@ export interface ClientToServerEvents {
   'game:use-card': (data: { cardId: string; targetPlayerId?: string }) => void;
   'game:chat': (data: { message: string }) => void;
   'room:reconnect': (data: { roomId: string; playerId: string }) => void;
+  'room:leave': () => void;
+  'room:dissolve': () => void;
 }
 
 export interface ServerToClientEvents {
@@ -212,6 +214,7 @@ export interface ServerToClientEvents {
     round: number;
   }) => void;
   'game:card-use-error': (data: { message: string }) => void;
+  'room:dissolved': (data: { message: string }) => void;
 }
 
 // === Player History Tracking ===

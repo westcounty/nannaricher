@@ -330,6 +330,13 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().addNotification(message, 'warning');
     };
 
+    const handleRoomDissolved = ({ message }: { message: string }) => {
+      store.getState().addNotification(message, 'warning');
+      sessionStorage.removeItem('nannaricher_roomId');
+      sessionStorage.removeItem('nannaricher_playerId');
+      store.getState().resetToLobby();
+    };
+
     const handleLineExitSummary = (data: {
       playerId: string; lineId: string; lineName: string;
       entryTurn: number; exitTurn: number;
@@ -372,6 +379,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:card-use-error', handleCardUseError);
     socket.on('game:line-exit-summary', handleLineExitSummary);
     socket.on('game:plan-ability-trigger', handlePlanAbilityTrigger);
+    socket.on('room:dissolved', handleRoomDissolved);
 
     // ------ Cleanup ------
     return () => {
@@ -391,6 +399,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:card-use-error', handleCardUseError);
       socket.off('game:line-exit-summary', handleLineExitSummary);
       socket.off('game:plan-ability-trigger', handlePlanAbilityTrigger);
+      socket.off('room:dissolved', handleRoomDissolved);
     };
   }, [socket]);
 

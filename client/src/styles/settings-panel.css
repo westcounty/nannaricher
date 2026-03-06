@@ -97,6 +97,79 @@
   color: var(--color-accent, #c9a227);
 }
 
+/* Leave / Dissolve actions */
+.settings-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.settings-panel__btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.settings-panel__btn--leave {
+  background: rgba(180, 80, 80, 0.25);
+  color: #e88;
+}
+
+.settings-panel__btn--leave:hover {
+  background: rgba(180, 80, 80, 0.4);
+}
+
+.settings-panel__btn--dissolve {
+  background: rgba(200, 50, 50, 0.25);
+  color: #f66;
+}
+
+.settings-panel__btn--dissolve:hover {
+  background: rgba(200, 50, 50, 0.4);
+}
+
+.settings-panel__confirm {
+  padding: 4px 0;
+}
+
+.settings-panel__confirm-text {
+  font-size: 0.78rem;
+  color: var(--color-text-primary, #e2e8f0);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.settings-panel__confirm-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-panel__btn--confirm {
+  flex: 1;
+  background: rgba(200, 50, 50, 0.35);
+  color: #f66;
+}
+
+.settings-panel__btn--confirm:hover {
+  background: rgba(200, 50, 50, 0.5);
+}
+
+.settings-panel__btn--cancel {
+  flex: 1;
+  background: rgba(100, 100, 100, 0.25);
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.settings-panel__btn--cancel:hover {
+  background: rgba(100, 100, 100, 0.4);
+}
+
 /* Reduced motion global rule */
 .reduced-motion *,
 .reduced-motion *::before,
