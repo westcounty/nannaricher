@@ -24,10 +24,10 @@ export function EpicEventModal() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
 
-  // Auto-dismiss read-only after 6s
+  // Auto-dismiss read-only after 4s
   useEffect(() => {
     if (isReadOnly) {
-      const t = setTimeout(() => handleClose(), 6000);
+      const t = setTimeout(() => handleClose(), 4000);
       return () => clearTimeout(t);
     }
   }, [isReadOnly]);

@@ -123,9 +123,9 @@ function diffAndPlaySounds(
     const name = nextPlayer.name;
     const moneyDelta = nextPlayer.money - prevPlayer.money;
 
-    if (moneyDelta >= 500) {
+    if (moneyDelta >= 1000) {
       useGameStore.getState().addOpponentNotification(`${name} 获得了 +${moneyDelta}\uD83D\uDCB0`);
-    } else if (moneyDelta <= -500) {
+    } else if (moneyDelta <= -1000) {
       useGameStore.getState().addOpponentNotification(`${name} 失去了 ${moneyDelta}\uD83D\uDCB0`);
     }
 
@@ -199,16 +199,21 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().setError(null);
       sessionStorage.setItem('nannaricher_roomId', roomId);
       sessionStorage.setItem('nannaricher_playerId', playerId);
+      localStorage.setItem('nannaricher_roomId', roomId);
+      localStorage.setItem('nannaricher_playerId', playerId);
     };
 
-    const handleRoomJoined = ({ playerId }: { playerId: string }) => {
+    const handleRoomJoined = ({ playerId, roomId, reconnected }: { playerId: string; roomId: string; reconnected?: boolean }) => {
+      store.getState().setRoomId(roomId);
       store.getState().setPlayerId(playerId);
       store.getState().setError(null);
-      const currentRoomId = store.getState().roomId;
-      if (currentRoomId) {
-        sessionStorage.setItem('nannaricher_roomId', currentRoomId);
-      }
+      sessionStorage.setItem('nannaricher_roomId', roomId);
       sessionStorage.setItem('nannaricher_playerId', playerId);
+      localStorage.setItem('nannaricher_roomId', roomId);
+      localStorage.setItem('nannaricher_playerId', playerId);
+      if (reconnected) {
+        store.getState().addNotification('已重新连接到游戏', 'success');
+      }
     };
 
     const handleRoomError = ({ message }: { message: string }) => {
@@ -217,6 +222,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       // Clear session on room error (room not found, etc.)
       sessionStorage.removeItem('nannaricher_roomId');
       sessionStorage.removeItem('nannaricher_playerId');
+      localStorage.removeItem('nannaricher_roomId');
+      localStorage.removeItem('nannaricher_playerId');
     };
 
     const handleCardDrawn = (data: { card: any; deckType: string; playerId?: string; addedToHand?: boolean }) => {
@@ -281,6 +288,20 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Other players' non-epic events -> downgrade to toast (reduce interruption)
+      const localPlayerId = store.getState().playerId;
+      const isOtherPlayerEvent = data.pendingAction
+        && data.pendingAction.playerId !== localPlayerId
+        && data.pendingAction.playerId !== 'all';
+      if (isOtherPlayerEvent && effectiveSeverity !== 'epic') {
+        store.getState().addNotification(
+          `${data.title}: ${data.description}`,
+          'info',
+        );
+        playSound('event_trigger');
+        return;
+      }
+
       store.getState().setCurrentEvent({
         title: data.title,
         description: data.description,
@@ -308,6 +329,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       // Clear session — game is over
       sessionStorage.removeItem('nannaricher_roomId');
       sessionStorage.removeItem('nannaricher_playerId');
+      localStorage.removeItem('nannaricher_roomId');
+      localStorage.removeItem('nannaricher_playerId');
     };
 
     const handleVoteResult = (data: { cardId: string; results: Record<string, string[]>; winnerOption: string }) => {
@@ -334,6 +357,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().addNotification(message, 'warning');
       sessionStorage.removeItem('nannaricher_roomId');
       sessionStorage.removeItem('nannaricher_playerId');
+      localStorage.removeItem('nannaricher_roomId');
+      localStorage.removeItem('nannaricher_playerId');
       store.getState().resetToLobby();
     };
 

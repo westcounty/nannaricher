@@ -1368,12 +1368,14 @@ export class GameCoordinator {
    */
   private startPlanSelectionForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
     const state = this.engine.getState();
+    console.log(`[PlanSelection] startPlanSelectionForPlayer: playerIdx=${playerIdx}, total=${eligiblePlayers.length}`);
 
     if (playerIdx >= eligiblePlayers.length) {
       // 所有玩家完成 → 将未选择的计划放回牌堆
       this.returnUnselectedPlans();
       // 恢复正常游戏流程
       const currentPlayer = state.players[state.currentPlayerIndex];
+      console.log(`[PlanSelection] All players done, setting roll_dice for ${currentPlayer.name}`);
       state.pendingAction = {
         id: `roll_dice_${Date.now()}`,
         playerId: currentPlayer.id,
@@ -1406,6 +1408,7 @@ export class GameCoordinator {
 
     const hasPlan = player.majorPlan !== null;
     const ctx = { eligiblePlayers, playerIdx, drawnPlanIds: tempPlanIds };
+    console.log(`[PlanSelection] Player ${player.name} (idx=${playerIdx}): hasPlan=${hasPlan}, drawnPlans=${drawnPlans.length}`);
 
     if (!hasPlan) {
       // 无培养计划：必须选1-2项加入
@@ -1649,10 +1652,12 @@ export class GameCoordinator {
 
     // 主修方向变化时触发 on_confirm 效果
     if (majorId !== oldMajor) {
+      console.log(`[PlanSelection] finalizePlanSelection: ${player.name} major changed ${oldMajor} -> ${majorId}, triggering effects`);
       this.triggerPlanConfirmEffects(player.id, majorId);
       // 检查是否有 post-confirm action
       const postAction = this.createPostConfirmAction(player, player.id);
       if (postAction) {
+        console.log(`[PlanSelection] finalizePlanSelection: ${player.name} has postAction, saving context (playerIdx=${ctx.playerIdx})`);
         this.pendingConfirmContext = {
           eligiblePlayers: ctx.eligiblePlayers,
           playerIdx: ctx.playerIdx,
@@ -1666,6 +1671,7 @@ export class GameCoordinator {
     }
 
     // 继续下一个玩家
+    console.log(`[PlanSelection] finalizePlanSelection: ${player.name} done, continuing to next player (playerIdx=${ctx.playerIdx + 1})`);
     this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
   }
 
@@ -2039,12 +2045,14 @@ export class GameCoordinator {
   private continuePostConfirmChain(playerId: string): void {
     const player = this.engine.getPlayer(playerId);
     if (!player || !this.pendingConfirmContext) {
+      console.warn(`[PlanSelection] continuePostConfirmChain: cannot continue — player=${!!player}, pendingConfirmContext=${!!this.pendingConfirmContext}`);
       return;
     }
 
     // Check if there are more post-confirm actions for this player
     const nextAction = this.createPostConfirmAction(player, playerId);
     if (nextAction) {
+      console.log(`[PlanSelection] continuePostConfirmChain: ${player.name} has more post-actions`);
       const state = this.engine.getState();
       state.pendingAction = nextAction;
       this.broadcastState();
@@ -2055,6 +2063,7 @@ export class GameCoordinator {
     this.pendingConfirmContext = null;
 
     // Continue to next player in plan selection
+    console.log(`[PlanSelection] continuePostConfirmChain: ${player.name} done, continuing to playerIdx=${ctx.playerIdx + 1}`);
     this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
   }
 
@@ -2737,10 +2746,12 @@ export class GameCoordinator {
         state.pendingAction = pendingAction;
         this.broadcastState();
       } else {
-        // Check if this was a pre-turn plan bonus or plan confirmation
+        // Check if this was a pre-turn plan bonus or plan confirmation/selection
         const isPlanConfirm = pendingActionId.startsWith('plan_confirm_') || pendingActionId.startsWith('general_move_')
           || pendingActionId.startsWith('plan_redraw_') || pendingActionId.startsWith('plan_overflow_')
-          || pendingActionId.startsWith('win_slot_overflow_');
+          || pendingActionId.startsWith('win_slot_overflow_')
+          || pendingActionId.startsWith('plan_select_') || pendingActionId.startsWith('plan_major_')
+          || pendingActionId.startsWith('plan_adjust_');
         const isPlanBonus = pendingActionId.startsWith('jisuanji_') || pendingActionId.startsWith('kuangyaming_')
           || pendingActionId.startsWith('wuli_') || pendingActionId.startsWith('huaxue_')
           || pendingActionId.startsWith('shuxue_');
@@ -2752,14 +2763,29 @@ export class GameCoordinator {
           const newPa = this.engine.getState().pendingAction;
           if (newPa) {
             this.broadcastState();
-            this.io.to(this.roomId).emit('game:event-trigger', {
-              title: '事件触发',
-              description: newPa.prompt,
-              pendingAction: newPa,
-            });
+            // Plan selection chain actions should NOT emit game:event-trigger
+            // because they need to use ChoiceDialog/MultiSelectDialog (not EventModal)
+            const isPlanSelectionChain = newPa.id.startsWith('plan_select_')
+              || newPa.id.startsWith('plan_major_') || newPa.id.startsWith('plan_adjust_')
+              || newPa.id.startsWith('plan_overflow_');
+            if (!isPlanSelectionChain) {
+              this.io.to(this.roomId).emit('game:event-trigger', {
+                title: '事件触发',
+                description: newPa.prompt,
+                pendingAction: newPa,
+              });
+            }
           } else if (isPlanConfirm) {
-            // Plan confirmation chain handles its own progression
-            // If pendingAction is null here, the chain callback already handled everything
+            // Plan confirmation/selection chain handles its own progression
+            // If pendingAction is null here, the chain callback may have failed
+            console.log(`[PlanSelection] _processAction: isPlanConfirm path, pendingActionId=${pendingActionId}, newPa is null`);
+            if (this.pendingConfirmContext) {
+              // Recover: continue the plan selection chain
+              console.warn(`[PlanSelection] Recovering from broken chain: pendingConfirmContext exists, resuming next player`);
+              const ctx = this.pendingConfirmContext;
+              this.pendingConfirmContext = null;
+              this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+            }
             this.broadcastState();
           } else if (isPlanBonus) {
             // Plan bonus completed: set up roll_dice for the same player
@@ -2801,6 +2827,13 @@ export class GameCoordinator {
       } else {
         // Check if callback already set the next action (e.g. plan confirmation chain)
         if (state.pendingAction) {
+          this.broadcastState();
+        } else if (this.pendingConfirmContext) {
+          // Plan confirmation chain context exists but no action was set — recover
+          console.warn(`[PlanSelection] choose_player handler didn't set pendingAction but pendingConfirmContext exists, recovering...`);
+          const ctx = this.pendingConfirmContext;
+          this.pendingConfirmContext = null;
+          this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
           this.broadcastState();
         } else {
           state.pendingAction = null;

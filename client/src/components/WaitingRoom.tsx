@@ -162,6 +162,8 @@ export function WaitingRoom({
           socket.emit('room:leave');
           sessionStorage.removeItem('nannaricher_roomId');
           sessionStorage.removeItem('nannaricher_playerId');
+          localStorage.removeItem('nannaricher_roomId');
+          localStorage.removeItem('nannaricher_playerId');
           useGameStore.getState().resetToLobby();
         }}
       >

@@ -50,9 +50,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.log('[Socket] Connected:', newSocket.id);
 
       // Auto-reconnect to room if session data exists (e.g. after page refresh)
-      const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
-      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+      // Prefer sessionStorage, fall back to localStorage (survives tab close)
+      const savedRoomId = sessionStorage.getItem('nannaricher_roomId') || localStorage.getItem('nannaricher_roomId');
+      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId') || localStorage.getItem('nannaricher_playerId');
       if (savedRoomId && savedPlayerId) {
+        // Re-populate sessionStorage from localStorage if needed
+        sessionStorage.setItem('nannaricher_roomId', savedRoomId);
+        sessionStorage.setItem('nannaricher_playerId', savedPlayerId);
         console.log('[Socket] Auto-reconnecting to room', savedRoomId);
         newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
       }
@@ -83,9 +87,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setConnectionError(null);
 
       // Re-join room after socket-level reconnect
-      const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
-      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+      const savedRoomId = sessionStorage.getItem('nannaricher_roomId') || localStorage.getItem('nannaricher_roomId');
+      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId') || localStorage.getItem('nannaricher_playerId');
       if (savedRoomId && savedPlayerId) {
+        sessionStorage.setItem('nannaricher_roomId', savedRoomId);
+        sessionStorage.setItem('nannaricher_playerId', savedPlayerId);
         console.log('[Socket] Re-joining room after reconnect', savedRoomId);
         newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
       }
@@ -117,9 +123,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Socket is connected but server may have marked us as disconnected
           // Re-emit room:reconnect to re-associate socket with player
-          const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
-          const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+          const savedRoomId = sessionStorage.getItem('nannaricher_roomId') || localStorage.getItem('nannaricher_roomId');
+          const savedPlayerId = sessionStorage.getItem('nannaricher_playerId') || localStorage.getItem('nannaricher_playerId');
           if (savedRoomId && savedPlayerId) {
+            sessionStorage.setItem('nannaricher_roomId', savedRoomId);
+            sessionStorage.setItem('nannaricher_playerId', savedPlayerId);
             console.log('[Socket] Page visible, re-syncing room state');
             newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
           }

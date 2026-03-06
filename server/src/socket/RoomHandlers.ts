@@ -56,6 +56,69 @@ export function registerRoomHandlers(
   // Room joining
   socket.on('room:join', (data) => {
     try {
+      const room = roomManager.getRoom(data.roomId);
+
+      // If the room is in 'playing' phase, attempt to reconnect a disconnected player
+      if (room && room.phase === 'playing') {
+        const disconnectedPlayer = room.players.find(p =>
+          p.isDisconnected && (
+            (socket.data.userId && p.userId === socket.data.userId) ||
+            p.name === data.playerName
+          ),
+        );
+
+        if (disconnectedPlayer) {
+          // Perform reconnection (similar to room:reconnect)
+          disconnectedPlayer.socketId = socket.id;
+          disconnectedPlayer.isDisconnected = false;
+          socket.join(data.roomId);
+          socket.data.roomId = data.roomId;
+          socket.data.playerId = disconnectedPlayer.id;
+
+          const coordinator = roomManager.getCoordinator(data.roomId);
+          if (coordinator) {
+            const state = coordinator.getState();
+            state.log.push({
+              turn: state.turnNumber,
+              playerId: disconnectedPlayer.id,
+              message: `${disconnectedPlayer.name} 重新连接`,
+              timestamp: Date.now(),
+            });
+
+            // Send full state to the reconnecting client
+            socket.emit('game:state-update', state);
+
+            // Re-send pending action if applicable
+            if (state.pendingAction &&
+                state.pendingAction.type !== 'roll_dice' &&
+                (state.pendingAction.playerId === disconnectedPlayer.id ||
+                 state.pendingAction.playerId === 'all')) {
+              socket.emit('game:event-trigger', {
+                title: state.pendingAction.prompt.slice(0, 20) || '事件',
+                description: state.pendingAction.prompt,
+                pendingAction: state.pendingAction,
+              });
+            }
+
+            coordinator.broadcastState();
+          }
+
+          // Emit joined event with reconnected flag
+          socket.emit('room:joined', {
+            playerId: disconnectedPlayer.id,
+            roomId: data.roomId,
+            reconnected: true,
+          });
+          console.log(`${data.playerName} rejoined room ${data.roomId} via join`);
+          return;
+        }
+
+        // No matching disconnected player — reject
+        socket.emit('room:error', { message: '游戏已经开始，无法加入' });
+        return;
+      }
+
+      // Normal waiting-phase join logic
       const { playerId } = roomManager.joinRoom(
         data.roomId,
         data.playerName,
@@ -69,7 +132,6 @@ export function registerRoomHandlers(
       socket.data.roomId = data.roomId;
       socket.data.playerId = playerId;
 
-      const room = roomManager.getRoom(data.roomId);
       if (room) {
         const coordinator = roomManager.getCoordinator(data.roomId);
         if (coordinator) {
@@ -85,7 +147,7 @@ export function registerRoomHandlers(
         });
       }
 
-      socket.emit('room:joined', { playerId });
+      socket.emit('room:joined', { playerId, roomId: data.roomId });
       console.log(`${data.playerName} joined room ${data.roomId}`);
     } catch (error) {
       socket.emit('room:error', { message: String(error) });

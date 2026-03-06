@@ -1564,12 +1564,20 @@ export class GameEngine implements IGameEngine {
     options?: PendingAction['options'],
     targetPlayerIds?: string[]
   ): PendingAction {
+    // Auto-generate options from targetPlayerIds for choose_player actions
+    let resolvedOptions = options;
+    if (type === 'choose_player' && !options && targetPlayerIds && targetPlayerIds.length > 0) {
+      resolvedOptions = targetPlayerIds.map(tid => {
+        const p = this.state.players.find(pl => pl.id === tid);
+        return { label: p?.name || tid, value: tid };
+      });
+    }
     return {
       id: `action_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       playerId,
       type,
       prompt,
-      options,
+      options: resolvedOptions,
       targetPlayerIds,
       timeoutMs: ACTION_TIMEOUT_MS,
     };

@@ -169,8 +169,11 @@ export function pendingActionToChoices(pendingAction: PendingAction): {
   prompt: string;
   options: ChoiceOption[];
 } {
+  const title = pendingAction.type === 'choose_player' ? '选择玩家'
+    : pendingAction.type === 'choose_line' ? '选择路线'
+    : '选择行动';
   return {
-    title: '选择行动',
+    title,
     prompt: pendingAction.prompt,
     options: (pendingAction.options || []).map(opt => ({
       label: opt.label,

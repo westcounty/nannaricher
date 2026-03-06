@@ -978,6 +978,16 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
+  // === Line Entrance Flavor Text (pure display, no effect) ===
+  eventHandler.registerHandler('study_entrance', () => null);
+  eventHandler.registerHandler('pukou_entrance', () => null);
+  eventHandler.registerHandler('money_entrance', () => null);
+  eventHandler.registerHandler('suzhou_entrance', () => null);
+  eventHandler.registerHandler('explore_entrance', () => null);
+  eventHandler.registerHandler('gulou_entrance', () => null);
+  eventHandler.registerHandler('xianlin_entrance', () => null);
+  eventHandler.registerHandler('food_entrance', () => null);
+
   // === Line Entry Handlers ===
   // These are called when a player chooses to enter a line
 
