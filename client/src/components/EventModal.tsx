@@ -101,17 +101,15 @@ export function EventModal({
   }, [isClosing, pendingAction, chooseAction, onConfirm, clearEvent]);
 
   const handleConfirm = useCallback(() => {
-    if (!pendingAction) {
-      // No pending action, just confirm and close
-      setIsClosing(true);
-      timerRefs.current.push(setTimeout(() => {
-        if (onConfirm) {
-          onConfirm();
-        }
-        clearEvent();
-      }, 150));
-    }
-  }, [pendingAction, onConfirm, clearEvent]);
+    // Close the modal — for events with no options (info-only or non-interactive pendingActions)
+    setIsClosing(true);
+    timerRefs.current.push(setTimeout(() => {
+      if (onConfirm) {
+        onConfirm();
+      }
+      clearEvent();
+    }, 150));
+  }, [onConfirm, clearEvent]);
 
   const handleClose = useCallback(() => {
     if (onClose) {
