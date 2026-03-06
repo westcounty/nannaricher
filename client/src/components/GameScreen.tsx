@@ -34,6 +34,7 @@ import { ZoomHint } from './ZoomHint';
 import { SettlementScreen } from './SettlementScreen';
 import { OpponentToast } from './OpponentToast';
 import { NotificationFeed } from './NotificationFeed';
+import { EpicEventModal } from './EpicEventModal';
 import { playSound } from '../audio/AudioManager';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
@@ -454,8 +455,12 @@ export function GameScreen() {
       {/* Card Draw Modal (higher z-index, shows before EventModal) */}
       {drawnCard && <CardDrawModal />}
 
-      {/* Event Modal */}
-      {currentEvent && <GameEventModal />}
+      {/* Event Modal - routed by severity */}
+      {currentEvent && (
+        currentEvent.severity === 'epic'
+          ? <EpicEventModal />
+          : <GameEventModal />
+      )}
 
       {/* Multi-Select Choice Dialog (e.g. plan redraw) */}
       {hasPendingAction &&

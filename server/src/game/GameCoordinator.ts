@@ -2385,6 +2385,7 @@ export class GameCoordinator {
             title: cell?.name || '事件触发',
             description: pendingAction.prompt,
             pendingAction,
+            ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
           });
         } else if (state.pendingAction) {
           // Handler returned null but set pendingAction internally (e.g. drawAndProcessCard drew an interactive card)
@@ -2393,6 +2394,7 @@ export class GameCoordinator {
             title: cell?.name || '事件触发',
             description: state.pendingAction.prompt,
             pendingAction: state.pendingAction,
+            ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
           });
         } else {
           // Event completed automatically — show actual effect with stat deltas
@@ -2408,6 +2410,7 @@ export class GameCoordinator {
               description: effectDesc,
               playerId,
               ...(effectDeltas ? { effects: effectDeltas } : {}),
+              ...(cell.type === 'corner' ? { severity: 'epic' as const } : {}),
             });
           }
           this.broadcastState();

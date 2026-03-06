@@ -40,6 +40,7 @@ export interface GameEvent {
     cards?: { name: string; deckType: string }[];
     status?: string;
   };
+  severity?: 'minor' | 'normal' | 'epic';
 }
 
 export interface DiceResult {

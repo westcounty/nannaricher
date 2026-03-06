@@ -242,7 +242,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string; effects?: { money?: number; gpa?: number; exploration?: number } }) => {
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string; effects?: { money?: number; gpa?: number; exploration?: number }; severity?: 'minor' | 'normal' | 'epic' }) => {
       // Deduplicate by pendingAction id
       if (data.pendingAction?.id && data.pendingAction.id === lastEventActionIdRef.current) {
         return;
@@ -259,12 +259,35 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         _lastEventKey = eventKey;
         _lastEventTime = now;
       }
+
+      // Infer severity if not provided by server
+      const effectiveSeverity: 'minor' | 'normal' | 'epic' = data.severity ?? (() => {
+        if (data.pendingAction) return 'normal' as const;
+        const e = data.effects;
+        if (!e) return 'normal' as const;
+        const isMinor = Math.abs(e.money ?? 0) < 200
+          && Math.abs(e.gpa ?? 0) < 0.2
+          && Math.abs(e.exploration ?? 0) < 5;
+        return isMinor ? 'minor' as const : 'normal' as const;
+      })();
+
+      // Minor non-interactive events -> notification toast instead of modal
+      if (effectiveSeverity === 'minor' && !data.pendingAction) {
+        store.getState().addNotification(
+          `${data.title}: ${data.description}`,
+          'info',
+        );
+        playSound('event_trigger');
+        return;
+      }
+
       store.getState().setCurrentEvent({
         title: data.title,
         description: data.description,
         pendingAction: data.pendingAction,
         playerId: data.playerId || data.pendingAction?.playerId,
         effects: data.effects,
+        severity: effectiveSeverity,
       });
       playSound('event_trigger');
     };
