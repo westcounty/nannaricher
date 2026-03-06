@@ -48,6 +48,16 @@ export class GameCoordinator {
       this.io.to(this.roomId).emit('game:dice-result', { playerId: pid, values: vals, total });
     });
 
+    // Wire up card draw broadcast so clients can show card reveal
+    this.engine.setCardDrawCallback((data) => {
+      this.io.to(this.roomId).emit('game:card-drawn', {
+        playerId: data.playerId,
+        card: data.card,
+        deckType: data.card.deckType,
+        addedToHand: data.addedToHand,
+      });
+    });
+
     // Wire up resource change broadcast for prominent stat change notifications
     this.engine.setResourceChangeCallback((data) => {
       this.io.to(this.roomId).emit('game:resource-change', data);
@@ -174,6 +184,20 @@ export class GameCoordinator {
         }
         currentPa.responses = responses;
         this._processAction(pa.id, pa.playerId, firstOption);
+      } else if (currentPa.type === 'chain_action') {
+        // Fill remaining chain players with default choice and process
+        const chainOrder = currentPa.chainOrder || [];
+        const responses = currentPa.responses || {};
+        const defaultChoice = currentPa.options?.[0]?.value || 'skip';
+        for (const pid of chainOrder) {
+          if (!responses[pid]) {
+            responses[pid] = defaultChoice;
+          }
+        }
+        currentPa.responses = responses;
+        // Process as the last player in chain to trigger completion
+        const lastPlayer = chainOrder[chainOrder.length - 1] || pa.playerId;
+        this._processAction(pa.id, lastPlayer, defaultChoice);
       } else {
         const defaultChoice = currentPa.options?.[0]?.value || 'skip';
         this._processAction(pa.id, pa.playerId, defaultChoice);
@@ -188,6 +212,7 @@ export class GameCoordinator {
     }
   }
 
+
   handleDisconnectedPlayerAction(): void {
     const state = this.engine.getState();
     const pa = state.pendingAction;
@@ -196,6 +221,17 @@ export class GameCoordinator {
     this.addLog(pa.playerId, '玩家断连，自动处理操作');
     if (pa.type === 'roll_dice') {
       this.handleRollDice(pa.playerId);
+    } else if (pa.type === 'chain_action') {
+      // Fill remaining chain players with default and complete
+      const chainOrder = pa.chainOrder || [];
+      const responses = pa.responses || {};
+      const defaultChoice = pa.options?.[0]?.value || 'skip';
+      for (const pid of chainOrder) {
+        if (!responses[pid]) responses[pid] = defaultChoice;
+      }
+      pa.responses = responses;
+      const lastPlayer = chainOrder[chainOrder.length - 1] || pa.playerId;
+      this._processAction(pa.id, lastPlayer, defaultChoice);
     } else {
       const defaultChoice = pa.options?.[0]?.value || 'skip';
       this._processAction(pa.id, pa.playerId, defaultChoice);
@@ -240,6 +276,29 @@ export class GameCoordinator {
     this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'system', message });
   }
 
+  /** Capture player stats snapshot for computing deltas after event execution */
+  private capturePlayerSnapshot(playerId: string): { money: number; gpa: number; exploration: number } | null {
+    const player = this.engine.getPlayer(playerId);
+    if (!player) return null;
+    return { money: player.money, gpa: player.gpa, exploration: player.exploration };
+  }
+
+  /** Compute deltas between snapshot and current player stats */
+  private computeEffectDeltas(playerId: string, snapshot: { money: number; gpa: number; exploration: number } | null): { money?: number; gpa?: number; exploration?: number } | undefined {
+    if (!snapshot) return undefined;
+    const player = this.engine.getPlayer(playerId);
+    if (!player) return undefined;
+    const dm = player.money - snapshot.money;
+    const dg = +(player.gpa - snapshot.gpa).toFixed(2);
+    const de = player.exploration - snapshot.exploration;
+    if (dm === 0 && dg === 0 && de === 0) return undefined;
+    const result: { money?: number; gpa?: number; exploration?: number } = {};
+    if (dm !== 0) result.money = dm;
+    if (dg !== 0) result.gpa = dg;
+    if (de !== 0) result.exploration = de;
+    return result;
+  }
+
   // --------------------------------------------------
   // Turn Management
   // --------------------------------------------------
@@ -278,11 +337,25 @@ export class GameCoordinator {
         }
 
         this.addLog(nextPlayer.id, `${nextPlayer.name} 暂停回合（跳过）`);
+        this.io.to(this.roomId).emit('game:announcement', {
+          message: `${nextPlayer.name} 本回合被跳过`,
+          type: 'warning' as const,
+        });
         continue;
       }
 
       break;
     } while (attempts < state.players.length);
+
+    // If we looped through all players without finding one who can play, end the game
+    if (attempts >= state.players.length) {
+      const nextPlayer = state.players[nextIndex];
+      if (nextPlayer.isDisconnected || nextPlayer.isBankrupt || nextPlayer.skipNextTurn) {
+        this.addLog(nextPlayer.id, '所有玩家均无法行动，游戏结束');
+        this.forceEndGame();
+        return;
+      }
+    }
 
     state.currentPlayerIndex = nextIndex;
 
@@ -1664,7 +1737,20 @@ export class GameCoordinator {
             this.engine.addCardToPlayer(playerId, card);
             this.addLog(playerId, `${player.name} 获得${fx.drawCard === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
           } else {
-            this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+            const cardAction = this.engine.getEventHandler().execute(`card_${card.id}`, playerId);
+            if (card.returnToDeck) {
+              state.discardPiles[fx.drawCard].push(card);
+            }
+            if (cardAction) {
+              state.pendingAction = cardAction;
+              this.broadcastState();
+              this.io.to(this.roomId).emit('game:event-trigger', {
+                title: fx.drawCard === 'chance' ? '机会卡' : '命运卡',
+                description: cardAction.prompt,
+                pendingAction: cardAction,
+              });
+              return;
+            }
           }
         }
       }
@@ -1866,7 +1952,10 @@ export class GameCoordinator {
           if (targetId && card) {
             const handlerId = `card_${card.id}`;
             if (this.engine.getEventHandler().hasHandler(handlerId)) {
-              this.engine.getEventHandler().execute(handlerId, targetId);
+              const cardAction = this.engine.getEventHandler().execute(handlerId, targetId);
+              if (cardAction) {
+                state.pendingAction = cardAction;
+              }
             } else {
               // Apply simple effects to target
               card.effects.forEach(effect => {
@@ -1918,7 +2007,13 @@ export class GameCoordinator {
               if (picked.card.holdable) {
                 eng.addCardToPlayer(pid, picked.card);
               } else {
-                this.engine.getEventHandler().execute(`card_${picked.card.id}`, pid);
+                const cardAction = this.engine.getEventHandler().execute(`card_${picked.card.id}`, pid);
+                if (picked.card.returnToDeck) {
+                  eng.getState().discardPiles[picked.deckType].push(picked.card);
+                }
+                if (cardAction) {
+                  state.pendingAction = cardAction;
+                }
               }
             }
           }
@@ -2177,7 +2272,16 @@ export class GameCoordinator {
             if (card.holdable) {
               this.engine.addCardToPlayer(playerId, card);
               this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
+              // Notify clients about card draw (holdable → added to hand)
+              this.io.to(this.roomId).emit('game:card-drawn', {
+                playerId, card, deckType: cardType, addedToHand: true,
+              });
             } else {
+              // Notify clients about card draw BEFORE executing effect
+              this.io.to(this.roomId).emit('game:card-drawn', {
+                playerId, card, deckType: cardType, addedToHand: false,
+              });
+
               // Execute card effect immediately
               const handlerId = `card_${card.id}`;
               const hasHandler = this.engine.getEventHandler().hasHandler(handlerId);
@@ -2270,6 +2374,7 @@ export class GameCoordinator {
       if (handlerId) {
         const cell = boardData.mainBoard[position.index];
         this.logger.log({ turn: state.turnNumber, playerId, type: 'event', message: `Cell landing: ${cell?.name || handlerId}`, data: { position, cellName: cell?.name || handlerId } });
+        const snapshot = this.capturePlayerSnapshot(playerId);
         const pendingAction = this.engine.getEventHandler().execute(handlerId, playerId);
         if (pendingAction) {
           state.pendingAction = pendingAction;
@@ -2277,16 +2382,23 @@ export class GameCoordinator {
 
           // Trigger event for client
           this.io.to(this.roomId).emit('game:event-trigger', {
-            title: '事件触发',
+            title: cell?.name || '事件触发',
             description: pendingAction.prompt,
             pendingAction,
           });
+        } else if (state.pendingAction) {
+          // Handler returned null but set pendingAction internally (e.g. drawAndProcessCard drew an interactive card)
+          this.broadcastState();
+          this.io.to(this.roomId).emit('game:event-trigger', {
+            title: cell?.name || '事件触发',
+            description: state.pendingAction.prompt,
+            pendingAction: state.pendingAction,
+          });
         } else {
-          // Event completed automatically — show actual effect
-          const cell = boardData.mainBoard[position.index];
+          // Event completed automatically — show actual effect with stat deltas
+          const effectDeltas = this.computeEffectDeltas(playerId, snapshot);
           if (cell) {
             const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
-            // Get the last log entry which contains the actual event effect description
             const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
             const effectDesc = lastLog && lastLog.playerId === playerId
               ? lastLog.message
@@ -2295,6 +2407,7 @@ export class GameCoordinator {
               title: cell.name || '事件',
               description: effectDesc,
               playerId,
+              ...(effectDeltas ? { effects: effectDeltas } : {}),
             });
           }
           this.broadcastState();
@@ -2315,6 +2428,25 @@ export class GameCoordinator {
       if (line && line.cells[position.index]) {
         const cell = line.cells[position.index];
         if (cell.handlerId) {
+          // --- Card effect: foodShield (麦门护盾) — skip negative food line events ---
+          if (position.lineId === 'food' && player) {
+            const shieldIdx = player.effects.findIndex(
+              e => e.type === 'custom' && e.data?.foodShield
+            );
+            if (shieldIdx >= 0) {
+              // Consume the shield
+              player.effects.splice(shieldIdx, 1);
+              this.addLog(playerId, `麦门护盾生效：跳过食堂线事件「${cell.name || cell.handlerId}」`);
+              this.broadcastState();
+              if (state.phase === 'playing') {
+                if (this.checkAndEmitWin()) return;
+                this.advanceTurn();
+              }
+              return;
+            }
+          }
+
+          const lineSnapshot = this.capturePlayerSnapshot(playerId);
           const pendingAction = this.engine.getEventHandler().execute(cell.handlerId, playerId);
           if (pendingAction) {
             state.pendingAction = pendingAction;
@@ -2324,8 +2456,17 @@ export class GameCoordinator {
               description: pendingAction.prompt,
               pendingAction,
             });
+          } else if (state.pendingAction) {
+            // Handler returned null but set pendingAction internally (e.g. drawAndProcessCard drew an interactive card)
+            this.broadcastState();
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: cell.name || '线路事件',
+              description: state.pendingAction.prompt,
+              pendingAction: state.pendingAction,
+            });
           } else {
-            // Line event completed automatically — show actual effect
+            // Line event completed automatically — show actual effect with deltas
+            const lineEffectDeltas = this.computeEffectDeltas(playerId, lineSnapshot);
             const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
             const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
             const effectDesc = lastLog && lastLog.playerId === playerId
@@ -2335,6 +2476,7 @@ export class GameCoordinator {
               title: cell.name || '线路事件',
               description: effectDesc,
               playerId,
+              ...(lineEffectDeltas ? { effects: lineEffectDeltas } : {}),
             });
             this.broadcastState();
             if (state.phase === 'playing') {
@@ -2491,6 +2633,9 @@ export class GameCoordinator {
       total,
     });
 
+    // Record dice values for abilities (e.g. ding highest dice exemption)
+    currentPlayer.lastDiceValues = values;
+
     this.addLog(playerId, `${currentPlayer.name} 投出了 ${values.join('+')}=${total}`);
     this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'dice_roll', message: `Rolled ${values.join('+')}=${total}`, data: { values, total, backward: isBackward } });
 
@@ -2573,6 +2718,8 @@ export class GameCoordinator {
           this.engine.enterLine(playerId, lineId, !line.forceEntry);
           this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 进入 ${line.name}`);
         }
+      } else if (choice === 'skip') {
+        // Player chose to skip (e.g. declined line entry) — no handler to execute
       } else if (savedPendingAction.callbackHandler) {
         // Use callbackHandler: pass choice as the third parameter
         pendingAction = this.engine.getEventHandler().execute(
@@ -2598,9 +2745,15 @@ export class GameCoordinator {
         if (state.phase === 'playing') {
           if (this.checkAndEmitWin()) return;
 
-          // If the callback already set a new pendingAction, just broadcast
-          if (state.pendingAction) {
+          // If the callback already set a new pendingAction, broadcast and notify client
+          const newPa = this.engine.getState().pendingAction;
+          if (newPa) {
             this.broadcastState();
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: '事件触发',
+              description: newPa.prompt,
+              pendingAction: newPa,
+            });
           } else if (isPlanConfirm) {
             // Plan confirmation chain handles its own progression
             // If pendingAction is null here, the chain callback already handled everything
@@ -2655,6 +2808,7 @@ export class GameCoordinator {
       }
     } else if (state.pendingAction.type === 'choose_line') {
       // Line selected for entry
+      state.pendingAction = null;
       if (choice.startsWith('enter_')) {
         const lineId = choice.replace('enter_', '');
         const line = boardData.lines[lineId];
@@ -2663,8 +2817,18 @@ export class GameCoordinator {
           this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 进入 ${line.name}`);
         }
       }
-      state.pendingAction = null;
-      this.advanceTurn();
+      // enterLine may have set a new pendingAction from the first cell handler
+      const linePa = this.engine.getState().pendingAction;
+      if (linePa) {
+        this.broadcastState();
+        this.io.to(this.roomId).emit('game:event-trigger', {
+          title: '事件触发',
+          description: linePa.prompt,
+          pendingAction: linePa,
+        });
+      } else {
+        this.advanceTurn();
+      }
     } else if (state.pendingAction.type === 'multi_vote') {
       // Multi-player voting — each player votes
       if (!state.pendingAction.responses) {
@@ -2777,28 +2941,43 @@ export class GameCoordinator {
           this.broadcastState();
           this.advanceTurn();
         }
+      } else {
+        // Player not in chain order — invalid state, recover by ignoring
+        console.warn(`[GameCoordinator] Player ${playerId} responded to chain_action but not in chainOrder`);
       }
     }
   }
 
-  handleUseCard(playerId: string, cardId: string, targetPlayerId?: string): void {
+  handleUseCard(playerId: string, cardId: string, targetPlayerId?: string): { error?: string } {
     const state = this.engine.getState();
     const player = state.players.find(p => p.id === playerId);
-    if (!player) return;
+    if (!player) return { error: '玩家不存在' };
 
     const cardIndex = player.heldCards.findIndex(c => c.id === cardId);
-    if (cardIndex === -1) return;
+    if (cardIndex === -1) return { error: '你没有这张卡牌' };
     const card = player.heldCards[cardIndex];
 
     // Validate use timing: own_turn cards can only be used during player's own turn
     const isCurrentTurn = state.players[state.currentPlayerIndex]?.id === playerId;
     if (card.useTiming !== 'any_turn' && !isCurrentTurn) {
-      return;
+      return { error: '只能在自己的回合使用这张卡牌' };
+    }
+
+    // Validate contextual card requirements before consuming the card
+    const contextError = this.validateCardContext(player, card);
+    if (contextError) {
+      return { error: contextError };
     }
 
     // Remove card from hand (after validation)
     player.heldCards.splice(cardIndex, 1);
     this.addLog(playerId, `${player.name} 使用手牌: ${card.name}`);
+
+    // Announce card use to all players
+    this.io.to(this.roomId).emit('game:announcement', {
+      message: `${player.name} 使用了 ${card.deckType === 'chance' ? '机遇' : '命运'}卡【${card.name}】`,
+      type: 'info' as const,
+    });
 
     // Check if there's a registered handler for this card
     const handlerId = `card_${card.id}`;
@@ -2820,8 +2999,8 @@ export class GameCoordinator {
       }
 
       this.broadcastState();
-      if (this.checkAndEmitWin()) return;
-      return;
+      if (this.checkAndEmitWin()) return {};
+      return {};
     }
 
     // Fallback: apply simple effects from card.effects array
@@ -2873,7 +3052,29 @@ export class GameCoordinator {
     }
 
     this.broadcastState();
-    if (this.checkAndEmitWin()) return;
+    if (this.checkAndEmitWin()) return {};
+    return {};
+  }
+
+  private validateCardContext(player: import('@nannaricher/shared').Player, card: import('@nannaricher/shared').Card): string | null {
+    switch (card.id) {
+      case 'destiny_urgent_deadline':
+        if (!player.isInHospital && !player.isAtDing) {
+          return '当前不在校医院或鼎，无法使用工期紧迫';
+        }
+        break;
+      case 'destiny_alternative_path':
+        if (player.position.type !== 'line') {
+          return '当前不在支线内，无法使用另辟蹊径';
+        }
+        break;
+      case 'destiny_cross_college_exit':
+        if (player.minorPlans.length === 0) {
+          return '没有辅修培养计划，无法使用跨院准出';
+        }
+        break;
+    }
+    return null;
   }
 
   handleConfirmPlan(playerId: string, planId: string): { error?: string } {

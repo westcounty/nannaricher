@@ -23,6 +23,7 @@ import { TrainingPlanView } from './TrainingPlanView';
 import { useChat } from '../hooks/useChat';
 import { useLayout } from '../hooks/useLayout';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
+import { CardDrawModal } from './CardDrawModal';
 import { LoadingScreen } from './LoadingScreen';
 import { MobileSheetContent } from './MobileSheetContent';
 import { MiniPlayerOverlay } from './MiniPlayerOverlay';
@@ -32,6 +33,7 @@ import { MissedEventsPanel } from './MissedEventsPanel';
 import { ZoomHint } from './ZoomHint';
 import { SettlementScreen } from './SettlementScreen';
 import { OpponentToast } from './OpponentToast';
+import { NotificationFeed } from './NotificationFeed';
 import { playSound } from '../audio/AudioManager';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
@@ -61,6 +63,7 @@ export function GameScreen() {
   const winner = useGameStore((s) => s.winner);
   const isRolling = useGameStore((s) => s.isRolling);
   const diceResult = useGameStore((s) => s.diceResult);
+  const drawnCard = useGameStore((s) => s.drawnCard);
   const socketActions = useGameStore((s) => s.socketActions);
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
@@ -107,7 +110,7 @@ export function GameScreen() {
       if (diceTimerRef.current) clearTimeout(diceTimerRef.current);
       diceTimerRef.current = setTimeout(() => {
         setShowDiceOverlay(false);
-      }, 4000);
+      }, 2000);
     }
     return () => {
       if (diceTimerRef.current) {
@@ -432,6 +435,9 @@ export function GameScreen() {
         />
       )}
 
+      {/* Card Draw Modal (higher z-index, shows before EventModal) */}
+      {drawnCard && <CardDrawModal />}
+
       {/* Event Modal */}
       {currentEvent && <GameEventModal />}
 
@@ -444,6 +450,7 @@ export function GameScreen() {
         gameState.pendingAction.options.length > 0 &&
         (gameState.pendingAction.maxSelections ?? 1) > 1 && (
           <MultiSelectDialog
+            key={gameState.pendingAction.id}
             title="选择培养计划"
             prompt={gameState.pendingAction.prompt}
             options={gameState.pendingAction.options.map(opt => ({
@@ -472,6 +479,7 @@ export function GameScreen() {
         gameState.pendingAction.options.length > 0 &&
         (gameState.pendingAction.maxSelections ?? 1) <= 1 && (
           <ChoiceDialog
+            key={gameState.pendingAction.id}
             title={pendingActionToChoices(gameState.pendingAction).title}
             prompt={gameState.pendingAction.prompt}
             options={pendingActionToChoices(gameState.pendingAction).options}
@@ -484,12 +492,15 @@ export function GameScreen() {
           />
         )}
 
-      {/* Announcement Toast */}
+      {/* Announcement Toast (legacy) */}
       {announcement && (
         <div className={`announcement-toast ${announcement.type}`}>
           {announcement.message}
         </div>
       )}
+
+      {/* Stacked Notification Feed */}
+      <NotificationFeed />
 
       {/* Vote Result overlay */}
       <VoteResultModal />

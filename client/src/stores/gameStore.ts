@@ -15,6 +15,13 @@ export interface AnnouncementData {
   timestamp: number;
 }
 
+export interface NotificationItem {
+  id: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
+  timestamp: number;
+}
+
 export interface WinnerInfo {
   playerId: string;
   playerName: string;
@@ -61,7 +68,7 @@ interface GameStore {
   // === Transient State ===
   currentEvent: GameEvent | null;
   diceResult: DiceResult | null;
-  drawnCard: { card: Card; deckType: string } | null;
+  drawnCard: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null;
   announcement: AnnouncementData | null;
   winner: WinnerInfo | null;
   voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null;
@@ -79,6 +86,11 @@ interface GameStore {
   myHandCards: () => Card[];
   otherPlayers: () => Player[];
 
+  // === Notification Feed (stacked, auto-dismiss) ===
+  notifications: NotificationItem[];
+  addNotification: (msg: string, type?: 'info' | 'warning' | 'success') => void;
+  removeNotification: (id: string) => void;
+
   // === Opponent Notifications ===
   opponentNotifications: string[];
   addOpponentNotification: (msg: string) => void;
@@ -90,7 +102,7 @@ interface GameStore {
   setPlayerId: (id: string) => void;
   setCurrentEvent: (event: GameEvent | null) => void;
   setDiceResult: (result: DiceResult | null) => void;
-  setDrawnCard: (data: { card: Card; deckType: string } | null) => void;
+  setDrawnCard: (data: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null) => void;
   setAnnouncement: (data: AnnouncementData | null) => void;
   setWinner: (data: WinnerInfo | null) => void;
   setVoteResult: (data: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null) => void;
@@ -129,6 +141,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   error: null,
   isRolling: false,
   missedEvents: [],
+  notifications: [],
   opponentNotifications: [],
 
   // --- Computed Properties ---
@@ -208,6 +221,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearMissedEvents: () => set({ missedEvents: [] }),
 
+  addNotification: (msg, type = 'info') => set((state) => ({
+    notifications: [...state.notifications, {
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      message: msg,
+      type,
+      timestamp: Date.now(),
+    }].slice(-8), // Keep max 8 notifications
+  })),
+
+  removeNotification: (id) => set((state) => ({
+    notifications: state.notifications.filter(n => n.id !== id),
+  })),
+
   addOpponentNotification: (msg) => set((state) => ({
     opponentNotifications: [...state.opponentNotifications, msg],
   })),
@@ -228,6 +254,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isLoading: false,
     error: null,
     missedEvents: [],
+    notifications: [],
     opponentNotifications: [],
   }),
 

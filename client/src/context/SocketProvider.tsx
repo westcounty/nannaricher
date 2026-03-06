@@ -219,7 +219,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem('nannaricher_playerId');
     };
 
-    const handleCardDrawn = (data: { card: any; deckType: string }) => {
+    const handleCardDrawn = (data: { card: any; deckType: string; playerId?: string; addedToHand?: boolean }) => {
       playSound('card_draw');
       store.getState().setDrawnCard(data);
     };
@@ -242,7 +242,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => {
+    const handleEventTrigger = (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string; effects?: { money?: number; gpa?: number; exploration?: number } }) => {
       // Deduplicate by pendingAction id
       if (data.pendingAction?.id && data.pendingAction.id === lastEventActionIdRef.current) {
         return;
@@ -264,25 +264,17 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         description: data.description,
         pendingAction: data.pendingAction,
         playerId: data.playerId || data.pendingAction?.playerId,
+        effects: data.effects,
       });
       playSound('event_trigger');
     };
 
     const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
-      store.getState().setAnnouncement({
-        ...data,
-        timestamp: Date.now(),
-      });
+      // Send to notification feed (stacked, independent timers)
+      store.getState().addNotification(data.message, data.type);
       // Play sound based on announcement type
       if (data.type === 'success') playSound('event_positive');
       else if (data.type === 'warning') playSound('event_negative');
-      // Clear previous timer before setting a new one
-      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
-      // Auto-clear announcement after 5 seconds
-      announcementTimerRef.current = setTimeout(() => {
-        store.getState().setAnnouncement(null);
-        announcementTimerRef.current = null;
-      }, 5000);
     };
 
     const handlePlayerWon = (data: { playerId: string; playerName: string; condition: string }) => {
@@ -302,16 +294,45 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleResourceChange = (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => {
-      const localId = store.getState().playerId;
-      if (data.playerId !== localId) {
-        const statNames: Record<string, string> = { money: '资金', gpa: 'GPA', exploration: '探索值' };
-        const sign = data.delta > 0 ? '+' : '';
-        store.getState().setAnnouncement({
-          message: `${data.playerName} ${statNames[data.stat] || data.stat} ${sign}${data.delta}`,
-          type: data.delta > 0 ? 'success' : 'warning',
-          timestamp: Date.now(),
-        });
-      }
+      const statNames: Record<string, string> = { money: '资金', gpa: 'GPA', exploration: '探索值' };
+      const sign = data.delta > 0 ? '+' : '';
+      const type = data.delta > 0 ? 'success' : 'warning';
+      store.getState().addNotification(
+        `${data.playerName} ${statNames[data.stat] || data.stat} ${sign}${data.delta}`,
+        type as 'success' | 'warning',
+      );
+    };
+
+    const handleCardUseError = ({ message }: { message: string }) => {
+      store.getState().addNotification(message, 'warning');
+    };
+
+    const handleLineExitSummary = (data: {
+      playerId: string; lineId: string; lineName: string;
+      entryTurn: number; exitTurn: number;
+      deltas: { money: number; gpa: number; exploration: number };
+    }) => {
+      const state = store.getState();
+      const player = state.gameState?.players.find(p => p.id === data.playerId);
+      const name = player?.name || '玩家';
+      const parts: string[] = [];
+      if (data.deltas.money) parts.push(`资金${data.deltas.money > 0 ? '+' : ''}${data.deltas.money}`);
+      if (data.deltas.gpa) parts.push(`GPA${data.deltas.gpa > 0 ? '+' : ''}${data.deltas.gpa}`);
+      if (data.deltas.exploration) parts.push(`探索${data.deltas.exploration > 0 ? '+' : ''}${data.deltas.exploration}`);
+      const summary = parts.length > 0 ? parts.join('，') : '无变化';
+      store.getState().addNotification(`${name} 完成 ${data.lineName}：${summary}`, 'info');
+    };
+
+    const handlePlanAbilityTrigger = (data: {
+      playerId: string; planName: string; message: string;
+    }) => {
+      const state = store.getState();
+      const player = state.gameState?.players.find(p => p.id === data.playerId);
+      const name = player?.name || '玩家';
+      store.getState().addNotification(
+        `${name}【${data.planName}】${data.message}`,
+        'info',
+      );
     };
 
     socket.on('game:state-update', handleStateUpdate);
@@ -325,6 +346,9 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:player-won', handlePlayerWon);
     socket.on('game:resource-change', handleResourceChange);
     socket.on('game:vote-result', handleVoteResult);
+    socket.on('game:card-use-error', handleCardUseError);
+    socket.on('game:line-exit-summary', handleLineExitSummary);
+    socket.on('game:plan-ability-trigger', handlePlanAbilityTrigger);
 
     // ------ Cleanup ------
     return () => {
@@ -341,6 +365,9 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:player-won', handlePlayerWon);
       socket.off('game:resource-change', handleResourceChange);
       socket.off('game:vote-result', handleVoteResult);
+      socket.off('game:card-use-error', handleCardUseError);
+      socket.off('game:line-exit-summary', handleLineExitSummary);
+      socket.off('game:plan-ability-trigger', handlePlanAbilityTrigger);
     };
   }, [socket]);
 

@@ -287,35 +287,39 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   // Work-study event (勤工助学) - registered with both names for compatibility
   eventHandler.registerHandler('event_qingong', (engine, playerId) => {
-    const players = engine.getAllPlayers();
-    const minMoney = Math.min(...players.map(p => p.money));
-    const player = engine.getPlayer(playerId);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
 
-    let bonus = 0;
-    if (player && player.money === minMoney) {
-      bonus = 240;
-    }
-
-    engine.modifyPlayerMoney(playerId, 240 + bonus);
+    // Triggering player gets +240 and skips a turn
+    engine.modifyPlayerMoney(playerId, 240);
     engine.skipPlayerTurn(playerId, 1);
-    engine.log(`勤工助学获得240金钱${bonus > 0 ? '（额外240）' : ''}，暂停一回合`, playerId);
+    engine.log(`勤工助学获得240金钱，暂停一回合`, playerId);
+
+    // The poorest player(s) get an extra +240
+    const minMoney = Math.min(...players.map(p => p.money));
+    for (const p of players) {
+      if (p.money === minMoney) {
+        engine.modifyPlayerMoney(p.id, 240);
+        engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
+      }
+    }
     return null;
   });
 
   // Alias for qingong
   eventHandler.registerHandler('event_work_study', (engine, playerId) => {
-    const players = engine.getAllPlayers();
-    const minMoney = Math.min(...players.map(p => p.money));
-    const player = engine.getPlayer(playerId);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
 
-    let bonus = 0;
-    if (player && player.money === minMoney) {
-      bonus = 240;
-    }
-
-    engine.modifyPlayerMoney(playerId, 240 + bonus);
+    engine.modifyPlayerMoney(playerId, 240);
     engine.skipPlayerTurn(playerId, 1);
-    engine.log(`勤工助学获得240金钱${bonus > 0 ? '（额外240）' : ''}，暂停一回合`, playerId);
+    engine.log(`勤工助学获得240金钱，暂停一回合`, playerId);
+
+    const minMoney = Math.min(...players.map(p => p.money));
+    for (const p of players) {
+      if (p.money === minMoney) {
+        engine.modifyPlayerMoney(p.id, 240);
+        engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
+      }
+    }
     return null;
   });
 

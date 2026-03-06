@@ -2,7 +2,20 @@
 // Horizontal compact player display for the redesigned sidebar
 
 import type { Player } from '@nannaricher/shared';
+import { getLineConfig } from '@nannaricher/shared';
+import { describeEffect } from '../utils/effectDescriptions';
 import '../styles/compact-player.css';
+
+function formatPosition(player: Player): string {
+  if (player.isBankrupt) return '';
+  if (player.isInHospital) return '医院';
+  if (player.position.type === 'line') {
+    const line = getLineConfig(player.position.lineId);
+    const name = line?.name ?? player.position.lineId;
+    return `${name} ${player.position.index + 1}/${line?.cellCount ?? '?'}`;
+  }
+  return `主环 #${player.position.index}`;
+}
 
 interface CompactPlayerCardProps {
   player: Player;
@@ -32,6 +45,9 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
 
       <div className="compact-player__info">
         <span className="compact-player__name">{player.name}</span>
+        {!player.isBankrupt && (
+          <span className="compact-player__position">{formatPosition(player)}</span>
+        )}
       </div>
 
       <div className="compact-player__stats">
@@ -60,6 +76,11 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
       {player.isBankrupt && <span className="compact-player__badge compact-player__badge--bankrupt">破产</span>}
       {player.isInHospital && <span className="compact-player__badge compact-player__badge--hospital">医院</span>}
       {player.isAtDing && <span className="compact-player__badge compact-player__badge--ding">鼎</span>}
+      {player.effects.length > 0 && (
+        <div className="compact-player__effects" title={player.effects.map(e => describeEffect(e)).join('\n')}>
+          <span className="compact-player__effect-count">{player.effects.length}效果</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -23,7 +23,6 @@ import { EventHandler, GameEngine as IGameEngine } from './EventHandler.js';
 import { WinConditionChecker } from './rules/WinConditionChecker.js';
 import { PlanAbilityHandler } from './rules/PlanAbilities.js';
 import type { AbilityTrigger, PlanAbilityContext as RegistryContext, PlanAbilityResult as RegistryResult } from './handlers/plan-registry.js';
-import { CardEffectHandler } from './rules/CardEffectHandler.js';
 import { StateTracker } from './history/StateTracker.js';
 import { DelayedEffectManager } from './effects/DelayedEffectManager.js';
 import { VotingSystem } from './interaction/VotingSystem.js';
@@ -38,13 +37,15 @@ export class GameEngine implements IGameEngine {
   private eventHandler: EventHandler;
   private winChecker: WinConditionChecker;
   private planAbilities: PlanAbilityHandler;
-  private cardHandler: CardEffectHandler;
+
   private stateTracker: StateTracker;
   private delayedEffects: DelayedEffectManager;
   private votingSystem: VotingSystem;
   private chainSystem: ChainActionSystem;
   /** Snapshot of player resources at line entry, keyed by `${playerId}:${lineId}` */
   private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
+  /** Guard flag to prevent infinite recursion in gridLink sync */
+  private gridLinkSyncing = false;
   private diceResultCallback: ((playerId: string, values: number[], total: number) => void) | null = null;
   private resourceChangeCallback: ((data: {
     playerId: string;
@@ -62,13 +63,18 @@ export class GameEngine implements IGameEngine {
     entryTurn: number; exitTurn: number;
     deltas: { money: number; gpa: number; exploration: number };
   }) => void) | null = null;
+  private cardDrawCallback: ((data: {
+    playerId: string;
+    card: Card;
+    addedToHand: boolean;
+  }) => void) | null = null;
 
   constructor(roomId: string) {
     this.state = this.createInitialState(roomId);
     this.eventHandler = new EventHandler(this);
     this.winChecker = new WinConditionChecker();
     this.planAbilities = new PlanAbilityHandler();
-    this.cardHandler = new CardEffectHandler();
+
     this.stateTracker = new StateTracker();
     this.delayedEffects = new DelayedEffectManager();
     this.votingSystem = new VotingSystem();
@@ -209,6 +215,16 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
 
+    // Card effect: reverseEffects (一跃愁解) — flip the sign of delta
+    const reverseIdx = player.effects.findIndex(
+      e => e.type === 'custom' && e.data?.reverseEffects
+    );
+    if (reverseIdx >= 0 && delta !== 0) {
+      player.effects.splice(reverseIdx, 1);
+      this.log(`一跃愁解生效：金钱效果反转 ${delta >= 0 ? '+' : ''}${delta} → ${-delta >= 0 ? '+' : ''}${-delta}`, playerId);
+      delta = -delta;
+    }
+
     // DelayedEffectManager: check money freeze (block all money modifications)
     if (this.delayedEffects.hasMoneyFreeze(playerId)) {
       this.log('金钱冻结效果生效，金钱不变', playerId);
@@ -272,11 +288,34 @@ export class GameEngine implements IGameEngine {
     if (player.money < 0) {
       this.checkBankruptcy(playerId);
     }
+
+    // Card effect: gridLink (网格管理) — sync to linked player
+    if (!this.gridLinkSyncing && delta !== 0) {
+      const linkEffect = player.effects.find(
+        e => e.type === 'custom' && e.data?.gridLinkTarget
+      );
+      if (linkEffect) {
+        const targetId = linkEffect.data!.gridLinkTarget as string;
+        this.gridLinkSyncing = true;
+        this.modifyPlayerMoney(targetId, delta);
+        this.gridLinkSyncing = false;
+      }
+    }
   }
 
   modifyPlayerGpa(playerId: string, delta: number): void {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
+
+    // Card effect: reverseEffects (一跃愁解) — flip the sign of delta
+    const reverseIdx = player.effects.findIndex(
+      e => e.type === 'custom' && e.data?.reverseEffects
+    );
+    if (reverseIdx >= 0 && delta !== 0) {
+      player.effects.splice(reverseIdx, 1);
+      this.log(`一跃愁解生效：GPA效果反转 ${delta >= 0 ? '+' : ''}${delta} → ${-delta >= 0 ? '+' : ''}${-delta}`, playerId);
+      delta = -delta;
+    }
 
     // Card effect: blockGpaLoss (祖传试卷)
     if (delta < 0) {
@@ -318,11 +357,34 @@ export class GameEngine implements IGameEngine {
         current: player.gpa,
       });
     }
+
+    // Card effect: gridLink (网格管理) — sync to linked player
+    if (!this.gridLinkSyncing && delta !== 0) {
+      const linkEffect = player.effects.find(
+        e => e.type === 'custom' && e.data?.gridLinkTarget
+      );
+      if (linkEffect) {
+        const targetId = linkEffect.data!.gridLinkTarget as string;
+        this.gridLinkSyncing = true;
+        this.modifyPlayerGpa(targetId, delta);
+        this.gridLinkSyncing = false;
+      }
+    }
   }
 
   modifyPlayerExploration(playerId: string, delta: number): void {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return;
+
+    // Card effect: reverseEffects (一跃愁解) — flip the sign of delta
+    const reverseIdx = player.effects.findIndex(
+      e => e.type === 'custom' && e.data?.reverseEffects
+    );
+    if (reverseIdx >= 0 && delta !== 0) {
+      player.effects.splice(reverseIdx, 1);
+      this.log(`一跃愁解生效：探索值效果反转 ${delta >= 0 ? '+' : ''}${delta} → ${-delta >= 0 ? '+' : ''}${-delta}`, playerId);
+      delta = -delta;
+    }
 
     // Card effect: blockExplorationLoss (校园传说)
     if (delta < 0) {
@@ -347,6 +409,19 @@ export class GameEngine implements IGameEngine {
         delta,
         current: player.exploration,
       });
+    }
+
+    // Card effect: gridLink (网格管理) — sync to linked player
+    if (!this.gridLinkSyncing && delta !== 0) {
+      const linkEffect = player.effects.find(
+        e => e.type === 'custom' && e.data?.gridLinkTarget
+      );
+      if (linkEffect) {
+        const targetId = linkEffect.data!.gridLinkTarget as string;
+        this.gridLinkSyncing = true;
+        this.modifyPlayerExploration(targetId, delta);
+        this.gridLinkSyncing = false;
+      }
     }
   }
 
@@ -543,7 +618,10 @@ export class GameEngine implements IGameEngine {
       player.lineEventsTriggered[lineId].push(0);
       // StateTracker: record line event for first cell
       this.stateTracker.recordLineEvent(playerId, lineId, 0);
-      this.eventHandler.execute(line.cells[0].handlerId, playerId);
+      const firstCellAction = this.eventHandler.execute(line.cells[0].handlerId, playerId);
+      if (firstCellAction) {
+        this.state.pendingAction = firstCellAction;
+      }
 
       // StateTracker: update food line streak if applicable
       if (lineId === 'food') {
@@ -633,6 +711,18 @@ export class GameEngine implements IGameEngine {
     }
 
     if (moveToMainBoard) {
+      // --- Card effect: reenterLine (轻车熟路) ---
+      // After exiting a line with experience card, allow re-entry
+      const reenterIdx = player.effects.findIndex(
+        e => e.type === 'custom' && e.data?.reenterLine
+      );
+      if (reenterIdx >= 0) {
+        player.effects.splice(reenterIdx, 1);
+        this.log(`轻车熟路生效：回到 ${line?.name || lineId} 起点并再次进入`, playerId);
+        this.enterLine(playerId, lineId, true);
+        return;
+      }
+
       // Find the corresponding line entry on main board
       const entryCell = boardData.mainBoard.find(
         cell => cell.type === 'line_entry' && cell.lineId === lineId
@@ -732,9 +822,23 @@ export class GameEngine implements IGameEngine {
     if (card.holdable) {
       this.addCardToPlayer(playerId, card);
       this.log(`抽到${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}（已加入手牌）`, playerId);
+      if (this.cardDrawCallback) {
+        this.cardDrawCallback({ playerId, card, addedToHand: true });
+      }
     } else {
       this.log(`抽到${deckType === 'chance' ? '机会' : '命运'}卡: ${card.name}`, playerId);
-      this.eventHandler.execute(`card_${card.id}`, playerId);
+      if (this.cardDrawCallback) {
+        this.cardDrawCallback({ playerId, card, addedToHand: false });
+      }
+      const pendingAction = this.eventHandler.execute(`card_${card.id}`, playerId);
+      // Return non-holdable card to discard pile
+      if (card.returnToDeck) {
+        this.state.discardPiles[deckType].push(card);
+      }
+      // If the card handler needs player interaction, set pendingAction on state
+      if (pendingAction) {
+        this.state.pendingAction = pendingAction;
+      }
     }
   }
 
@@ -1394,6 +1498,10 @@ export class GameEngine implements IGameEngine {
     this.lineExitCallback = cb;
   }
 
+  setCardDrawCallback(cb: typeof this.cardDrawCallback): void {
+    this.cardDrawCallback = cb;
+  }
+
   /**
    * Wrapper around planAbilities.checkAbilities that also broadcasts the trigger.
    */
@@ -1617,12 +1725,6 @@ export class GameEngine implements IGameEngine {
     return this.planAbilities;
   }
 
-  /**
-   * Get card effect handler
-   */
-  getCardHandler(): CardEffectHandler {
-    return this.cardHandler;
-  }
 
   /**
    * Get delayed effects manager

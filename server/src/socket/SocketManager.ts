@@ -16,8 +16,14 @@ export function createSocketServer(httpServer: HttpServer): GameServer {
 
   const io: GameServer = new Server(httpServer, {
     cors: corsOptions,
-    pingTimeout: 60000,
+    // Increase ping timeout for mobile/weak networks and tab-switching scenarios
+    pingTimeout: 120000,
     pingInterval: 25000,
+    // Allow connection recovery after brief disconnections
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+      skipMiddlewares: true,
+    },
   });
 
   // JWT authentication middleware

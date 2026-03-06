@@ -1,6 +1,6 @@
 // server/src/game/handlers/corner-handlers.ts
 import type { EventHandler } from '../EventHandler.js';
-import { SALARY_PASS, SALARY_STOP, HOSPITAL_FEE, HOSPITAL_DICE_TARGET, WAITING_ROOM_FEE } from '@nannaricher/shared';
+import { SALARY_PASS, SALARY_STOP, HOSPITAL_FEE, HOSPITAL_DICE_TARGET, WAITING_ROOM_FEE, MAIN_BOARD_CELLS } from '@nannaricher/shared';
 
 export function registerCornerHandlers(eventHandler: EventHandler): void {
   // Start corner - Salary/allowance
@@ -63,13 +63,23 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // Ding (鼎) corner - Skip turn
+  // Ding (鼎) corner - Skip turn (highest dice roller is exempt)
   eventHandler.registerHandler('corner_ding', (engine, playerId) => {
     const player = engine.getPlayer(playerId);
     if (!player) return null;
 
-    // Check if player's dice was the highest this round
-    // For simplicity, we'll just skip one turn
+    // Check if player's dice was the highest this round — exempt if so
+    const playerTotal = (player.lastDiceValues || []).reduce((a, b) => a + b, 0);
+    const allPlayers = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const maxDice = Math.max(
+      ...allPlayers.map(p => (p.lastDiceValues || []).reduce((a, b) => a + b, 0))
+    );
+
+    if (playerTotal > 0 && playerTotal >= maxDice) {
+      engine.log(`在鼎，但本回合骰子最大(${playerTotal})，免除暂停`, playerId);
+      return null;
+    }
+
     engine.setPlayerDingStatus(playerId, true);
     engine.skipPlayerTurn(playerId, 1);
     engine.log(`在鼎暂停一回合`, playerId);
@@ -102,14 +112,14 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
         { label: '校医院', value: 'main_7' },
         { label: '鼎', value: 'main_14' },
         { label: '候车厅', value: 'main_21' },
-        { label: '浦口线入口', value: 'main_2' },
-        { label: '学习线入口', value: 'main_5' },
-        { label: '赚钱线入口', value: 'main_8' },
+        { label: '浦口线入口', value: 'main_4' },
+        { label: '学在南哪入口', value: 'main_6' },
+        { label: '赚在南哪入口', value: 'main_8' },
         { label: '苏州线入口', value: 'main_11' },
-        { label: '探索线入口', value: 'main_17' },
-        { label: '鼓楼线入口', value: 'main_20' },
-        { label: '仙林线入口', value: 'main_23' },
-        { label: '食堂线入口', value: 'main_26' },
+        { label: '乐在南哪入口', value: 'main_15' },
+        { label: '仙林线入口', value: 'main_18' },
+        { label: '鼓楼线入口', value: 'main_22' },
+        { label: '食堂线入口', value: 'main_25' },
       ]
     );
     if (action) action.callbackHandler = 'corner_waiting_room_move';
@@ -121,6 +131,45 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
       const index = parseInt(destination.replace('main_', ''), 10);
       if (!isNaN(index)) {
         engine.movePlayerTo(playerId, { type: 'main', index });
+
+        // Trigger destination cell event (description: "传送到任意大格子并执行事件")
+        const cell = MAIN_BOARD_CELLS.find(c => c.index === index);
+        if (cell) {
+          if (cell.type === 'corner') {
+            const cornerHandlerMap: Record<string, string> = {
+              start: 'corner_start_stop',
+              hospital: 'corner_hospital_enter',
+              ding: 'corner_ding',
+              waiting_room: 'corner_waiting_room',
+            };
+            const handlerId = cornerHandlerMap[cell.cornerType || ''];
+            if (handlerId) {
+              return engine.getEventHandler().execute(handlerId, playerId);
+            }
+          } else if (cell.type === 'event') {
+            return engine.getEventHandler().execute(`event_${cell.id}`, playerId);
+          } else if (cell.type === 'line_entry' && cell.lineId) {
+            // For line entries, create the entry choice
+            const isForced = cell.forceEntry || false;
+            const fee = cell.entryFee || 0;
+            if (isForced) {
+              engine.enterLine(playerId, cell.lineId, false);
+              engine.log(`进入 ${cell.name}`, playerId);
+            } else {
+              return engine.createPendingAction(
+                playerId,
+                'choose_option',
+                fee > 0 ? `是否支付 ${fee} 金钱进入 ${cell.name}？` : `是否进入 ${cell.name}？`,
+                [
+                  { label: fee > 0 ? `支付 ${fee} 进入` : '进入', value: `enter_${cell.lineId}` },
+                  { label: '不进入', value: 'skip' },
+                ]
+              );
+            }
+          } else if (cell.type === 'chance') {
+            engine.drawAndProcessCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
+          }
+        }
       }
     }
     return null;

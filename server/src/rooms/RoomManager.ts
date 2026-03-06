@@ -154,16 +154,18 @@ export class RoomManager {
       coordinator.broadcastState();
 
       // If in game, auto-handle disconnected player's pending action
+      // Wait 15 seconds to give the player time to reconnect (tab switch, brief network loss)
       if (state.phase === 'playing' && state.pendingAction?.playerId === player.id) {
         setTimeout(() => {
           const coord = this.coordinators.get(room.roomId);
           if (coord) {
             const currentState = coord.getState();
-            if (currentState.pendingAction?.playerId === player.id) {
+            // Only auto-handle if player is STILL disconnected and action is still pending
+            if (currentState.pendingAction?.playerId === player.id && player.isDisconnected) {
               coord.handleDisconnectedPlayerAction();
             }
           }
-        }, 2000);
+        }, 15000);
       }
     }
   }

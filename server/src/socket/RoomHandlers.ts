@@ -115,13 +115,30 @@ export function registerRoomHandlers(
     const coordinator = roomManager.getCoordinator(data.roomId);
     if (coordinator) {
       const state = coordinator.getState();
+
+      // Only log reconnection if the player was actually marked as disconnected
+      if (player.isDisconnected) {
+        state.log.push({
+          turn: state.turnNumber,
+          playerId: data.playerId,
+          message: `${player.name} 重新连接`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Send full state to the reconnecting client
       socket.emit('game:state-update', state);
-      state.log.push({
-        turn: state.turnNumber,
-        playerId: data.playerId,
-        message: `${player.name} 重新连接`,
-        timestamp: Date.now(),
-      });
+
+      // If there's a pending action for this player, re-send the event trigger
+      if (state.pendingAction &&
+          (state.pendingAction.playerId === data.playerId || state.pendingAction.playerId === 'all')) {
+        socket.emit('game:event-trigger', {
+          title: '等待操作',
+          description: state.pendingAction.prompt,
+          pendingAction: state.pendingAction,
+        });
+      }
+
       coordinator.broadcastState();
     }
   });

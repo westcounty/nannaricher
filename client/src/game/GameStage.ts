@@ -73,8 +73,8 @@ export class GameStage {
    * Recalculate scale and position when the viewport changes.
    */
   resize(viewWidth: number, viewHeight: number): void {
-    const maxCanvasW = Math.min(viewWidth, 1400);
-    const maxCanvasH = Math.min(viewHeight, 1100);
+    const maxCanvasW = Math.min(viewWidth, 1900);
+    const maxCanvasH = Math.min(viewHeight, 1600);
     const scaleX = maxCanvasW / (METRO_BOARD_WIDTH + 100);
     const scaleY = maxCanvasH / (METRO_BOARD_HEIGHT + 100);
     const scale = Math.max(0.1, Math.min(scaleX, scaleY));

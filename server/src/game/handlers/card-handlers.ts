@@ -1034,48 +1034,153 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 翻转课堂
+  // 翻转课堂 — 选择两位玩家，各投骰子，大者GPA+0.2，小者GPA-0.1
   eventHandler.registerHandler('card_chance_flipped_classroom', (engine, playerId) => {
-    const players = engine.getAllPlayers();
-    if (players.length < 2) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    if (others.length < 2) return null;
 
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const winner = shuffled[0];
-    const loser = shuffled[1];
+    const options = others.map(p => ({ label: p.name, value: p.id }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '翻转课堂：选择第一位玩家', options
+    );
+    action.callbackHandler = 'card_flipped_classroom_p1';
+    return action;
+  });
 
-    engine.modifyPlayerGpa(winner.id, 0.2);
-    engine.modifyPlayerGpa(loser.id, -0.1);
-    engine.log(`翻转课堂：${winner.name} GPA +0.2，${loser.name} GPA -0.1`, playerId);
+  eventHandler.registerHandler('card_flipped_classroom_p1', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && p.id !== choice);
+    if (others.length === 0) return null;
+    const options = others.map(p => ({ label: p.name, value: `${choice}:${p.id}` }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '翻转课堂：选择第二位玩家', options
+    );
+    action.callbackHandler = 'card_flipped_classroom_p2';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_flipped_classroom_p2', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const [p1Id, p2Id] = choice.split(':');
+    const p1 = engine.getPlayer(p1Id);
+    const p2 = engine.getPlayer(p2Id);
+    if (!p1 || !p2) return null;
+
+    const dice1 = engine.rollDiceAndBroadcast(p1Id, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(p2Id, 1)[0];
+    if (dice1 > dice2) {
+      engine.modifyPlayerGpa(p1Id, 0.2);
+      engine.modifyPlayerGpa(p2Id, -0.1);
+      engine.log(`翻转课堂：${p1.name}(${dice1})>${p2.name}(${dice2})，${p1.name} GPA+0.2，${p2.name} GPA-0.1`, playerId);
+    } else if (dice2 > dice1) {
+      engine.modifyPlayerGpa(p2Id, 0.2);
+      engine.modifyPlayerGpa(p1Id, -0.1);
+      engine.log(`翻转课堂：${p2.name}(${dice2})>${p1.name}(${dice1})，${p2.name} GPA+0.2，${p1.name} GPA-0.1`, playerId);
+    } else {
+      engine.modifyPlayerGpa(p1Id, 0.1);
+      engine.modifyPlayerGpa(p2Id, 0.1);
+      engine.log(`翻转课堂：${p1.name}(${dice1})=${p2.name}(${dice2})，各GPA+0.1`, playerId);
+    }
     return null;
   });
 
-  // 团学面试
+  // 团学面试 — 选择两位玩家，各投骰子，大者探索+2，小者探索-1
   eventHandler.registerHandler('card_chance_student_union_interview', (engine, playerId) => {
-    const players = engine.getAllPlayers();
-    if (players.length < 2) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    if (others.length < 2) return null;
 
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const winner = shuffled[0];
-    const loser = shuffled[1];
+    const options = others.map(p => ({ label: p.name, value: p.id }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '团学面试：选择第一位玩家', options
+    );
+    action.callbackHandler = 'card_student_union_p1';
+    return action;
+  });
 
-    engine.modifyPlayerExploration(winner.id, 2);
-    engine.modifyPlayerExploration(loser.id, -1);
-    engine.log(`团学面试：${winner.name} 探索值 +2，${loser.name} 探索值 -1`, playerId);
+  eventHandler.registerHandler('card_student_union_p1', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && p.id !== choice);
+    if (others.length === 0) return null;
+    const options = others.map(p => ({ label: p.name, value: `${choice}:${p.id}` }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '团学面试：选择第二位玩家', options
+    );
+    action.callbackHandler = 'card_student_union_p2';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_student_union_p2', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const [p1Id, p2Id] = choice.split(':');
+    const p1 = engine.getPlayer(p1Id);
+    const p2 = engine.getPlayer(p2Id);
+    if (!p1 || !p2) return null;
+
+    const dice1 = engine.rollDiceAndBroadcast(p1Id, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(p2Id, 1)[0];
+    if (dice1 > dice2) {
+      engine.modifyPlayerExploration(p1Id, 2);
+      engine.modifyPlayerExploration(p2Id, -1);
+      engine.log(`团学面试：${p1.name}(${dice1})>${p2.name}(${dice2})，${p1.name} 探索+2，${p2.name} 探索-1`, playerId);
+    } else if (dice2 > dice1) {
+      engine.modifyPlayerExploration(p2Id, 2);
+      engine.modifyPlayerExploration(p1Id, -1);
+      engine.log(`团学面试：${p2.name}(${dice2})>${p1.name}(${dice1})，${p2.name} 探索+2，${p1.name} 探索-1`, playerId);
+    } else {
+      engine.modifyPlayerExploration(p1Id, 1);
+      engine.modifyPlayerExploration(p2Id, 1);
+      engine.log(`团学面试：${p1.name}(${dice1})=${p2.name}(${dice2})，各探索+1`, playerId);
+    }
     return null;
   });
 
-  // 集赞抽奖
+  // 集赞抽奖 — 选择两位玩家，各投骰子，大者金钱+200，小者金钱-100
   eventHandler.registerHandler('card_chance_like_collection', (engine, playerId) => {
-    const players = engine.getAllPlayers();
-    if (players.length < 2) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    if (others.length < 2) return null;
 
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const winner = shuffled[0];
-    const loser = shuffled[1];
+    const options = others.map(p => ({ label: p.name, value: p.id }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '集赞抽奖：选择第一位玩家', options
+    );
+    action.callbackHandler = 'card_like_collection_p1';
+    return action;
+  });
 
-    engine.modifyPlayerMoney(winner.id, 200);
-    engine.modifyPlayerMoney(loser.id, -100);
-    engine.log(`集赞抽奖：${winner.name} 金钱 +200，${loser.name} 金钱 -100`, playerId);
+  eventHandler.registerHandler('card_like_collection_p1', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && p.id !== choice);
+    if (others.length === 0) return null;
+    const options = others.map(p => ({ label: p.name, value: `${choice}:${p.id}` }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '集赞抽奖：选择第二位玩家', options
+    );
+    action.callbackHandler = 'card_like_collection_p2';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_like_collection_p2', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const [p1Id, p2Id] = choice.split(':');
+    const p1 = engine.getPlayer(p1Id);
+    const p2 = engine.getPlayer(p2Id);
+    if (!p1 || !p2) return null;
+
+    const dice1 = engine.rollDiceAndBroadcast(p1Id, 1)[0];
+    const dice2 = engine.rollDiceAndBroadcast(p2Id, 1)[0];
+    if (dice1 > dice2) {
+      engine.modifyPlayerMoney(p1Id, 200);
+      engine.modifyPlayerMoney(p2Id, -100);
+      engine.log(`集赞抽奖：${p1.name}(${dice1})>${p2.name}(${dice2})，${p1.name} 金钱+200，${p2.name} 金钱-100`, playerId);
+    } else if (dice2 > dice1) {
+      engine.modifyPlayerMoney(p2Id, 200);
+      engine.modifyPlayerMoney(p1Id, -100);
+      engine.log(`集赞抽奖：${p2.name}(${dice2})>${p1.name}(${dice1})，${p2.name} 金钱+200，${p1.name} 金钱-100`, playerId);
+    } else {
+      engine.modifyPlayerMoney(p1Id, 100);
+      engine.modifyPlayerMoney(p2Id, 100);
+      engine.log(`集赞抽奖：${p1.name}(${dice1})=${p2.name}(${dice2})，各金钱+100`, playerId);
+    }
     return null;
   });
 
@@ -1317,20 +1422,55 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 网格管理 — 数字版简化：抽卡者选两位玩家，他们各获得2探索值
+  // 网格管理 — 选择两位玩家，下回合内他们的增减同步
   eventHandler.registerHandler('card_chance_grid_management', (engine, playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
-    if (players.length >= 2) {
-      // Pick two random players
-      const shuffled = [...players].sort(() => Math.random() - 0.5);
-      const p1 = shuffled[0];
-      const p2 = shuffled[1];
-      engine.modifyPlayerExploration(p1.id, 2);
-      engine.modifyPlayerExploration(p2.id, 2);
-      engine.log(`网格管理：${p1.name}和${p2.name}被绑定，各探索值+2`, playerId);
-    } else {
+    if (players.length < 2) {
       engine.log('网格管理：玩家不足，无法执行', playerId);
+      return null;
     }
+
+    const options = players.map(p => ({ label: p.name, value: p.id }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '网格管理：选择第一位玩家', options
+    );
+    action.callbackHandler = 'card_grid_management_p1';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_grid_management_p1', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && p.id !== choice);
+    if (others.length === 0) return null;
+    const options = others.map(p => ({ label: p.name, value: `${choice}:${p.id}` }));
+    const action = engine.createPendingAction(
+      playerId, 'choose_option', '网格管理：选择第二位玩家', options
+    );
+    action.callbackHandler = 'card_grid_management_p2';
+    return action;
+  });
+
+  eventHandler.registerHandler('card_grid_management_p2', (engine, playerId, choice) => {
+    if (!choice) return null;
+    const [p1Id, p2Id] = choice.split(':');
+    const p1 = engine.getPlayer(p1Id);
+    const p2 = engine.getPlayer(p2Id);
+    if (!p1 || !p2) return null;
+
+    // Add gridLink effect to both players, linking them for 1 round
+    engine.addEffectToPlayer(p1Id, {
+      id: `gridLink_${Date.now()}_1`,
+      type: 'custom' as const,
+      turnsRemaining: 2,
+      data: { gridLinkTarget: p2Id },
+    });
+    engine.addEffectToPlayer(p2Id, {
+      id: `gridLink_${Date.now()}_2`,
+      type: 'custom' as const,
+      turnsRemaining: 2,
+      data: { gridLinkTarget: p1Id },
+    });
+    engine.log(`网格管理：${p1.name}和${p2.name}被绑定，下回合内增减同步`, playerId);
     return null;
   });
 

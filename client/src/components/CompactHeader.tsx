@@ -49,6 +49,14 @@ export function CompactHeader({ gameState, playerId: _playerId, isMyTurn, curren
             }}>&#9889;</span>
           )}
         </span>
+        <span className="compact-header__progress" title={`第${gameState.roundNumber}/4学年 · 剩余${Math.max(0, 24 - ((gameState.roundNumber - 1) * 6 + gameState.turnNumber))}回合`}>
+          {[1, 2, 3, 4].map(r => (
+            <span
+              key={r}
+              className={`compact-header__dot${r <= gameState.roundNumber ? ' compact-header__dot--active' : ''}${r === gameState.roundNumber ? ' compact-header__dot--current' : ''}`}
+            />
+          ))}
+        </span>
         {statusText && (
           <>
             <span className="compact-header__separator">—</span>

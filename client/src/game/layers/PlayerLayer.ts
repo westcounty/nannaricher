@@ -362,9 +362,13 @@ export class PlayerLayer implements RenderLayer {
     let pulseGlow: Graphics | undefined;
     if (isCurrent) {
       pulseGlow = new Graphics();
-      pulseGlow.circle(0, 0, pieceRadius + 8);
-      pulseGlow.stroke({ width: inLine ? 2 : 3, color: 0xC9A227, alpha: 0.8 });
-      pulseGlow.alpha = 0.3;
+      // Outer soft glow
+      pulseGlow.circle(0, 0, pieceRadius + 16);
+      pulseGlow.fill({ color: 0xC9A227, alpha: 0.1 });
+      // Inner bright ring
+      pulseGlow.circle(0, 0, pieceRadius + 10);
+      pulseGlow.stroke({ width: inLine ? 3 : 4, color: 0xC9A227, alpha: 0.9 });
+      pulseGlow.alpha = 0.4;
       // Insert behind the piece for glow effect
       group.addChildAt(pulseGlow, 0);
     }

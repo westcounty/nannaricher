@@ -71,6 +71,9 @@ export interface GameEngine {
   getPlayersByGpaRank(): Player[]; // sorted highest to lowest
   getPlayersByExplorationRank(): Player[]; // sorted highest to lowest
 
+  // Event handler access
+  getEventHandler(): EventHandler;
+
   // Win condition
   declareWinner(playerId: string, condition: string): void;
 

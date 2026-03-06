@@ -207,6 +207,29 @@
   cursor: not-allowed;
 }
 
+/* Sentiment-based theming */
+.event-modal--positive .modal-header {
+  background: linear-gradient(135deg, #22863a 0%, #2ea043 100%);
+}
+
+.event-modal--positive {
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(34, 197, 94, 0.2);
+}
+
+.event-modal--negative .modal-header {
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+}
+
+.event-modal--negative {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(239, 68, 68, 0.2);
+}
+
 /* Options Container */
 .options-container {
   display: flex;

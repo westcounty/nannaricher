@@ -61,6 +61,14 @@
   text-overflow: ellipsis;
 }
 
+.compact-player__position {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .compact-player__status-text {
   font-size: 0.65rem;
   color: var(--color-text-muted);
@@ -120,6 +128,20 @@
 .compact-player__badge--ding {
   background: #FFB300;
   color: #000;
+}
+
+.compact-player__effects {
+  margin-left: auto;
+}
+
+.compact-player__effect-count {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(100, 149, 237, 0.2);
+  color: #6495ed;
+  white-space: nowrap;
+  cursor: help;
 }
 
 /* Pulse animation for current turn */

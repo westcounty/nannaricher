@@ -149,6 +149,15 @@ export function EventModal({
 
   const hasOptions = !isReadOnly && pendingAction?.options && pendingAction.options.length > 0;
 
+  // Determine sentiment from effects for visual theming
+  const sentiment = (() => {
+    if (!effects) return 'neutral';
+    const score = (effects.money ?? 0) + (effects.gpa ?? 0) * 1000 + (effects.exploration ?? 0) * 100;
+    if (score > 0) return 'positive';
+    if (score < 0) return 'negative';
+    return 'neutral';
+  })();
+
   if (!isVisible && !isClosing) return null;
 
   return (
@@ -159,7 +168,7 @@ export function EventModal({
       onPointerDown={e => e.stopPropagation()}
     >
       <div
-        className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''} ${isReadOnly ? 'read-only' : ''}`}
+        className={`event-modal ${isClosing ? 'closing' : ''} ${hasOptions ? 'has-options' : ''} ${isReadOnly ? 'read-only' : ''} event-modal--${sentiment}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -277,8 +286,12 @@ export function GameEventModal() {
 
   if (!currentEvent) return null;
 
+  // Key on pendingAction.id or title+description to force remount when event changes
+  const eventKey = currentEvent.pendingAction?.id || `${currentEvent.title}_${currentEvent.description}`;
+
   return (
     <EventModal
+      key={eventKey}
       title={currentEvent.title}
       description={currentEvent.description}
       effects={currentEvent.effects}

@@ -3,6 +3,7 @@ import type { Player } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { getPlayerPlanIds } from '@nannaricher/shared';
 import { boardData } from '../data/board';
+import { describeEffect } from '../utils/effectDescriptions';
 
 interface CurrentPlayerPanelProps {
   player: Player | undefined;
@@ -168,8 +169,10 @@ export function CurrentPlayerPanel({
           <div className="effects-list">
             {player.effects.map((effect) => (
               <div key={effect.id} className="effect-item">
-                <span className="effect-type">{effect.type}</span>
-                <span className="effect-turns">{effect.turnsRemaining}回合</span>
+                <span className="effect-type">{describeEffect(effect)}</span>
+                {effect.turnsRemaining < 900 && (
+                  <span className="effect-turns">{effect.turnsRemaining}回合</span>
+                )}
               </div>
             ))}
           </div>

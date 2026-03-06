@@ -46,12 +46,12 @@ export const MAIN_BOARD_SIZE = 28;
 export const MAIN_BOARD_CELLS: BoardCellData[] = [
   // Bottom side (index 0-6, right to left: start -> hospital direction)
   { id: 'start', index: 0, name: '起点/低保日', type: 'corner', cornerType: 'start', description: '经过+500金，停留+600金' },
-  { id: 'chance_1', index: 1, name: '机会/命运', type: 'chance', description: '抽一张机会卡或命运卡' },
+  { id: 'line_study', index: 1, name: '学在南哪入口', type: 'line_entry', lineId: 'study', forceEntry: false, entryFee: 200, description: '可选进入，入场费200金' },
   { id: 'tuition', index: 2, name: '所有人交学费', type: 'event', description: '交(5.0-GPA)×100元' },
   { id: 'chance_2', index: 3, name: '机会/命运', type: 'chance', description: '抽一张机会卡或命运卡' },
   { id: 'line_pukou', index: 4, name: '浦口线入口', type: 'line_entry', lineId: 'pukou', forceEntry: true, entryFee: 0, description: '强制进入，入场费0' },
   { id: 'zijing', index: 5, name: '紫荆站', type: 'event', description: '选择：-100金抽培养方案 或 抽卡' },
-  { id: 'line_study', index: 6, name: '学在南哪入口', type: 'line_entry', lineId: 'study', forceEntry: false, entryFee: 200, description: '可选进入，入场费200金' },
+  { id: 'chance_1', index: 6, name: '机会/命运', type: 'chance', description: '抽一张机会卡或命运卡' },
 
   // Left side (index 7-13, bottom to top: hospital -> ding direction)
   { id: 'hospital', index: 7, name: '校医院', type: 'corner', cornerType: 'hospital', description: '投到3或付250金出院' },
@@ -85,14 +85,14 @@ export const MAIN_BOARD_CELLS: BoardCellData[] = [
 // Line Exit Map (line id -> main board exit index)
 // ============================================
 export const LINE_EXIT_MAP: Record<string, number> = {
-  'pukou': 5,      // pukou line exit -> zijing station
-  'study': 7,      // study line exit -> hospital
-  'money': 9,      // money line exit -> qingong
-  'suzhou': 12,    // suzhou line exit -> retake
-  'explore': 16,   // explore line exit -> jiang gong
-  'xianlin': 19,   // xianlin line exit -> society
-  'gulou': 23,     // gulou line exit -> kechuang
-  'food': 26,      // food line exit -> nanna cp
+  'pukou': 6,      // pukou@4 → exit=6 (机会1)
+  'study': 3,      // study@1 → exit=3
+  'money': 10,     // money@8 → exit=10 (机会3)
+  'suzhou': 13,    // suzhou@11 → exit=13
+  'explore': 17,   // explore@15 → exit=17
+  'xianlin': 20,   // xianlin@18 → exit=20
+  'gulou': 24,     // gulou@22 → exit=24 (机会7)
+  'food': 27,      // food@25 → exit=27
 };
 
 // ============================================
@@ -105,7 +105,7 @@ export const FORCED_LINES = ['pukou', 'food'];
 // ============================================
 export const LINE_CONFIGS: LineConfig[] = [
   { id: 'pukou', name: '浦口线', entryIndex: 4, cellCount: 12, forceEntry: true, entryFee: 0, direction: 'up', color: 0x607D8B },
-  { id: 'study', name: '学在南哪', entryIndex: 6, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'up', color: 0x3F51B5 },
+  { id: 'study', name: '学在南哪', entryIndex: 1, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'up', color: 0x3F51B5 },
   { id: 'money', name: '赚在南哪', entryIndex: 8, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'right', color: 0xFF9800 },
   { id: 'suzhou', name: '苏州线', entryIndex: 11, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'right', color: 0x2196F3 },
   { id: 'explore', name: '乐在南哪', entryIndex: 15, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'down', color: 0xE91E63 },

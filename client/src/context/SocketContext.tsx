@@ -81,6 +81,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(true);
       setIsConnecting(false);
       setConnectionError(null);
+
+      // Re-join room after socket-level reconnect
+      const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
+      const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+      if (savedRoomId && savedPlayerId) {
+        console.log('[Socket] Re-joining room after reconnect', savedRoomId);
+        newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
+      }
     });
 
     newSocket.io.on('reconnect_error', (error: Error) => {
@@ -100,7 +108,28 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const newSocket = createSocket();
     setSocket(newSocket);
 
+    // When user switches back to this tab, check connection and re-join if needed
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && newSocket) {
+        if (!newSocket.connected) {
+          console.log('[Socket] Page visible but disconnected, reconnecting...');
+          newSocket.connect();
+        } else {
+          // Socket is connected but server may have marked us as disconnected
+          // Re-emit room:reconnect to re-associate socket with player
+          const savedRoomId = sessionStorage.getItem('nannaricher_roomId');
+          const savedPlayerId = sessionStorage.getItem('nannaricher_playerId');
+          if (savedRoomId && savedPlayerId) {
+            console.log('[Socket] Page visible, re-syncing room state');
+            newSocket.emit('room:reconnect', { roomId: savedRoomId, playerId: savedPlayerId });
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       newSocket.close();
     };
   }, [createSocket]);

@@ -163,7 +163,7 @@ export interface ServerToClientEvents {
   'game:state-update': (state: GameState) => void;
   'game:dice-result': (data: { playerId: string; values: number[]; total: number }) => void;
   'game:event-trigger': (data: { title: string; description: string; pendingAction?: PendingAction; playerId?: string }) => void;
-  'game:card-drawn': (data: { card: Card; deckType: string }) => void;
+  'game:card-drawn': (data: { card: Card; deckType: string; playerId: string; addedToHand: boolean }) => void;
   'game:announcement': (data: { message: string; type: 'info' | 'warning' | 'success' }) => void;
   'game:player-won': (data: { playerId: string; playerName: string; condition: string }) => void;
   'game:resource-change': (data: { playerId: string; playerName: string; stat: 'money' | 'gpa' | 'exploration'; delta: number; current: number }) => void;
@@ -202,6 +202,7 @@ export interface ServerToClientEvents {
     turn: number;
     round: number;
   }) => void;
+  'game:card-use-error': (data: { message: string }) => void;
 }
 
 // === Player History Tracking ===

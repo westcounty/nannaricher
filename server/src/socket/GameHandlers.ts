@@ -95,7 +95,10 @@ export function registerGameHandlers(
     const coordinator = roomManager.getCoordinator(roomId);
     if (!coordinator) return;
 
-    coordinator.handleUseCard(playerId, data.cardId, data.targetPlayerId);
+    const result = coordinator.handleUseCard(playerId, data.cardId, data.targetPlayerId);
+    if (result?.error) {
+      socket.emit('game:card-use-error', { message: result.error });
+    }
   });
 
   // Chat

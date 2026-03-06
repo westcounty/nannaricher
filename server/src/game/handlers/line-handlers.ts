@@ -861,6 +861,13 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('xianlin_mcdonalds', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
+    // Add foodShield effect: skip the next negative food line event
+    engine.addEffectToPlayer(playerId, {
+      id: `food_shield_${Date.now()}`,
+      type: 'custom',
+      turnsRemaining: 999,
+      data: { foodShield: true },
+    });
     engine.log('麦门信徒，金钱 -100，获得麦门护盾', playerId);
     return null;
   });
