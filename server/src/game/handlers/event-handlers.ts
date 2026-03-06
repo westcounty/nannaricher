@@ -94,8 +94,8 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '蒋公的面子：选择一项执行',
       [
-        { label: '支付300金钱获得3探索值', value: 'pay_gain' },
-        { label: '损失2探索值获得200金钱', value: 'lose_gain' },
+        { label: '支付300金钱获得3探索值', value: 'pay_gain', effectPreview: { money: -300, exploration: 3 } },
+        { label: '损失2探索值获得200金钱', value: 'lose_gain', effectPreview: { money: 200, exploration: -2 } },
       ]
     );
   });
@@ -127,7 +127,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       'GPA低于3.5，是否花费100金钱重修？',
       [
-        { label: '花费100金钱投骰子重修', value: 'retake' },
+        { label: '花费100金钱投骰子重修', value: 'retake', effectPreview: { money: -100, gpa: '0~0.2' } },
         { label: '不重修', value: 'skip' },
       ]
     );
@@ -152,8 +152,8 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '是否参加社团活动？',
       [
-        { label: '失去200金钱获得骰子*1探索值', value: 'society_money' },
-        { label: '失去0.2 GPA获得骰子*1探索值', value: 'society_gpa' },
+        { label: '失去200金钱获得骰子*1探索值', value: 'society_money', effectPreview: { money: -200, exploration: '1~6' } },
+        { label: '失去0.2 GPA获得骰子*1探索值', value: 'society_gpa', effectPreview: { gpa: -0.2, exploration: '1~6' } },
         { label: '不参加', value: 'skip' },
       ]
     );
@@ -182,7 +182,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '紫荆站：选择一项',
       [
-        { label: '失去100金钱抽取培养方案', value: 'draw_plan' },
+        { label: '失去100金钱抽取培养方案', value: 'draw_plan', effectPreview: { money: -100 } },
         { label: '抽取机会卡或命运卡', value: 'draw_card' },
       ]
     );
@@ -233,7 +233,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '是否参加科创赛事？（失去0.3 GPA投骰子获得0.1*点数GPA）',
       [
-        { label: '参加科创赛事', value: 'kechuang_join' },
+        { label: '参加科创赛事', value: 'kechuang_join', effectPreview: { gpa: '-0.3+0.1~0.6' } },
         { label: '不参加', value: 'skip' },
       ]
     );
@@ -264,8 +264,8 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '闯门：选择一项',
       [
-        { label: '停留一回合获得0.2 GPA', value: 'event_chuang_men_stay' },
-        { label: '失去0.1 GPA前进一格领取600低保', value: 'event_chuang_men_move' },
+        { label: '停留一回合获得0.2 GPA', value: 'event_chuang_men_stay', effectPreview: { gpa: 0.2 } },
+        { label: '失去0.1 GPA前进一格领取600低保', value: 'event_chuang_men_move', effectPreview: { gpa: -0.1, money: 600 } },
       ]
     );
   });

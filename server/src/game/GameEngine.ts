@@ -1561,7 +1561,7 @@ export class GameEngine implements IGameEngine {
     playerId: string,
     type: PendingAction['type'],
     prompt: string,
-    options?: { label: string; value: string }[],
+    options?: PendingAction['options'],
     targetPlayerIds?: string[]
   ): PendingAction {
     return {

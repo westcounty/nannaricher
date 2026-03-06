@@ -92,7 +92,16 @@ export interface PendingAction {
     | 'multi_vote'           // 全体投票（如四校联动、泳馆常客）
     | 'chain_action';        // 连锁行动（如八卦秘闻、南行玫瑰）
   prompt: string;
-  options?: { label: string; value: string; description?: string }[];
+  options?: {
+    label: string;
+    value: string;
+    description?: string;
+    effectPreview?: {
+      money?: number | string;
+      gpa?: number | string;
+      exploration?: number | string;
+    };
+  }[];
   maxSelections?: number;   // >1 时客户端渲染 MultiSelectDialog
   minSelections?: number;   // 最少选择数
   targetPlayerIds?: string[];     // for multi-player choices

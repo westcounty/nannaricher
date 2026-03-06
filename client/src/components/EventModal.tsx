@@ -187,25 +187,60 @@ export function EventModal({
           <p className="modal-description">{description}</p>
 
           {hasOptions && (
-            <div className="options-container">
+            <div className={`options-container ${pendingAction!.options!.length <= 2 ? 'options-grid' : 'options-list'}`}>
               {pendingAction!.options!.map((option, index) => (
                 <button
                   key={option.value}
-                  className={`option-button ${selectedOption === option.value ? 'selected' : ''}`}
+                  className={`option-card ${selectedOption === option.value ? 'selected' : ''}`}
                   onClick={() => handleOptionSelect(option.value)}
                   disabled={isClosing}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div className="option-content">
-                    <span className="option-label">{option.label}</span>
-                    {'description' in option && (option as { description?: string }).description && (
-                      <span className="option-description">
-                        {(option as { description?: string }).description}
-                      </span>
+                  <div className="option-card__content">
+                    <span className="option-card__label">{option.label}</span>
+                    {option.description && (
+                      <span className="option-card__description">{option.description}</span>
+                    )}
+                    {option.effectPreview && (
+                      <div className="option-card__effects">
+                        {option.effectPreview.money !== undefined && (
+                          <span className={`option-card__effect ${
+                            typeof option.effectPreview.money === 'number'
+                              ? (option.effectPreview.money > 0 ? 'positive' : option.effectPreview.money < 0 ? 'negative' : '')
+                              : ''
+                          }`}>
+                            {'\uD83D\uDCB0'}{typeof option.effectPreview.money === 'number'
+                              ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}`
+                              : option.effectPreview.money}
+                          </span>
+                        )}
+                        {option.effectPreview.gpa !== undefined && (
+                          <span className={`option-card__effect ${
+                            typeof option.effectPreview.gpa === 'number'
+                              ? (option.effectPreview.gpa > 0 ? 'positive' : option.effectPreview.gpa < 0 ? 'negative' : '')
+                              : ''
+                          }`}>
+                            {'\uD83D\uDCDA'}{typeof option.effectPreview.gpa === 'number'
+                              ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}`
+                              : option.effectPreview.gpa}
+                          </span>
+                        )}
+                        {option.effectPreview.exploration !== undefined && (
+                          <span className={`option-card__effect ${
+                            typeof option.effectPreview.exploration === 'number'
+                              ? (option.effectPreview.exploration > 0 ? 'positive' : option.effectPreview.exploration < 0 ? 'negative' : '')
+                              : ''
+                          }`}>
+                            {'\uD83D\uDDFA\uFE0F'}{typeof option.effectPreview.exploration === 'number'
+                              ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}`
+                              : option.effectPreview.exploration}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   {selectedOption === option.value && (
-                    <span className="option-checkmark">✓</span>
+                    <span className="option-checkmark">{'\u2713'}</span>
                   )}
                 </button>
               ))}
