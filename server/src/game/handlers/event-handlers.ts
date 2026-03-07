@@ -289,18 +289,19 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('event_qingong', (engine, playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
 
-    // Triggering player gets +240 and skips a turn
+    // 先确定最穷玩家（修改金钱前）
+    const minMoney = Math.min(...players.map(p => p.money));
+    const poorestPlayers = players.filter(p => p.money === minMoney);
+
+    // 再给触发者+240并暂停
     engine.modifyPlayerMoney(playerId, 240);
     engine.skipPlayerTurn(playerId, 1);
     engine.log(`勤工助学获得240金钱，暂停一回合`, playerId);
 
-    // The poorest player(s) get an extra +240
-    const minMoney = Math.min(...players.map(p => p.money));
-    for (const p of players) {
-      if (p.money === minMoney) {
-        engine.modifyPlayerMoney(p.id, 240);
-        engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
-      }
+    // 给最穷玩家额外+240
+    for (const p of poorestPlayers) {
+      engine.modifyPlayerMoney(p.id, 240);
+      engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
     }
     return null;
   });
@@ -309,16 +310,19 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('event_work_study', (engine, playerId) => {
     const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
 
+    // 先确定最穷玩家（修改金钱前）
+    const minMoney = Math.min(...players.map(p => p.money));
+    const poorestPlayers = players.filter(p => p.money === minMoney);
+
+    // 再给触发者+240并暂停
     engine.modifyPlayerMoney(playerId, 240);
     engine.skipPlayerTurn(playerId, 1);
     engine.log(`勤工助学获得240金钱，暂停一回合`, playerId);
 
-    const minMoney = Math.min(...players.map(p => p.money));
-    for (const p of players) {
-      if (p.money === minMoney) {
-        engine.modifyPlayerMoney(p.id, 240);
-        engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
-      }
+    // 给最穷玩家额外+240
+    for (const p of poorestPlayers) {
+      engine.modifyPlayerMoney(p.id, 240);
+      engine.log(`${p.name} 是最穷的玩家，额外获得240金钱`, p.id);
     }
     return null;
   });
