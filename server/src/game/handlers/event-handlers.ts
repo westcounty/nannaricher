@@ -30,30 +30,6 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 软件学院：交学费3200选项回调
-  eventHandler.registerHandler('tuition_ruanjian_3200', (engine, playerId) => {
-    engine.modifyPlayerMoney(playerId, -3200);
-    engine.log('软件学院：支付3200金钱交学费', playerId);
-    const player = engine.getPlayer(playerId);
-    if (player && !player.isBankrupt) {
-      const disabled = player.disabledWinConditions ?? [];
-      if (!disabled.includes('plan_ruanjian')) {
-        engine.declareWinner(playerId, '软件学院：交学费3200金钱后未破产');
-      }
-    }
-    return null;
-  });
-
-  // 正常交学费（软件学院选择不使用能力时的回调）
-  eventHandler.registerHandler('tuition_normal', (engine, playerId) => {
-    const player = engine.getPlayer(playerId);
-    if (!player) return null;
-    const tuition = Math.round((5.0 - player.gpa) * 100);
-    engine.modifyPlayerMoney(playerId, -tuition);
-    engine.log(`交学费 ${(5.0 - player.gpa).toFixed(1)} * 100 = ${tuition} 金钱`, playerId);
-    return null;
-  });
-
   // 软件学院选择支付3200（全员版本）
   eventHandler.registerHandler('tuition_ruanjian_3200_all', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -3200);
