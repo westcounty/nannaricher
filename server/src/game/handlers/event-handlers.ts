@@ -1,5 +1,6 @@
 // server/src/game/handlers/event-handlers.ts
 import type { EventHandler } from '../EventHandler.js';
+import { SALARY_STOP } from '@nannaricher/shared';
 
 export function registerEventHandlers(eventHandler: EventHandler): void {
   // Tuition payment event — ALL non-bankrupt players pay tuition
@@ -264,25 +265,25 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '闯门：选择一项',
       [
-        { label: '停留一回合获得0.2 GPA', value: 'event_chuang_men_stay', effectPreview: { gpa: 0.2 } },
-        { label: '失去0.1 GPA前进一格领取600低保', value: 'event_chuang_men_move', effectPreview: { gpa: -0.1, money: 600 } },
+        { label: '停留一回合获得0.4 GPA', value: 'event_chuang_men_stay', effectPreview: { gpa: 0.4 } },
+        { label: '失去0.1 GPA前进到起点，获得起点停留低保', value: 'event_chuang_men_move', effectPreview: { gpa: -0.1, money: SALARY_STOP } },
       ]
     );
   });
 
   eventHandler.registerHandler('event_chuang_men_stay', (engine, playerId) => {
     engine.skipPlayerTurn(playerId, 1);
-    engine.modifyPlayerGpa(playerId, 0.2);
-    engine.log(`闯门停留，获得0.2 GPA`, playerId);
+    engine.modifyPlayerGpa(playerId, 0.4);
+    engine.log(`闯门停留，获得0.4 GPA`, playerId);
     return null;
   });
 
   eventHandler.registerHandler('event_chuang_men_move', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.1);
     engine.movePlayerForward(playerId, 1);
-    engine.modifyPlayerMoney(playerId, 600);
-    engine.log(`闯门前进，领取600低保`, playerId);
-    return null;
+    // 触发起点停留效果（而非直接给钱），corner_start_stop 会给 SALARY_STOP 金钱
+    engine.log(`闯门前进到起点`, playerId);
+    return engine.getEventHandler().execute('corner_start_stop', playerId);
   });
 
   // Work-study event (勤工助学) - registered with both names for compatibility

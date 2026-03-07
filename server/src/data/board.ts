@@ -50,7 +50,7 @@ export const MAIN_BOARD_CELLS: MainCell[] = [
   { id: 'chance_7', index: 24, name: '机会/命运', type: 'chance', description: '抽一张机会卡或命运卡' },
   { id: 'line_food', index: 25, name: '食堂线入口', type: 'line_entry', lineId: 'food', forceEntry: true, entryFee: 0, description: '强制进入，入场费0' },
   { id: 'nanna_cp', index: 26, name: '南哪诚品', type: 'event', description: '给场上每位其他玩家50金' },
-  { id: 'chuangmen', index: 27, name: '闯门', type: 'event', description: '选择：停留1回合+0.2GPA 或 -0.1GPA向前1格到起点' },
+  { id: 'chuangmen', index: 27, name: '闯门', type: 'event', description: '选择：停留1回合+0.4GPA 或 -0.1GPA前进到起点获得起点停留低保' },
 ];
 
 // 角落格索引
