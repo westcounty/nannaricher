@@ -95,20 +95,20 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '蒋公的面子：选择一项执行',
       [
-        { label: '支付300金钱获得3探索值', value: 'pay_gain', effectPreview: { money: -300, exploration: 3 } },
-        { label: '损失2探索值获得200金钱', value: 'lose_gain', effectPreview: { money: 200, exploration: -2 } },
+        { label: '支付300金钱获得3探索值', value: 'jiang_gong:pay_gain', effectPreview: { money: -300, exploration: 3 } },
+        { label: '损失2探索值获得200金钱', value: 'jiang_gong:lose_gain', effectPreview: { money: 200, exploration: -2 } },
       ]
     );
   });
 
-  eventHandler.registerHandler('pay_gain', (engine, playerId) => {
+  eventHandler.registerHandler('jiang_gong:pay_gain', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -300);
     engine.modifyPlayerExploration(playerId, 3);
     engine.log(`支付300金钱获得3探索值`, playerId);
     return null;
   });
 
-  eventHandler.registerHandler('lose_gain', (engine, playerId) => {
+  eventHandler.registerHandler('jiang_gong:lose_gain', (engine, playerId) => {
     engine.modifyPlayerExploration(playerId, -2);
     engine.modifyPlayerMoney(playerId, 200);
     engine.log(`损失2探索值获得200金钱`, playerId);
@@ -128,13 +128,13 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       'GPA低于3.5，是否花费100金钱重修？',
       [
-        { label: '花费100金钱投骰子重修', value: 'retake', effectPreview: { money: -100, gpa: '0~0.2' } },
+        { label: '花费100金钱投骰子重修', value: 'retake:roll', effectPreview: { money: -100, gpa: '0~0.2' } },
         { label: '不重修', value: 'skip' },
       ]
     );
   });
 
-  eventHandler.registerHandler('retake', (engine, playerId) => {
+  eventHandler.registerHandler('retake:roll', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
@@ -153,14 +153,14 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '是否参加社团活动？',
       [
-        { label: '失去200金钱获得骰子*1探索值', value: 'society_money', effectPreview: { money: -200, exploration: '1~6' } },
-        { label: '失去0.2 GPA获得骰子*1探索值', value: 'society_gpa', effectPreview: { gpa: -0.2, exploration: '1~6' } },
+        { label: '失去200金钱获得骰子*1探索值', value: 'society:money', effectPreview: { money: -200, exploration: '1~6' } },
+        { label: '失去0.2 GPA获得骰子*1探索值', value: 'society:gpa', effectPreview: { gpa: -0.2, exploration: '1~6' } },
         { label: '不参加', value: 'skip' },
       ]
     );
   });
 
-  eventHandler.registerHandler('society_money', (engine, playerId) => {
+  eventHandler.registerHandler('society:money', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -200);
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
@@ -168,7 +168,7 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  eventHandler.registerHandler('society_gpa', (engine, playerId) => {
+  eventHandler.registerHandler('society:gpa', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.2);
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     engine.modifyPlayerExploration(playerId, dice);
@@ -183,19 +183,19 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '紫荆站：选择一项',
       [
-        { label: '失去100金钱抽取培养方案', value: 'draw_plan', effectPreview: { money: -100 } },
-        { label: '抽取机会卡或命运卡', value: 'draw_card' },
+        { label: '失去100金钱抽取培养方案', value: 'zijing:draw_plan', effectPreview: { money: -100 } },
+        { label: '抽取机会卡或命运卡', value: 'zijing:draw_card' },
       ]
     );
   });
 
-  eventHandler.registerHandler('draw_plan', (engine, playerId) => {
+  eventHandler.registerHandler('zijing:draw_plan', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
     engine.drawTrainingPlan(playerId);
     return null;
   });
 
-  eventHandler.registerHandler('draw_card', (engine, playerId) => {
+  eventHandler.registerHandler('zijing:draw_card', (engine, playerId) => {
     const deckType = Math.random() > 0.5 ? 'chance' : 'destiny';
     engine.drawAndProcessCard(playerId, deckType);
     return null;
