@@ -999,7 +999,7 @@ export const chanceCards: Card[] = [
   {
     id: 'chance_gossip_secret',
     name: '八卦秘闻',
-    description: '抽卡玩家选择一位玩家【悄悄告知】或放弃选择，然后被【悄悄告知】的玩家继续选择或直至有玩家放弃选择',
+    description: '是否参与悄悄告知？参与则投骰子，点数>1获得金钱+200、GPA+0.2、探索+2，否则金钱-200、GPA-0.2、探索-2',
     deckType: 'chance',
     holdable: false,
     singleUse: true,

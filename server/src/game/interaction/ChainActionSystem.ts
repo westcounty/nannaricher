@@ -78,56 +78,6 @@ export const CHAIN_ACTION_CARDS: Record<string, {
       }
     },
   },
-  'chance_gossip_secret': {
-    cardId: 'chance_gossip_secret',
-    description: '八卦秘闻：悄悄告知或放弃',
-    timeoutPerPlayer: 30000,
-    onStart: (state, cardPlayerId) => {
-      return state.players
-        .filter(p => !p.isDisconnected)
-        .map(p => p.id);
-    },
-    onPlayerAction: (player, action, data, context, state) => {
-      if (action === 'pass') {
-        // 放弃，链结束
-        return { nextAction: 'end' };
-      }
-      // 悄悄告知下一个玩家
-      return { nextAction: 'continue' };
-    },
-    onChainEnd: (context, state) => {
-      // 计算连续告知的玩家数N
-      const chainLength = Array.from(context.responses.values())
-        .filter(r => r.action === 'continue').length;
-
-      // 投骰判断
-      const diceValue = Math.floor(Math.random() * 6) + 1;
-
-      if (diceValue > chainLength) {
-        // 成功：+200金+0.2GPA+2探索
-        for (const [playerId, response] of context.responses) {
-          if (response.action === 'continue') {
-            const player = state.players.find(p => p.id === playerId);
-            if (player) {
-              player.money += 200;
-              player.gpa += 0.2;
-              player.exploration += 2;
-            }
-          }
-        }
-      } else {
-        // 失败：全部-200金-0.2GPA-2探索
-        for (const [playerId, response] of context.responses) {
-          const player = state.players.find(p => p.id === playerId);
-          if (player) {
-            player.money -= 200;
-            player.gpa = Math.max(0, player.gpa - 0.2);
-            player.exploration = Math.max(0, player.exploration - 2);
-          }
-        }
-      }
-    },
-  },
 };
 
 export class ChainActionSystem {
