@@ -167,7 +167,56 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('zijing:draw_plan', (engine, playerId) => {
     engine.modifyPlayerMoney(playerId, -100);
-    engine.drawTrainingPlan(playerId);
+    const plan = engine.drawTrainingPlan(playerId);
+    if (!plan) {
+      engine.log('培养计划牌堆已空', playerId);
+      return null;
+    }
+
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    // 情况A: 没有主修，直接设为主修
+    if (player.majorPlan === null) {
+      player.majorPlan = plan.id;
+      engine.log(`紫荆站：${plan.name} 设为主修`, playerId);
+      // on_confirm effects handled by coordinator via triggerPlanConfirmEffects
+      return null;
+    }
+
+    const confirmedCount = 1 + player.minorPlans.length; // majorPlan + minors
+
+    // 情况B: 不超限，可选加入辅修
+    if (confirmedCount < player.planSlotLimit) {
+      return engine.createPendingAction(
+        playerId, 'choose_option',
+        `紫荆站：是否将 ${plan.name} 加入辅修？(当前 ${confirmedCount}/${player.planSlotLimit})`,
+        [
+          { label: `加入辅修 (${plan.name})`, value: 'zijing:add_minor' },
+          { label: '不加入（仅保留胜利条件）', value: 'zijing:keep_only' },
+        ],
+      );
+    }
+
+    // 情况C: 已满，仅保留胜利条件（不改变主修/辅修）
+    engine.log(`紫荆站：${plan.name} 培养计划已满(${confirmedCount}/${player.planSlotLimit})，仅保留胜利条件`, playerId);
+    return null;
+  });
+
+  eventHandler.registerHandler('zijing:add_minor', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+    // The newly drawn plan is the last one in trainingPlans
+    const newPlan = player.trainingPlans[player.trainingPlans.length - 1];
+    if (newPlan && !player.minorPlans.includes(newPlan.id) && newPlan.id !== player.majorPlan) {
+      player.minorPlans.push(newPlan.id);
+      engine.log(`紫荆站：${newPlan.name} 加入辅修`, playerId);
+    }
+    return null;
+  });
+
+  eventHandler.registerHandler('zijing:keep_only', (engine, playerId) => {
+    engine.log('紫荆站：不加入辅修，仅保留胜利条件', playerId);
     return null;
   });
 
