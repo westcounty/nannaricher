@@ -152,7 +152,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
 
       // Show parallel plan selection when state update includes it
       const newPa = state.pendingAction;
-      if (newPa?.type === ('parallel_plan_selection' as any)
+      if (newPa && newPa.type === ('parallel_plan_selection' as any)
           && newPa.targetPlayerIds?.includes(localPlayerId || '')
           && !store.getState().currentEvent) {
         store.getState().setCurrentEvent({

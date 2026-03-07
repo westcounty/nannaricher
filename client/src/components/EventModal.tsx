@@ -214,7 +214,8 @@ export function EventModal({
           <p className="modal-description">{description}</p>
 
           {hasOptions && (() => {
-            const renderOption = (option: typeof pendingAction!.options![0], index: number) => (
+            type OptionType = NonNullable<NonNullable<typeof pendingAction>['options']>[number];
+            const renderOption = (option: OptionType, index: number) => (
               <button
                 key={option.value}
                 className={`option-card ${selectedOption === option.value ? 'selected' : ''}`}
@@ -380,7 +381,7 @@ export function GameEventModal() {
 
   // Handle parallel plan selection with dedicated component
   if (currentEvent.pendingAction?.type === ('parallel_plan_selection' as any)) {
-    return <PlanSelectionPanel action={currentEvent.pendingAction} />;
+    return <PlanSelectionPanel action={currentEvent.pendingAction!} />;
   }
 
   // Key on pendingAction.id or title+description to force remount when event changes
