@@ -5,15 +5,15 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_wenxue',
     name: '文学院',
-    winCondition: '当你离开赚在南哪线时，如金钱未发生变化（不考虑终点经验卡效果），你获胜',
-    passiveAbility: '当你到达蒋公的面子时，改为选择一项执行：获得100金钱，或大声喊出不吃，并赢得全场掌声和2探索值',
+    winCondition: '当你离开赚在南哪线时没有赚钱（不算经验卡和入场费，只计算支线内的事件导致的变化），你获胜',
+    passiveAbility: '当你到达蒋公的面子时，改为选择一项执行：获得100金钱，或大声喊出不吃，并赢得全场掌声和2探索值。你在赚在南哪线中每次金钱正向变动减少50%（向零取整），负向变动不变',
 
   },
   {
     id: 'plan_lishi',
     name: '历史学院',
-    winCondition: '当你按顺序经过或进入过鼓楼、浦口、仙林和苏州校区线后，你获胜',
-    passiveAbility: '你移动到鼓楼线入口',
+    winCondition: '在浦口线、鼓楼线、仙林线、苏州线累计到达过12个格子后，你获胜',
+    passiveAbility: '被设置为主修方向后，可以选择移动到鼓楼线入口或仙林线入口',
 
   },
   {
@@ -26,8 +26,8 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_faxue',
     name: '法学院',
-    winCondition: '当场上出现破产玩家且不是你时，你获胜',
-    passiveAbility: '免除下一次金钱损失',
+    winCondition: '出现其他破产玩家或罚没收入达到1000时，你获胜',
+    passiveAbility: '免除下一次金钱损失，且每当有其他玩家失去金钱时，其需要额外支付其损失的10%给你作为罚没收入（单次上限为100）',
 
   },
   {
@@ -61,7 +61,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_guoji',
     name: '国际关系学院',
-    winCondition: '你和至少两名其他玩家互相使用过机会卡后，你获胜',
+    winCondition: '你累计给他人使用3次机会卡，或被他人累计使用3次机会卡，则获胜',
     passiveAbility: '指定一位除你外的玩家，抽取一张机会卡',
 
   },
@@ -118,27 +118,27 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_jisuanji',
     name: '计算机科学与技术系',
     winCondition: '当你的探索值和金钱数字中均只包含0或1时，你获胜',
-    passiveAbility: '设为主修时一次性选择：增加1探索值或增加100金钱',
+    passiveAbility: '每回合可以选择获得+1探索值或获得101金钱或失去1探索值或失去100金钱',
 
   },
   {
     id: 'plan_ruanjian',
     name: '软件学院',
-    winCondition: '当你到达交学费格子时，你可以改为支出3200金钱，若你没有破产，你获胜',
-    passiveAbility: '你的金钱数可以至低为-1000',
+    winCondition: '如果累计交学费超过4200且没有破产，你获胜',
+    passiveAbility: '众创空间的获胜条件与失败条件互换（投到2-5即成功）',
 
   },
   {
     id: 'plan_dianzi',
     name: '电子科学与工程学院',
-    winCondition: '若你在科创赛事投到6，你获胜',
+    winCondition: '每次确认为主修后可以选择是否移动到科创赛事，科创赛事累计获得0.6及以上GPA时获胜',
     passiveAbility: '你在科创赛事只需要失去0.1的GPA即可执行投掷',
 
   },
   {
     id: 'plan_xiandai',
     name: '现代工程与应用科学学院',
-    winCondition: '当你进入过除苏州校区外所有线时，你获胜',
+    winCondition: 'GPA>=4且金钱>=4000，或探索值+GPA*10+金钱/1000>=60时，你获胜',
     passiveAbility: '你可以立即抽取一张命运卡，并指定一位玩家执行该效果',
 
   },
@@ -152,15 +152,15 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_diqiu',
     name: '地球科学与工程学院',
-    winCondition: '当你进入过每一条线后，你获胜',
+    winCondition: '进入过浦口线、仙林线、苏州线、鼓楼线后，你获胜',
     passiveAbility: '你每进入过不重复的一条线，每条线入场费减少100',
 
   },
   {
     id: 'plan_dili',
     name: '地理与海洋科学学院',
-    winCondition: '当你执行过四个校区线的终点效果后，你获胜',
-    passiveAbility: '你每进入过不重复的一个校区，每条线入场费减少100',
+    winCondition: '进入过赚钱、学习、探索和食堂线后，你获胜',
+    passiveAbility: '在赚钱、学习、探索和食堂线的入场费改为+100（赚100）',
 
   },
   {
@@ -173,8 +173,8 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_shengming',
     name: '生命科学学院',
-    winCondition: '当你在食在南哪线连续三次没有触发负面效果（麦门护盾卡不计入次数，但是不算作中断连续），你获胜',
-    passiveAbility: '获得场上或卡堆中的麦门护盾（单次使用，食堂线屏蔽负面效果）',
+    winCondition: '单次食在南哪线中累计触发3次非负面效果（麦门护盾卡屏蔽的效果算作非负面），你获胜',
+    passiveAbility: '获得麦门护盾卡，在食在南哪线中，每次触发非负面效果时额外获得1探索值',
 
   },
   {
@@ -187,7 +187,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_gongguan',
     name: '工程管理学院',
-    winCondition: '当你的金钱在0至200之间且未破产时，你获胜',
+    winCondition: '连续6回合金钱在500及以内时，你获胜',
     passiveAbility: '第一次成为主修时获得专属卡牌「资金调度令」：在自己回合使用，可选择将自己的金钱变为等同于全场最高或全场最低',
 
   },
@@ -202,7 +202,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_haiwai',
     name: '海外教育学院',
     winCondition: '当有玩家获胜时，若你对其使用过至少两次机会卡，你优先获胜',
-    passiveAbility: '你可以自行选择是否进入食在南哪线',
+    passiveAbility: '每回合开始时，你可以选择以下操作之一：获得400金钱，或花费1200金钱抽取一张机会卡',
 
   },
   {

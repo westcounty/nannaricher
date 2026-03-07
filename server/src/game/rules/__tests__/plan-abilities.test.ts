@@ -3,7 +3,7 @@
 // + detailed behavioral tests for representative abilities of each trigger type.
 
 import { describe, it, expect } from 'vitest';
-import { PLAN_ABILITIES, getPlanAbility, PlanAbilityContext, PlanAbilityResult, AbilityTrigger } from '../../handlers/plan-registry.js';
+import { PLAN_ABILITIES, getPlanAbility, getPlanAbilities, PlanAbilityContext, PlanAbilityResult, AbilityTrigger } from '../../handlers/plan-registry.js';
 import type { Player, GameState, Position } from '@nannaricher/shared';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,11 @@ function createMockPlayer(overrides: Partial<Player> = {}): Player {
     lawyerShield: false,
     lastDiceValues: [],
     consecutivePositiveTurns: 0,
+    totalTuitionPaid: 0,
+    confiscatedIncome: 0,
+    consecutiveLowMoneyTurns: 0,
+    kechuangGpaGained: 0,
+    foodLineNonNegativeCount: 0,
     ...overrides,
   };
 }
@@ -155,13 +160,13 @@ describe('Plan Abilities — structural validation for all 33 registered abiliti
 // ---------------------------------------------------------------------------
 
 describe('Plan Abilities — on_confirm trigger', () => {
-  it('plan_lishi (History) moves player to gulou line on confirm', () => {
+  it('plan_lishi (History) chooses campus line on confirm', () => {
     const ability = getPlanAbility('plan_lishi')!;
     expect(ability.trigger).toBe('on_confirm');
     const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.moveToLine).toBe('gulou');
+    expect(result!.effects?.customEffect).toBe('lishi_choose_campus');
   });
 
   it('plan_shangxue (Commerce) moves player to money line and skips entry fee', () => {
@@ -392,24 +397,26 @@ describe('Plan Abilities — on_line_enter trigger', () => {
     expect(otherResult).toBeNull();
   });
 
-  it('plan_haiwai (Overseas Education) triggers for food line only', () => {
-    const ability = getPlanAbility('plan_haiwai')!;
-    expect(ability.trigger).toBe('on_line_enter');
-    const foodResult = ability.apply(createAbilityCtx('on_line_enter', { lineId: 'food' }));
-    expect(foodResult).not.toBeNull();
-    expect(foodResult!.effects?.customEffect).toBe('haiwai_optional_food');
-
-    const otherResult = ability.apply(createAbilityCtx('on_line_enter', { lineId: 'study' }));
-    expect(otherResult).toBeNull();
-  });
-
-  it('plan_dili (Geography) calculates campus discount based on visited campus lines', () => {
-    const ability = getPlanAbility('plan_dili')!;
-    const player = createMockPlayer({ linesVisited: ['pukou', 'gulou'] });
-    const result = ability.apply(createAbilityCtx('on_line_enter', { player, lineId: 'xianlin' }));
+  it('plan_haiwai (Overseas Education) triggers on turn start', () => {
+    const abilities = getPlanAbilities('plan_haiwai');
+    const turnAbility = abilities.find(a => a.trigger === 'on_turn_start');
+    expect(turnAbility).toBeDefined();
+    const result = turnAbility!.apply(createAbilityCtx('on_turn_start'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.money).toBe(200); // 2 visited campus lines * 100
+    expect(result!.effects?.customEffect).toBe('haiwai_turn_choice');
+  });
+
+  it('plan_dili (Geography) earns 100 money on money/study/explore/food line entry', () => {
+    const ability = getPlanAbility('plan_dili')!;
+    const moneyResult = ability.apply(createAbilityCtx('on_line_enter', { lineId: 'money' }));
+    expect(moneyResult).not.toBeNull();
+    expect(moneyResult!.activated).toBe(true);
+    expect(moneyResult!.effects?.customEffect).toBe('dili_earn_entry');
+
+    // Should not trigger for campus lines
+    const campusResult = ability.apply(createAbilityCtx('on_line_enter', { lineId: 'pukou' }));
+    expect(campusResult).toBeNull();
   });
 });
 
@@ -441,10 +448,11 @@ describe('Plan Abilities — on_turn_start trigger', () => {
     expect(result!.effects?.customEffect).toBe('huaxue_disable');
   });
 
-  it('plan_jisuanji (Computer Science) offers exploration or money bonus on confirm', () => {
-    const ability = getPlanAbility('plan_jisuanji')!;
-    expect(ability.trigger).toBe('on_confirm');
-    const result = ability.apply(createAbilityCtx('on_confirm'));
+  it('plan_jisuanji (Computer Science) offers resource choice each turn', () => {
+    const abilities = getPlanAbilities('plan_jisuanji');
+    const turnAbility = abilities.find(a => a.trigger === 'on_turn_start');
+    expect(turnAbility).toBeDefined();
+    const result = turnAbility!.apply(createAbilityCtx('on_turn_start'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('jisuanji_bonus');
@@ -510,12 +518,12 @@ describe('Plan Abilities — on_confirm/passive trigger', () => {
     expect(result!.effects?.customEffect).toBe('rengong_reduce_threshold');
   });
 
-  it('plan_ruanjian (Software) adjusts bankruptcy threshold', () => {
+  it('plan_ruanjian (Software) swaps startup success condition', () => {
     const ability = getPlanAbility('plan_ruanjian')!;
     expect(ability.trigger).toBe('passive');
     const result = ability.apply(createAbilityCtx('passive'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.customEffect).toBe('ruanjian_bankruptcy_threshold');
+    expect(result!.effects?.customEffect).toBe('ruanjian_startup_swap');
   });
 });

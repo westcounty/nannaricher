@@ -68,7 +68,7 @@ register({
 });
 
 // ---------- 2. plan_lishi — 历史学院 ----------
-// 确认时移动到鼓楼线入口
+// 确认时选择移动到鼓楼线入口或仙林线入口
 register({
   planId: 'plan_lishi',
   trigger: 'on_confirm',
@@ -76,8 +76,8 @@ register({
     if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '历史学院能力：移动到鼓楼线入口',
-      effects: { moveToLine: 'gulou' },
+      message: '历史学院能力：选择移动到鼓楼线入口或仙林线入口',
+      effects: { customEffect: 'lishi_choose_campus' },
     };
   },
 });
@@ -303,22 +303,22 @@ register({
 });
 
 // ---------- 17. plan_jisuanji — 计算机科学与技术系 ----------
-// 确认主修时一次性选择+1探索或+100金钱
+// 每回合选择+1探索/+101金钱/-1探索/-100金钱
 register({
   planId: 'plan_jisuanji',
-  trigger: 'on_confirm',
+  trigger: 'on_turn_start',
   apply(ctx) {
-    if (ctx.trigger !== 'on_confirm') return null;
+    if (ctx.trigger !== 'on_turn_start') return null;
     return {
       activated: true,
-      message: '计算机系能力：选择+1探索或+100金钱',
+      message: '计算机系能力：选择回合奖励',
       effects: { customEffect: 'jisuanji_bonus' },
     };
   },
 });
 
 // ---------- 18. plan_ruanjian — 软件学院 ----------
-// 被动：破产阈值改为-1000
+// 被动：众创空间获胜/失败条件互换（投到2-5即成功）
 register({
   planId: 'plan_ruanjian',
   trigger: 'passive',
@@ -326,8 +326,8 @@ register({
     if (ctx.trigger !== 'passive') return null;
     return {
       activated: true,
-      message: '软件学院能力：金钱可至低-1000',
-      effects: { customEffect: 'ruanjian_bankruptcy_threshold' },
+      message: '软件学院能力：众创空间获胜/失败条件互换',
+      effects: { customEffect: 'ruanjian_startup_swap' },
     };
   },
 });
@@ -343,6 +343,19 @@ register({
       activated: true,
       message: '电子学院能力：科创赛事只需-0.1GPA即可投掷',
       effects: { customEffect: 'dianzi_kechuang', gpa: 0.2 },
+    };
+  },
+});
+// 确认为主修后可选择移动到科创赛事
+register({
+  planId: 'plan_dianzi',
+  trigger: 'on_confirm',
+  apply(ctx) {
+    if (ctx.trigger !== 'on_confirm') return null;
+    return {
+      activated: true,
+      message: '电子学院能力：可选择移动到科创赛事',
+      effects: { customEffect: 'dianzi_move_to_kechuang' },
     };
   },
 });
@@ -395,19 +408,18 @@ register({
 });
 
 // ---------- 23. plan_dili — 地理与海洋科学学院 ----------
-// 进入校区线时入场费减免
+// 赚钱、学习、探索和食堂线的入场费改为+100（赚100）
 register({
   planId: 'plan_dili',
   trigger: 'on_line_enter',
   apply(ctx) {
     if (ctx.trigger !== 'on_line_enter') return null;
-    const campusLines = ['pukou', 'suzhou', 'gulou', 'xianlin'];
-    const visitedCampus = campusLines.filter(l => ctx.player.linesVisited.includes(l)).length;
-    const discount = visitedCampus * 100;
+    const targetLines = ['money', 'study', 'explore', 'food'];
+    if (!targetLines.includes(ctx.lineId ?? '')) return null;
     return {
       activated: true,
-      message: `地理学院能力：已进入${visitedCampus}个校区，入场费减少${discount}`,
-      effects: { customEffect: 'dili_campus_discount', money: discount },
+      message: '地理与海洋科学学院能力：入场费改为赚100金钱',
+      effects: { customEffect: 'dili_earn_entry' },
     };
   },
 });
@@ -488,17 +500,16 @@ register({
 });
 
 // ---------- 29. plan_haiwai — 海外教育学院 ----------
-// 进入食堂线时改为可选入
+// 每回合开始选择：获得400金钱或花费1200抽机会卡
 register({
   planId: 'plan_haiwai',
-  trigger: 'on_line_enter',
+  trigger: 'on_turn_start',
   apply(ctx) {
-    if (ctx.trigger !== 'on_line_enter') return null;
-    if (ctx.lineId !== 'food') return null;
+    if (ctx.trigger !== 'on_turn_start') return null;
     return {
       activated: true,
-      message: '海外教育学院能力：食堂线可选进入',
-      effects: { customEffect: 'haiwai_optional_food' },
+      message: '海外教育学院能力：选择获得金钱或抽卡',
+      effects: { customEffect: 'haiwai_turn_choice' },
     };
   },
 });

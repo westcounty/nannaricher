@@ -265,6 +265,14 @@ export class GameEngine implements IGameEngine {
       }
     }
 
+    // 文学院被动：赚在南哪线金钱正向变动减少50%（向零取整）
+    if (delta > 0 && player.majorPlan === 'plan_wenxue' &&
+        player.position.type === 'line' && player.position.lineId === 'money') {
+      const reduced = Math.trunc(delta * 0.5);
+      this.log(`文学院能力：赚在南哪线金钱正向变动减少50% (${delta} → ${reduced})`, playerId);
+      delta = reduced;
+    }
+
     const oldMoney = player.money;
     player.money += delta;
 
@@ -286,6 +294,19 @@ export class GameEngine implements IGameEngine {
         current: player.money,
         source: this._resourceSource,
       });
+    }
+
+    // 法学院被动：其他玩家失去金钱时额外支付10%给法学院玩家作为罚没收入（上限100）
+    if (delta < 0 && !this.gridLinkSyncing) {
+      for (const p of this.state.players) {
+        if (p.id === playerId || p.isBankrupt || p.majorPlan !== 'plan_faxue') continue;
+        const confiscation = Math.min(100, Math.trunc(Math.abs(delta) * 0.1));
+        if (confiscation > 0) {
+          p.confiscatedIncome += confiscation;
+          p.money += confiscation;
+          this.log(`法学院罚没收入：从 ${player.name} 的损失中获得 ${confiscation} 金钱 (累计: ${p.confiscatedIncome})`, p.id);
+        }
+      }
     }
 
     // Check bankruptcy after modification
@@ -593,6 +614,10 @@ export class GameEngine implements IGameEngine {
         if (actualFee < line.entryFee) {
           this.log(`培养计划能力：入场费从 ${line.entryFee} 减少到 ${actualFee}`, playerId);
         }
+      } else if (actualFee < 0) {
+        // 地理与海洋科学学院：入场费变为赚钱
+        this.modifyPlayerMoney(playerId, -actualFee);
+        this.log(`培养计划能力：进入 ${line.name} 赚取 ${-actualFee} 金钱`, playerId);
       } else {
         this.log(`培养计划能力：免入场费进入 ${line.name}`, playerId);
       }
@@ -616,6 +641,11 @@ export class GameEngine implements IGameEngine {
       exploration: player.exploration,
       turn: this.state.turnNumber,
     });
+
+    // 生命科学学院：进入食堂线时重置非负面效果计数（单次计数）
+    if (lineId === 'food') {
+      player.foodLineNonNegativeCount = 0;
+    }
 
     // Move player to line start
     player.position = { type: 'line', lineId, index: 0 };
@@ -1265,8 +1295,8 @@ export class GameEngine implements IGameEngine {
         }
         break;
 
-      case 'plan_faxue':
-        // 法学院：场上出现破产玩家且不是你
+      case 'plan_faxue': {
+        // 法学院：场上出现破产玩家或罚没收入达到1000
         const hasOtherBankrupt = this.state.players.some(
           p => p.id !== playerId && p.isBankrupt
         );
@@ -1274,7 +1304,12 @@ export class GameEngine implements IGameEngine {
           this.declareWinner(playerId, '法学院：场上出现破产玩家');
           return true;
         }
+        if (player.confiscatedIncome >= 1000) {
+          this.declareWinner(playerId, `法学院：罚没收入达到${player.confiscatedIncome}`);
+          return true;
+        }
         break;
+      }
 
       case 'plan_rengong': {
         // 人工智能学院：GPA比最低玩家高 threshold（默认2.0，可降至1.5）
@@ -1323,9 +1358,9 @@ export class GameEngine implements IGameEngine {
         break;
 
       case 'plan_gongguan':
-        // 工程管理学院：第一次金钱为0
-        if (player.moneyZeroCount >= 1) {
-          this.declareWinner(playerId, '工程管理学院：第一次金钱为0');
+        // 工程管理学院：连续6回合金钱在500及以内
+        if (player.consecutiveLowMoneyTurns >= 6) {
+          this.declareWinner(playerId, `工程管理学院：连续${player.consecutiveLowMoneyTurns}回合金钱≤500`);
           return true;
         }
         break;
@@ -1338,12 +1373,36 @@ export class GameEngine implements IGameEngine {
         }
         break;
 
+      // plan_wenxue: 需要线路进出历史数据，在 WinConditionChecker 和 GameCoordinator 中处理
       case 'plan_wenxue':
-        // 文学院：3项属性均达到20
-        const gpaScore = player.gpa * 10;
-        const moneyScore = player.money / 100;
-        if (gpaScore >= 20 && player.exploration >= 20 && moneyScore >= 20) {
-          this.declareWinner(playerId, '文学院：3项属性均达到20');
+        break;
+
+      case 'plan_ruanjian':
+        // 软件学院：累计交学费≥4200且未破产
+        if (player.totalTuitionPaid >= 4200 && !player.isBankrupt) {
+          this.declareWinner(playerId, `软件学院：累计交学费${player.totalTuitionPaid}≥4200且未破产`);
+          return true;
+        }
+        break;
+
+      case 'plan_xiandai': {
+        // 现代工程与应用科学学院：GPA≥4且金钱≥4000，或探索值+GPA×10+金钱÷1000≥60
+        if (player.gpa >= 4 && player.money >= 4000) {
+          this.declareWinner(playerId, `现代工程学院：GPA=${player.gpa.toFixed(1)}≥4且金钱=${player.money}≥4000`);
+          return true;
+        }
+        const xiandaiScore = player.exploration + player.gpa * 10 + player.money / 1000;
+        if (xiandaiScore >= 60) {
+          this.declareWinner(playerId, `现代工程学院：探索+GPA×10+金钱÷1000=${xiandaiScore.toFixed(1)}≥60`);
+          return true;
+        }
+        break;
+      }
+
+      case 'plan_shengming':
+        // 生命科学学院：单次食堂线累计3次非负面效果
+        if (player.foodLineNonNegativeCount >= 3) {
+          this.declareWinner(playerId, `生命科学学院：食堂线累计${player.foodLineNonNegativeCount}次非负面效果`);
           return true;
         }
         break;
@@ -1377,21 +1436,21 @@ export class GameEngine implements IGameEngine {
         break;
       }
 
-      case 'plan_diqiu':
-        // 地球科学与工程学院：进入过每一条线
-        const allLines = ['pukou', 'study', 'money', 'suzhou', 'explore', 'gulou', 'xianlin', 'food'];
-        const visitedAll = allLines.every(line => player.linesVisited.includes(line));
-        if (visitedAll) {
-          this.declareWinner(playerId, '地球科学与工程学院：进入过每一条线');
+      case 'plan_diqiu': {
+        // 地球科学与工程学院：进入过浦口、仙林、苏州、鼓楼线
+        const campusLines = ['pukou', 'xianlin', 'suzhou', 'gulou'];
+        const allCampusVisited = campusLines.every(line => player.linesVisited.includes(line));
+        if (allCampusVisited) {
+          this.declareWinner(playerId, '地球科学与工程学院：进入过四个校区线');
           return true;
         }
         break;
+      }
 
       case 'plan_dianzi':
-        // 电子科学与工程学院：在科创赛事投到6获胜 (需要事件追踪)
-        // 简化版：检查是否触发了科创赛事6
-        if (player.lineEventsTriggered['main']?.includes(6)) {
-          this.declareWinner(playerId, '电子科学与工程学院：科创赛事投到6');
+        // 电子科学与工程学院：科创赛事累计获得0.6及以上GPA
+        if (player.kechuangGpaGained >= 0.6) {
+          this.declareWinner(playerId, `电子科学与工程学院：科创赛事累计GPA ${player.kechuangGpaGained.toFixed(1)} ≥ 0.6`);
           return true;
         }
         break;
@@ -1430,11 +1489,7 @@ export class GameEngine implements IGameEngine {
       return;
     }
 
-    // Software plan allows negative balance up to -1000 (passive, major only)
-    const hasSoftwarePlan = player.majorPlan === 'plan_ruanjian';
-    if (hasSoftwarePlan && player.money >= -1000) {
-      return;
-    }
+    // Software plan no longer provides bankruptcy protection
 
     if (player.money < 0) {
       player.isBankrupt = true;

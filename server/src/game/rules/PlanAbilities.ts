@@ -127,10 +127,6 @@ export class PlanAbilityHandler {
    * Software engineering plan extends the bankruptcy threshold to -1000.
    */
   canGoBankrupt(player: Player): boolean {
-    // 只有主修为软件学院时才有破产保护（被动效果仅主修生效）
-    if (player.majorPlan === 'plan_ruanjian') {
-      return player.money < -1000;
-    }
     return player.money < 0;
   }
 
@@ -142,6 +138,8 @@ export class PlanAbilityHandler {
     if (result?.effects?.skipEntryFee) return 0;
     // 政府管理学院：校区线入场费固定150
     if (result?.effects?.customEffect === 'zhengguan_discount') return Math.min(baseFee, 150);
+    // 地理与海洋科学学院：赚钱/学习/探索/食堂线入场费改为赚100（返回负数表示赚钱）
+    if (result?.effects?.customEffect === 'dili_earn_entry') return -100;
     if (result?.effects?.money) return Math.max(0, baseFee - Math.abs(result.effects.money));
     return baseFee;
   }

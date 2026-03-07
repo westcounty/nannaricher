@@ -85,6 +85,11 @@ export interface Player {
   consecutivePositiveTurns: number;  // 化学院：连续增益回合数
   turnStartSnapshot?: { money: number; gpa: number; exploration: number }; // 回合开始快照
   gongguan_card_given?: boolean;  // 工管学院：是否已获得资金调度令
+  totalTuitionPaid: number;         // 软件学院：累计交学费金额
+  confiscatedIncome: number;        // 法学院：罚没收入
+  consecutiveLowMoneyTurns: number; // 工管学院：连续金钱≤500回合数
+  kechuangGpaGained: number;        // 电子学院：科创赛事累计GPA
+  foodLineNonNegativeCount: number; // 生命科学学院：单次食堂线累计非负面效果次数
 }
 
 // === Pending Action (waiting for player input) ===

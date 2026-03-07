@@ -177,6 +177,21 @@ export class GameCoordinator {
 
   broadcastState(): void {
     const state = this.engine.getState();
+
+    // Diagnostic: detect states where game is playing but no pendingAction
+    // Use setTimeout to check AFTER the current call stack completes
+    if (state.phase === 'playing' && !state.pendingAction && !this.negateWindow) {
+      const turnSnap = state.turnNumber;
+      const roundSnap = state.roundNumber;
+      const stack = new Error().stack?.split('\n').slice(1, 6).join(' <- ') || '';
+      setTimeout(() => {
+        if (state.phase === 'playing' && !state.pendingAction && !this.negateWindow) {
+          console.error(`[BUG] Game stuck! phase=playing, pendingAction=null after call stack. turn=${turnSnap}, round=${roundSnap}`);
+          console.error(`[BUG] stack: ${stack}`);
+        }
+      }, 100);
+    }
+
     // Fix floating point precision before broadcasting
     for (const player of state.players) {
       player.gpa = parseFloat(player.gpa.toFixed(1));
@@ -626,6 +641,13 @@ export class GameCoordinator {
         outgoingPlayer.consecutivePositiveTurns = 0;
       }
       outgoingPlayer.turnStartSnapshot = undefined;
+
+      // 工程管理学院：回合结束时跟踪连续低金钱回合
+      if (outgoingPlayer.money <= 500) {
+        outgoingPlayer.consecutiveLowMoneyTurns++;
+      } else {
+        outgoingPlayer.consecutiveLowMoneyTurns = 0;
+      }
     }
 
     // Find next player who can play
@@ -2656,8 +2678,8 @@ export class GameCoordinator {
         message: `${player.name} 保持当前培养计划`,
         type: 'info' as const,
       });
-      this.broadcastState();
-      setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+      // Don't broadcastState with null pendingAction — resolve next player first
+      setTimeout(() => this.resolveNextPlayerPlan(), 500);
       return;
     }
 
@@ -2725,8 +2747,8 @@ export class GameCoordinator {
       }
     }
 
-    this.broadcastState();
-    setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+    // Don't broadcastState with null pendingAction — resolve next player first
+    setTimeout(() => this.resolveNextPlayerPlan(), 500);
   }
 
   /**
@@ -2755,7 +2777,7 @@ export class GameCoordinator {
     // Check if we're in parallel resolution mode
     if (this.planResolutionQueue !== null) {
       console.log(`[PlanSelection] continuePostConfirmChain: ${player.name} done (parallel mode), resolving next player`);
-      setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+      setTimeout(() => this.resolveNextPlayerPlan(), 500);
       return;
     }
 
@@ -3176,6 +3198,13 @@ export class GameCoordinator {
             if (shieldIdx >= 0) {
               // Consume the shield
               player.effects.splice(shieldIdx, 1);
+              // 护盾屏蔽算非负面效果
+              player.foodLineNonNegativeCount++;
+              // 生命科学学院被动：非负面食堂线事件+1探索
+              if (player.majorPlan === 'plan_shengming') {
+                this.engine.modifyPlayerExploration(playerId, 1);
+                this.addLog(playerId, `生命科学学院能力：食堂线非负面效果，探索值+1`);
+              }
               this.addLog(playerId, `麦门护盾生效：跳过食堂线事件「${cell.name || cell.handlerId}」`);
               this.broadcastState();
               if (state.phase === 'playing') {
@@ -3199,6 +3228,20 @@ export class GameCoordinator {
               this.engine.setResourceSource(`line:${position.lineId}:${lineCellName}`);
               const lineSnapshot = this.capturePlayerSnapshot(playerId);
               const pendingAction = this.engine.getEventHandler().execute(lineHandlerId, playerId);
+
+              // 生命科学学院：食堂线事件后检查是否为非负面效果
+              if (position.lineId === 'food' && player && lineSnapshot) {
+                const isNonNegative = player.money >= lineSnapshot.money
+                  && player.gpa >= lineSnapshot.gpa - 0.001
+                  && player.exploration >= lineSnapshot.exploration;
+                if (isNonNegative) {
+                  player.foodLineNonNegativeCount++;
+                  if (player.majorPlan === 'plan_shengming') {
+                    this.engine.modifyPlayerExploration(playerId, 1);
+                    this.addLog(playerId, `生命科学学院能力：食堂线非负面效果，探索值+1`);
+                  }
+                }
+              }
               if (pendingAction) {
                 state.pendingAction = pendingAction;
                 this.broadcastState();
@@ -3236,7 +3279,14 @@ export class GameCoordinator {
               this.engine.clearResourceSource();
             },
             () => {
-              // Line event cancelled by negate
+              // Line event cancelled by negate — counts as non-negative for 生命科学学院
+              if (position.lineId === 'food' && player) {
+                player.foodLineNonNegativeCount++;
+                if (player.majorPlan === 'plan_shengming') {
+                  this.engine.modifyPlayerExploration(playerId, 1);
+                  this.addLog(playerId, `生命科学学院能力：食堂线非负面效果，探索值+1`);
+                }
+              }
               this.broadcastState();
               if (state.phase === 'playing') {
                 if (this.checkAndEmitWin()) return;
@@ -3502,8 +3552,11 @@ export class GameCoordinator {
         // Player chose to skip (e.g. declined line entry) — no handler to execute
       } else if (savedPendingAction.callbackHandler === 'negate_response') {
         // Negate card system: handle response within the negate window
-        this.handleNegateResponse(playerId, choice);
-        return; // Negate system manages its own state
+        if (this.negateWindow) {
+          this.handleNegateResponse(playerId, choice);
+          return; // Negate system manages its own state
+        }
+        // negateWindow already resolved (e.g. by timeout) — fall through to advance turn
       } else if (savedPendingAction.callbackHandler) {
         // Use callbackHandler: pass choice as the third parameter
         pendingAction = this.engine.getEventHandler().execute(
@@ -3772,6 +3825,10 @@ export class GameCoordinator {
     if (cardIndex === -1) return { error: '你没有这张卡牌' };
     const card = player.heldCards[cardIndex];
 
+    // Save current pendingAction so we can restore it after card effect
+    // (card use is a side-action, not part of the turn action flow)
+    const savedPendingAction = state.pendingAction;
+
     // Block manual use of negate cards — they can only be used reactively during negate windows
     if (NEGATE_CARD_IDS.has(card.id)) {
       return { error: '此卡牌只能在事件触发时作为响应使用，无法主动使用' };
@@ -3823,6 +3880,9 @@ export class GameCoordinator {
               description: pendingAction.prompt,
               pendingAction,
             });
+          } else if (!state.pendingAction && savedPendingAction) {
+            // Card effect didn't produce a new pendingAction — restore the previous one
+            state.pendingAction = savedPendingAction;
           }
 
           this.broadcastState();
@@ -3879,6 +3939,11 @@ export class GameCoordinator {
           state.discardPiles[card.deckType].push(card);
         }
 
+        // Fallback effects don't produce pendingAction — restore the previous one
+        if (!state.pendingAction && savedPendingAction) {
+          state.pendingAction = savedPendingAction;
+        }
+
         this.engine.clearResourceSource();
         this.broadcastState();
         this.checkAndEmitWin();
@@ -3887,6 +3952,10 @@ export class GameCoordinator {
         // Card effect cancelled by negate — card already consumed
         if (card.returnToDeck) {
           state.discardPiles[card.deckType].push(card);
+        }
+        // Restore the previous pendingAction since card was cancelled
+        if (!state.pendingAction && savedPendingAction) {
+          state.pendingAction = savedPendingAction;
         }
         this.broadcastState();
       },

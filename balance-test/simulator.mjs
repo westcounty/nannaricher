@@ -45,7 +45,7 @@ const CONFIG = {
   fixedPlayers: args.players ? parseInt(args.players) : null,
   diceOption: parseInt(args.dice) || 1,
   outputPath: args.output || 'balance-test/report/raw-data.json',
-  gameTimeoutMs: 120_000,  // 2 min max per game
+  gameTimeoutMs: 300_000,  // 5 min max per game
   actionTimeoutMs: 8_000,  // 8s max wait for state update
   actionDelayMs: 20,       // brief delay between actions
   compact: args.compact !== 'false', // compact output by default
@@ -291,7 +291,8 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
     let lastActionId = '';
     let lastResponseCount = 0;
     let stallCount = 0;
-    const maxIter = 5000;
+    let idleCount = 0; // tracks how long we've been without a pendingAction
+    const maxIter = 10000;
 
     for (let iter = 0; iter < maxIter; iter++) {
       // Check end conditions
@@ -305,7 +306,11 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
         }
       }
       if (!state) { await sleep(100); continue; }
-      if (state.phase === 'finished') break;
+      if (state.phase === 'finished') {
+        // Wait briefly for game:player-won event to arrive (it's emitted before broadcastState)
+        await sleep(300);
+        break;
+      }
 
       // Game timeout
       if (Date.now() - startTime > CONFIG.gameTimeoutMs) break;
@@ -313,8 +318,40 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
       // Proactive card usage: check if any agent wants to use held cards
       await tryUseCards(agents, state);
 
-      const pa = state.pendingAction;
-      if (!pa) { await sleep(50); continue; }
+      // Get pendingAction - check all agents for freshest state with a pending action
+      let pa = state.pendingAction;
+      if (!pa) {
+        // Check other agents — sometimes one agent's state is stale
+        for (const a of agents) {
+          if (a.latestState?.pendingAction) {
+            pa = a.latestState.pendingAction;
+            state = a.latestState;
+            break;
+          }
+        }
+      }
+      if (!pa) {
+        idleCount++;
+        // Every 5 seconds of idle, try to nudge the game forward
+        if (idleCount > 0 && idleCount % 100 === 0) {
+          // Try roll dice for current player to unstick
+          const cpIdx = state.currentPlayerIndex ?? 0;
+          const cp = state.players?.[cpIdx];
+          if (cp) {
+            const agent = agents.find(a => a.playerId === cp.id);
+            if (agent) agent.rollDice();
+          }
+          await sleep(200);
+        }
+        // If idle for 30+ seconds (600 × 50ms), record diagnostic and break
+        if (idleCount > 600) {
+          agents[0].errors.push(`IDLE: no pendingAction for 30s (phase=${state.phase}, turn=${state.turnNumber}, round=${state.roundNumber})`);
+          break;
+        }
+        await sleep(50);
+        continue;
+      }
+      idleCount = 0; // reset idle counter when we have an action
 
       // Track progress for multi-step actions (multi_vote, chain_action)
       const responseCount = pa.responses ? Object.keys(pa.responses).length : 0;
@@ -355,7 +392,34 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
 
     // Collect results
     const finalState = agents[0].latestState;
-    const winnerInfo = agents.find(a => a.winner)?.winner || null;
+    let winnerInfo = agents.find(a => a.winner)?.winner || null;
+
+    // Fallback: if game finished normally but we missed the player-won event,
+    // derive winner from state.winner or highest score
+    if (!winnerInfo && finalState?.phase === 'finished' && finalState?.players?.length > 0) {
+      // Try state.winner first
+      if (finalState.winner) {
+        const wp = finalState.players.find(p => p.id === finalState.winner);
+        if (wp) {
+          winnerInfo = { playerName: wp.name, condition: '毕业结算' };
+        }
+      }
+      // Fallback: pick highest score among non-bankrupt players
+      if (!winnerInfo) {
+        const alive = finalState.players.filter(p => !p.isBankrupt);
+        if (alive.length > 0) {
+          const best = alive.reduce((a, b) =>
+            (b.gpa * 10 + b.exploration) > (a.gpa * 10 + a.exploration) ? b : a
+          );
+          winnerInfo = { playerName: best.name, condition: '毕业结算(推断)' };
+        }
+      }
+    }
+    // Games that got stuck (phase still 'playing') with no winner are errors
+    const isStuck = !winnerInfo && finalState?.phase !== 'finished';
+    if (isStuck) {
+      agents[0].errors.push(`STUCK: game never finished (phase=${finalState?.phase}, turn=${finalState?.turnNumber}, round=${finalState?.roundNumber})`);
+    }
 
     result = {
       gameId,
@@ -364,6 +428,7 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
       totalRounds: finalState?.roundNumber || 0,
       duration: (Date.now() - startTime) / 1000,
       phase: finalState?.phase || 'unknown',
+      error: isStuck ? 'Game stuck - no winner' : undefined,
       winner: winnerInfo ? {
         playerName: winnerInfo.playerName,
         condition: winnerInfo.condition || 'unknown',
@@ -696,10 +761,12 @@ function assignStrategies(playerCount) {
   return strats;
 }
 
-async function runBatch(batchNum, batchSize, allResults) {
+async function runBatch(batchNum, batchSize, allResults, overallStart) {
   const startId = allResults.length + 1;
   const promises = [];
   let completed = 0;
+  let batchWins = 0;
+  let batchErrors = 0;
 
   // Run games with concurrency limit
   const semaphore = { running: 0 };
@@ -714,6 +781,19 @@ async function runBatch(batchNum, batchSize, allResults) {
       const strats = assignStrategies(pc);
       const result = await playOneGame(gameId, pc, CONFIG.diceOption, strats);
       completed++;
+      if (result.winner) batchWins++;
+      if (result.error) batchErrors++;
+
+      // Real-time per-game progress
+      const totalDone = allResults.length + completed;
+      const elapsed = ((Date.now() - overallStart) / 1000).toFixed(0);
+      const rate = (totalDone / ((Date.now() - overallStart) / 1000)).toFixed(1);
+      const bar = progressBar(totalDone, CONFIG.minGames, 30);
+      const winPct = result.winner ? 'W' : result.error ? 'E' : 'X';
+      process.stdout.write(
+        `\r  ${bar} ${totalDone}/${CONFIG.minGames} | ${rate} g/s | ${elapsed}s | [${winPct}] G#${gameId} ${result.totalTurns || 0}t ${result.config?.playerCount || '?'}p`
+      );
+
       return result;
     } finally {
       semaphore.running--;
@@ -726,21 +806,28 @@ async function runBatch(batchNum, batchSize, allResults) {
 
   const batchResults = await Promise.all(promises);
 
-  // Progress reporting
-  const wins = batchResults.filter(r => r.winner).length;
-  const errors = batchResults.filter(r => r.error).length;
+  // Batch summary line
   const avgTurns = batchResults.filter(r => r.totalTurns).reduce((s, r) => s + r.totalTurns, 0)
     / (batchResults.filter(r => r.totalTurns).length || 1);
 
+  process.stdout.write('\n');
   console.log(
     `  Batch ${batchNum}: ${batchSize} games | ` +
-    `${wins} wins (${(wins / batchSize * 100).toFixed(0)}%) | ` +
-    `${errors} errors | ` +
+    `${batchWins} wins (${(batchWins / batchSize * 100).toFixed(0)}%) | ` +
+    `${batchErrors} errors | ` +
     `avg ${avgTurns.toFixed(1)} turns | ` +
     `total: ${allResults.length + batchResults.length}`
   );
 
   return batchResults;
+}
+
+function progressBar(current, total, width = 30) {
+  const ratio = Math.min(current / total, 1);
+  const filled = Math.round(ratio * width);
+  const empty = width - filled;
+  const pct = (ratio * 100).toFixed(0).padStart(3);
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${pct}%`;
 }
 
 // ============================================================
@@ -782,18 +869,23 @@ async function main() {
     const remaining = CONFIG.maxGames - allResults.length;
     const batchSize = Math.min(CONFIG.batchSize, remaining);
 
-    const batchResults = await runBatch(batchNum, batchSize, allResults);
+    const batchResults = await runBatch(batchNum, batchSize, allResults, overallStart);
     allResults.push(...batchResults);
 
-    // Progress with ETA
-    const elapsed = (Date.now() - overallStart) / 1000;
-    const rate = allResults.length / elapsed;
-    const pctDone = (allResults.length / CONFIG.minGames * 100).toFixed(0);
-    const eta = rate > 0 ? ((CONFIG.minGames - allResults.length) / rate).toFixed(0) : '?';
-    console.log(
-      `  Progress: ${allResults.length}/${CONFIG.minGames} (${pctDone}%) | ` +
-      `${rate.toFixed(1)} games/s | ETA: ${eta}s`
-    );
+    // Strategy win rate snapshot every batch
+    const stratSnap = {};
+    for (const g of allResults.filter(r => !r.error)) {
+      for (const p of g.players || []) {
+        if (!stratSnap[p.strategy]) stratSnap[p.strategy] = { t: 0, w: 0 };
+        stratSnap[p.strategy].t++;
+        if (p.isWinner) stratSnap[p.strategy].w++;
+      }
+    }
+    const stratLine = Object.entries(stratSnap)
+      .sort((a, b) => (b[1].w / b[1].t) - (a[1].w / a[1].t))
+      .map(([s, d]) => `${s}:${(d.w / d.t * 100).toFixed(0)}%`)
+      .join(' ');
+    console.log(`  策略胜率: ${stratLine}`);
 
     // Check confidence after minimum games
     if (allResults.length >= CONFIG.minGames) {

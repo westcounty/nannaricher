@@ -367,19 +367,23 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('money_startup', (engine, playerId) => {
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
-    if (dice === 1 || dice === 6) {
-      const player = engine.getPlayer(playerId);
+    const player = engine.getPlayer(playerId);
+    // 软件学院被动：众创空间成功/失败条件互换（投到2-5即成功）
+    const hasRuanjian = player?.majorPlan === 'plan_ruanjian';
+    const isSuccess = hasRuanjian ? (dice >= 2 && dice <= 5) : (dice === 1 || dice === 6);
+
+    if (isSuccess) {
       if (player) {
         engine.modifyPlayerMoney(playerId, player.money);
         engine.modifyPlayerExploration(playerId, 6);
-        engine.log(`众创空间投出 ${dice}，产品爆火，金钱翻倍，探索值 +6`, playerId);
+        engine.log(`众创空间投出 ${dice}，产品爆火，金钱翻倍，探索值 +6${hasRuanjian ? '（软件学院互换）' : ''}`, playerId);
       }
     } else {
       const players = engine.getAllPlayers();
       const minMoney = Math.min(...players.map(p => p.money));
-      engine.modifyPlayerMoney(playerId, minMoney - (engine.getPlayer(playerId)?.money || 0));
-      engine.modifyPlayerGpa(playerId, 3.0 - (engine.getPlayer(playerId)?.gpa || 3.0));
-      engine.log(`众创空间投出 ${dice}，失败了`, playerId);
+      engine.modifyPlayerMoney(playerId, minMoney - (player?.money || 0));
+      engine.modifyPlayerGpa(playerId, 3.0 - (player?.gpa || 3.0));
+      engine.log(`众创空间投出 ${dice}，失败了${hasRuanjian ? '（软件学院互换）' : ''}`, playerId);
     }
     return null;
   });

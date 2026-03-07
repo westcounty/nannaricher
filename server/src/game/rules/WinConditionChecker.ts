@@ -83,13 +83,17 @@ export class WinConditionChecker {
         }
         break;
 
-      // 法学院：场上出现破产玩家且不是自己
-      case 'plan_faxue':
+      // 法学院：场上出现破产玩家或罚没收入≥1000
+      case 'plan_faxue': {
         const hasBankrupt = state.players.some(p => p.id !== player.id && p.isBankrupt);
         if (hasBankrupt) {
           return { won: true, condition: '法学院：场上出现破产玩家', planId };
         }
+        if (player.confiscatedIncome >= 1000) {
+          return { won: true, condition: `法学院：罚没收入达到${player.confiscatedIncome}`, planId };
+        }
         break;
+      }
 
       // 外国语学院：抽到过2张含英文字母的卡
       case 'plan_waiguoyu':
@@ -105,10 +109,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 工程管理学院：金钱在0-200区间且未破产
+      // 工程管理学院：连续6回合金钱≤500
       case 'plan_gongguan':
-        if (player.money >= 0 && player.money <= 200 && !player.isBankrupt) {
-          return { won: true, condition: `工程管理学院：金钱为${player.money}(0-200区间)且未破产`, planId };
+        if (player.consecutiveLowMoneyTurns >= 6) {
+          return { won: true, condition: `工程管理学院：连续${player.consecutiveLowMoneyTurns}回合金钱≤500`, planId };
         }
         break;
 
@@ -119,10 +123,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 生命科学学院：食堂线连续3次无负面效果
+      // 生命科学学院：单次食堂线累计3次非负面效果
       case 'plan_shengming':
-        if (history.foodLineNegativeFreeStreak >= 3) {
-          return { won: true, condition: '生命科学学院：食堂线连续3次无负面效果', planId };
+        if (player.foodLineNonNegativeCount >= 3) {
+          return { won: true, condition: `生命科学学院：食堂线累计${player.foodLineNonNegativeCount}次非负面效果`, planId };
         }
         break;
 
@@ -140,20 +144,27 @@ export class WinConditionChecker {
         }
         break;
 
-      // 历史学院：按顺序经过鼓楼→浦口→仙林→苏州校区线
-      case 'plan_lishi':
-        if (this.checkSequentialCampusVisit(history, ['gulou', 'pukou', 'xianlin', 'suzhou'])) {
-          return { won: true, condition: '历史学院：按顺序经过四个校区线', planId };
+      // 历史学院：四校区线累计到达12个格子
+      case 'plan_lishi': {
+        const campusLineIds = ['pukou', 'gulou', 'xianlin', 'suzhou'];
+        let totalCampusCells = 0;
+        for (const lid of campusLineIds) {
+          totalCampusCells += (history.lineEventsTriggered[lid] || []).length;
+        }
+        if (totalCampusCells >= 12) {
+          return { won: true, condition: `历史学院：四校区线累计到达${totalCampusCells}个格子`, planId };
         }
         break;
+      }
 
-      // 地球科学与工程学院：进入每一条线
-      case 'plan_diqiu':
-        const allLines = ['pukou', 'study', 'money', 'suzhou', 'gulou', 'xianlin', 'explore', 'food'];
-        if (allLines.every(line => history.linesVisited.includes(line))) {
-          return { won: true, condition: '地球科学学院：进入所有线路', planId };
+      // 地球科学与工程学院：进入过浦口、仙林、苏州、鼓楼线
+      case 'plan_diqiu': {
+        const campusLines = ['pukou', 'xianlin', 'suzhou', 'gulou'];
+        if (campusLines.every(line => history.linesVisited.includes(line))) {
+          return { won: true, condition: '地球科学学院：进入过四个校区线', planId };
         }
         break;
+      }
 
       // 环境学院：经历仙林线任意5个不同事件
       case 'plan_huanjing':
@@ -202,10 +213,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 文学院：离开赚在南哪(money线)时金钱无变化
+      // 文学院：离开赚在南哪线时没有赚钱（不算经验卡和入场费）
       case 'plan_wenxue':
-        if (this.checkMoneyLineNoChange(history)) {
-          return { won: true, condition: '文学院：离开赚在南哪线时金钱无变化', planId };
+        if (history.lineExits.some(exit => exit.lineId === 'money' && exit.moneyAfter <= exit.moneyBefore)) {
+          return { won: true, condition: '文学院：离开赚在南哪线时没有赚钱', planId };
         }
         break;
 
@@ -223,11 +234,17 @@ export class WinConditionChecker {
         }
         break;
 
-      // 国际关系学院：对2+名不同玩家使用过机会卡
+      // 国际关系学院：累计给他人使用3次机会卡，或被他人累计使用3次机会卡
       case 'plan_guoji': {
-        const targetCount = Object.keys(history.chanceCardsUsedOnPlayers).length;
-        if (targetCount >= 2) {
-          return { won: true, condition: `国际关系学院：对${targetCount}名玩家使用过机会卡`, planId };
+        const totalGiven = Object.values(player.chanceCardsUsedOnPlayers).reduce((s, v) => s + v, 0);
+        const totalReceived = state.players
+          .filter(p => p.id !== player.id)
+          .reduce((s, p) => s + (p.chanceCardsUsedOnPlayers[player.id] ?? 0), 0);
+        if (totalGiven >= 3) {
+          return { won: true, condition: `国际关系学院：累计给他人使用${totalGiven}次机会卡`, planId };
+        }
+        if (totalReceived >= 3) {
+          return { won: true, condition: `国际关系学院：被他人累计使用${totalReceived}次机会卡`, planId };
         }
         break;
       }
@@ -261,35 +278,37 @@ export class WinConditionChecker {
         break;
       }
 
-      // 软件学院：在交学费格子支付3200不破产
-      // TODO: 需要在交学费事件处理中触发，此处作为后备检查
+      // 软件学院：累计交学费≥4200且未破产
       case 'plan_ruanjian':
-        // 此条件在交学费格子事件中实时触发，参见 TuitionEventHandler
+        if (player.totalTuitionPaid >= 4200 && !player.isBankrupt) {
+          return { won: true, condition: `软件学院：累计交学费${player.totalTuitionPaid}≥4200且未破产`, planId };
+        }
         break;
 
-      // 电子科学与工程学院：在科创赛事掷出6
-      // TODO: 需要在科创赛事事件处理中触发，此处作为后备检查
+      // 电子科学与工程学院：科创赛事累计获得≥0.6 GPA
       case 'plan_dianzi':
-        // 此条件在科创赛事事件中实时触发，参见 ScienceCompetitionHandler
+        if (player.kechuangGpaGained >= 0.6) {
+          return { won: true, condition: `电子科学学院：科创赛事累计GPA${player.kechuangGpaGained.toFixed(1)}≥0.6`, planId };
+        }
         break;
 
-      // 现代工程与应用科学学院：进入除苏州线外所有线
+      // 现代工程与应用科学学院：GPA≥4且金钱≥4000，或探索值+GPA×10+金钱÷1000≥60
       case 'plan_xiandai': {
-        const nonSuzhouLines = ['pukou', 'study', 'money', 'explore', 'xianlin', 'gulou', 'food'];
-        if (nonSuzhouLines.every(line => history.linesVisited.includes(line))) {
-          return { won: true, condition: '现代工程学院：进入除苏州外所有线路', planId };
+        if (player.gpa >= 4 && player.money >= 4000) {
+          return { won: true, condition: `现代工程学院：GPA=${player.gpa.toFixed(1)}≥4且金钱=${player.money}≥4000`, planId };
+        }
+        const xiandaiScore = player.exploration + player.gpa * 10 + player.money / 1000;
+        if (xiandaiScore >= 60) {
+          return { won: true, condition: `现代工程学院：探索+GPA×10+金钱÷1000=${xiandaiScore.toFixed(1)}≥60`, planId };
         }
         break;
       }
 
-      // 地理与海洋科学学院：完成四个校区线(pukou,xianlin,gulou,suzhou)的终点
+      // 地理与海洋科学学院：进入过赚钱、学习、探索和食堂线
       case 'plan_dili': {
-        const campusLines = ['pukou', 'xianlin', 'gulou', 'suzhou'];
-        const completedCampusLines = campusLines.filter(line =>
-          history.lineExits.some(exit => exit.lineId === line)
-        );
-        if (completedCampusLines.length >= 4) {
-          return { won: true, condition: '地理与海洋科学学院：完成四个校区线终点', planId };
+        const diliTargetLines = ['money', 'study', 'explore', 'food'];
+        if (diliTargetLines.every(line => history.linesVisited.includes(line))) {
+          return { won: true, condition: '地理与海洋科学学院：进入过赚钱、学习、探索和食堂线', planId };
         }
         break;
       }
@@ -375,14 +394,6 @@ export class WinConditionChecker {
     return otherPlayerIds.every(id => (history.sharedCellsWith[id]?.length ?? 0) >= 2);
   }
 
-  /**
-   * 文学院：离开赚在南哪(money线)时金钱无变化
-   */
-  private checkMoneyLineNoChange(history: PlayerHistory): boolean {
-    return history.lineExits.some(
-      exit => exit.lineId === 'money' && exit.moneyBefore === exit.moneyAfter
-    );
-  }
 
   /**
    * 哲学系：完成一条支线且GPA和探索值均无变化，且金钱未减少

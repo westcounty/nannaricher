@@ -58,6 +58,11 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
     lawyerShield: false,
     lastDiceValues: [],
     consecutivePositiveTurns: 0,
+    totalTuitionPaid: 0,
+    confiscatedIncome: 0,
+    consecutiveLowMoneyTurns: 0,
+    kechuangGpaGained: 0,
+    foodLineNonNegativeCount: 0,
   };
 }
 
@@ -156,6 +161,11 @@ export class RoomManager {
       consecutivePositiveTurns: 0,
       turnStartSnapshot: undefined,
       gongguan_card_given: undefined,
+      totalTuitionPaid: 0,
+      confiscatedIncome: 0,
+      consecutiveLowMoneyTurns: 0,
+      kechuangGpaGained: 0,
+      foodLineNonNegativeCount: 0,
     };
   }
 

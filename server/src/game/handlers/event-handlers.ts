@@ -6,60 +6,14 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
   // Tuition payment event — ALL non-bankrupt players pay tuition
   eventHandler.registerHandler('event_tuition', (engine, playerId) => {
     const state = engine.getState();
-    const player = engine.getPlayer(playerId);
 
-    // Check if current player has software school ability
-    if (player && (player.majorPlan === 'plan_ruanjian' || player.minorPlans.includes('plan_ruanjian'))) {
-      return engine.createPendingAction(
-        playerId, 'choose_option',
-        '软件学院能力：是否支付3200金钱？不破产即获胜！（其余玩家照常交学费）',
-        [
-          { label: `支付3200金钱 (当前: ${player.money})`, value: 'tuition_ruanjian_3200_all' },
-          { label: '正常交学费', value: 'tuition_normal_all' },
-        ]
-      );
-    }
-
-    // All players pay tuition
+    // All players pay tuition and track totalTuitionPaid
     for (const p of state.players) {
       if (p.isBankrupt) continue;
       const tuition = Math.round((5.0 - p.gpa) * 100);
       engine.modifyPlayerMoney(p.id, -tuition);
-      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
-    }
-    return null;
-  });
-
-  // 软件学院选择支付3200（全员版本）
-  eventHandler.registerHandler('tuition_ruanjian_3200_all', (engine, playerId) => {
-    engine.modifyPlayerMoney(playerId, -3200);
-    engine.log('软件学院：支付3200金钱交学费', playerId);
-    const player = engine.getPlayer(playerId);
-    if (player && !player.isBankrupt) {
-      const disabled = player.disabledWinConditions ?? [];
-      if (!disabled.includes('plan_ruanjian')) {
-        engine.declareWinner(playerId, '软件学院：交学费3200金钱后未破产');
-      }
-    }
-    // Other players pay normal tuition
-    const state = engine.getState();
-    for (const p of state.players) {
-      if (p.id === playerId || p.isBankrupt) continue;
-      const tuition = Math.round((5.0 - p.gpa) * 100);
-      engine.modifyPlayerMoney(p.id, -tuition);
-      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
-    }
-    return null;
-  });
-
-  // 软件学院选择不使用能力（全员版本）
-  eventHandler.registerHandler('tuition_normal_all', (engine, playerId) => {
-    const state = engine.getState();
-    for (const p of state.players) {
-      if (p.isBankrupt) continue;
-      const tuition = Math.round((5.0 - p.gpa) * 100);
-      engine.modifyPlayerMoney(p.id, -tuition);
-      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱`, p.id);
+      p.totalTuitionPaid += tuition;
+      engine.log(`${p.name} 交学费 ${(5.0 - p.gpa).toFixed(1)} × 100 = ${tuition} 金钱 (累计: ${p.totalTuitionPaid})`, p.id);
     }
     return null;
   });
@@ -272,12 +226,13 @@ export function registerEventHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerGpa(playerId, gpaGain);
     engine.log(`参加科创赛事，投出 ${dice}，获得 ${gpaGain.toFixed(1)} GPA`, playerId);
 
-    // 电子科学与工程学院：投到6即获胜
+    // 电子科学与工程学院：累计GPA tracking
     const player = engine.getPlayer(playerId);
-    if (dice === 6 && player && (player.majorPlan === 'plan_dianzi' || player.minorPlans.includes('plan_dianzi'))) {
-      const disabled = player.disabledWinConditions ?? [];
-      if (!disabled.includes('plan_dianzi')) {
-        engine.declareWinner(playerId, '电子科学与工程学院：科创赛事投到6');
+    if (player) {
+      const netGpa = gpaGain - 0.3;
+      if (netGpa > 0) {
+        player.kechuangGpaGained += netGpa;
+        engine.log(`科创赛事累计GPA: ${player.kechuangGpaGained.toFixed(1)}`, playerId);
       }
     }
     return null;

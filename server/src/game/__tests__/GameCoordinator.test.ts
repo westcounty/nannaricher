@@ -41,6 +41,11 @@ function createMockPlayer(overrides: Partial<Player> & { id: string; name: strin
     lawyerShield: false,
     lastDiceValues: [],
     consecutivePositiveTurns: 0,
+    totalTuitionPaid: 0,
+    confiscatedIncome: 0,
+    consecutiveLowMoneyTurns: 0,
+    kechuangGpaGained: 0,
+    foodLineNonNegativeCount: 0,
     ...overrides,
   };
 }
