@@ -5,7 +5,7 @@ import { useGameStore } from '../stores/gameStore';
 import type { NotificationItem } from '../stores/gameStore';
 import '../styles/notification-feed.css';
 
-const DISMISS_MS = 3000;
+const DISMISS_MS = 4000;
 
 function NotificationEntry({ item }: { item: NotificationItem }) {
   const removeNotification = useGameStore((s) => s.removeNotification);
@@ -34,14 +34,24 @@ function NotificationEntry({ item }: { item: NotificationItem }) {
   );
 }
 
+const MAX_VISIBLE = 5;
+
 export function NotificationFeed() {
   const notifications = useGameStore((s) => s.notifications);
 
   if (notifications.length === 0) return null;
 
+  const visible = notifications.slice(-MAX_VISIBLE);
+  const hiddenCount = notifications.length - visible.length;
+
   return (
     <div className="notification-feed">
-      {notifications.map((item) => (
+      {hiddenCount > 0 && (
+        <div className="notif-item notif-item--collapsed">
+          还有 {hiddenCount} 条通知
+        </div>
+      )}
+      {visible.map((item) => (
         <NotificationEntry key={item.id} item={item} />
       ))}
     </div>
