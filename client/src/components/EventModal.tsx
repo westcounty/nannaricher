@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
 import { useGameStore } from '../stores/gameStore';
+import { PlanSelectionPanel } from './PlanSelectionPanel';
 import './EventModal.css';
 
 interface EffectPreview {
@@ -376,6 +377,11 @@ export function GameEventModal() {
   const clearEvent = () => useGameStore.getState().setCurrentEvent(null);
 
   if (!currentEvent) return null;
+
+  // Handle parallel plan selection with dedicated component
+  if (currentEvent.pendingAction?.type === ('parallel_plan_selection' as any)) {
+    return <PlanSelectionPanel action={currentEvent.pendingAction} />;
+  }
 
   // Key on pendingAction.id or title+description to force remount when event changes
   const eventKey = currentEvent.pendingAction?.id || `${currentEvent.title}_${currentEvent.description}`;

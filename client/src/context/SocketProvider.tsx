@@ -129,8 +129,11 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       },
       chooseAction: (actionId: string, choice: string) => {
         socket.emit('game:choose-action', { actionId, choice });
-        // Clear event after making a choice
-        store.getState().setCurrentEvent(null);
+        // Don't clear event for parallel_plan_selection — panel shows "waiting" state
+        const currentEvent = store.getState().currentEvent;
+        if (currentEvent?.pendingAction?.type !== ('parallel_plan_selection' as any)) {
+          store.getState().setCurrentEvent(null);
+        }
       },
       useCard: (cardId: string, targetPlayerId?: string) => {
         socket.emit('game:use-card', { cardId, targetPlayerId });
@@ -146,6 +149,18 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       diffAndPlaySounds(prevStateRef.current, state, localPlayerId);
       prevStateRef.current = state;
       store.getState().setGameState(state);
+
+      // Show parallel plan selection when state update includes it
+      const newPa = state.pendingAction;
+      if (newPa?.type === ('parallel_plan_selection' as any)
+          && newPa.targetPlayerIds?.includes(localPlayerId || '')
+          && !store.getState().currentEvent) {
+        store.getState().setCurrentEvent({
+          title: '升学阶段',
+          description: '选择培养计划',
+          pendingAction: newPa,
+        });
+      }
     };
 
     const handleRoomCreated = ({ roomId, playerId }: { roomId: string; playerId: string }) => {
@@ -220,6 +235,17 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         if (eventKey === _lastEventKey && now - _lastEventTime < 500) return;
         _lastEventKey = eventKey;
         _lastEventTime = now;
+      }
+
+      // Parallel plan selection — always show as full modal
+      if (data.pendingAction?.type === ('parallel_plan_selection' as any)) {
+        store.getState().setCurrentEvent({
+          title: '升学阶段',
+          description: '选择培养计划',
+          pendingAction: data.pendingAction,
+        });
+        playSound('event_trigger');
+        return;
       }
 
       // Infer severity if not provided by server
