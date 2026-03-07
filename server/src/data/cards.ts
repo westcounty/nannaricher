@@ -13,6 +13,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['防御', '食堂线'],
   },
   {
     id: 'destiny_stop_loss',
@@ -24,6 +25,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['响应卡', '通用'],
   },
   {
     id: 'destiny_urgent_deadline',
@@ -35,6 +37,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['脱困', '医院/鼎'],
   },
   {
     id: 'destiny_negative_balance',
@@ -46,6 +49,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['防御', '金钱'],
   },
   {
     id: 'destiny_inherited_papers',
@@ -57,6 +61,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['防御', 'GPA'],
   },
   {
     id: 'destiny_throw_stone',
@@ -68,6 +73,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['防御', '金钱'],
   },
   {
     id: 'destiny_campus_legend',
@@ -79,6 +85,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['防御', '探索值'],
   },
   {
     id: 'destiny_alternative_path',
@@ -90,6 +97,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['移动', '线路'],
   },
   {
     id: 'destiny_cross_college_exit',
@@ -101,6 +109,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['培养计划'],
   },
   {
     id: 'destiny_professional_intention',
@@ -112,6 +121,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['培养计划', '增强'],
   },
   {
     id: 'destiny_familiar_route',
@@ -123,6 +133,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['移动', '线路'],
   },
   {
     id: 'destiny_how_to_explain',
@@ -134,6 +145,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['响应卡', '通用'],
   },
   {
     id: 'destiny_drum_beat_return',
@@ -145,6 +157,7 @@ export const destinyCards: Card[] = [
     returnToDeck: true,
     useTiming: 'own_turn',
     effects: [],
+    tags: ['骰子', '选择'],
   },
   {
     id: 'destiny_boss_recruit',
@@ -630,6 +643,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['响应卡', '限机遇卡'],
   },
   {
     id: 'chance_false_move',
@@ -641,6 +655,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['响应卡', '限命运卡'],
   },
   {
     id: 'chance_pie_in_sky',
@@ -652,6 +667,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['响应卡', '通用'],
   },
   {
     id: 'chance_one_jump_relief',
@@ -663,6 +679,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['干扰', '反转'],
   },
   {
     id: 'chance_water_power_outage',
@@ -674,6 +691,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['干扰', '禁止行动'],
   },
   {
     id: 'chance_mending_plan',
@@ -685,6 +703,7 @@ export const chanceCards: Card[] = [
     returnToDeck: true,
     useTiming: 'any_turn',
     effects: [],
+    tags: ['防御', '胜利'],
   },
   {
     id: 'chance_garbage_collection',

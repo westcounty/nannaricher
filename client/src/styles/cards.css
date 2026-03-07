@@ -405,6 +405,16 @@
   font-weight: 400;
 }
 
+/* Tags */
+.card-detail__tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.card-detail__tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+}
+
 /* Target selection */
 .card-detail .target-selection {
   display: flex;

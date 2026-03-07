@@ -114,6 +114,15 @@ export function CardDetail({ card, onClose, onUse, canUse, players = [] }: CardD
             </>
           )}
 
+          {/* Tags */}
+          {card.tags && card.tags.length > 0 && (
+            <div className="card-detail__tags">
+              {card.tags.map((tag: string) => (
+                <span key={tag} className="card-detail__tag">{tag}</span>
+              ))}
+            </div>
+          )}
+
           {/* Target selection */}
           {needsTargetSelection && canUse && (
             <div className="target-selection">
