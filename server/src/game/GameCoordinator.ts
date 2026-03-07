@@ -957,11 +957,11 @@ export class GameCoordinator {
 
     switch (planId) {
       // === 正确实现的简单数值条件 ===
-      case 'plan_shangxue':  // 商学院：金钱达到5000
-        if (player.money >= 5000) return '金钱达到5000';
+      case 'plan_shangxue':  // 商学院：金钱达到5555
+        if (player.money >= 5555) return '金钱达到5555';
         break;
-      case 'plan_huaxue':    // 化学化工学院：连续4回合触发增益（链式反应）
-        if (player.consecutivePositiveTurns >= 4) return `连续${player.consecutivePositiveTurns}回合触发增益`;
+      case 'plan_huaxue':    // 化学化工学院：连续6回合触发增益（链式反应）
+        if (player.consecutivePositiveTurns >= 6) return `连续${player.consecutivePositiveTurns}回合触发增益`;
         break;
       case 'plan_makesi':    // 马克思主义学院：GPA达到4.5
         if (player.gpa >= 4.5) return 'GPA达到4.5';
@@ -1028,7 +1028,7 @@ export class GameCoordinator {
         const monies = activePlayers.map(p => p.money);
         const maxMoney = Math.max(...monies);
         const minMoney = Math.min(...monies);
-        if (maxMoney - minMoney <= 500) return `探索值≥20且金钱差≤500 (max=${maxMoney}, min=${minMoney})`;
+        if (maxMoney - minMoney <= 666) return `探索值≥20且金钱差≤666 (max=${maxMoney}, min=${minMoney})`;
         break;
       }
       case 'plan_guoji': {   // 国际关系学院：和至少两名其他玩家互相使用过机会卡
@@ -1055,12 +1055,12 @@ export class GameCoordinator {
       case 'plan_shuxue':   // 数学系：第三次到达鼓楼校区线终点
         if (player.gulou_endpoint_count >= 3) return `第${player.gulou_endpoint_count}次到达鼓楼线终点`;
         break;
-      case 'plan_wuli': {   // 物理学院：任选两项指标之和>=90
+      case 'plan_wuli': {   // 物理学院：任选两项指标之和>=85
         const moneyScore = player.money / 100;
         const gpaScore = player.gpa * 10;
         const expScore = player.exploration;
-        if (gpaScore + expScore >= 90 || gpaScore + moneyScore >= 90 || expScore + moneyScore >= 90) {
-          return `任意两项指标之和≥90 (GPA×10=${gpaScore.toFixed(0)}, 探索=${expScore}, 金钱/100=${moneyScore.toFixed(0)})`;
+        if (gpaScore + expScore >= 85 || gpaScore + moneyScore >= 85 || expScore + moneyScore >= 85) {
+          return `任意两项指标之和≥85 (GPA×10=${gpaScore.toFixed(0)}, 探索=${expScore}, 金钱/100=${moneyScore.toFixed(0)})`;
         }
         break;
       }
@@ -1122,10 +1122,10 @@ export class GameCoordinator {
         if (completedCampus.size >= 4) return '执行过四个校区线终点效果';
         break;
       }
-      case 'plan_daqi': {    // 大气科学学院：20回合内金钱始终不为唯一最多
-        if (history && state.turnNumber >= 20) {
+      case 'plan_daqi': {    // 大气科学学院：18回合内金钱始终不为唯一最多
+        if (history && state.turnNumber >= 18) {
           const moneyHist = history.moneyHistory;
-          if (moneyHist.length >= 20) {
+          if (moneyHist.length >= 18) {
             let neverRichest = true;
             // 简化检查：当前金钱不是唯一最高
             const maxMoney = Math.max(...state.players.filter(p => !p.isBankrupt).map(p => p.money));
@@ -1133,7 +1133,7 @@ export class GameCoordinator {
             if (player.money === maxMoney && playersWithMax.length === 1) {
               neverRichest = false;
             }
-            if (neverRichest) return '20回合内金钱始终不为唯一最多';
+            if (neverRichest) return '18回合内金钱始终不为唯一最多';
           }
         }
         break;
@@ -1146,8 +1146,8 @@ export class GameCoordinator {
       case 'plan_yixue':     // 医学院：进入过三次医院
         if (player.hospitalVisits >= 3) return `进入${player.hospitalVisits}次医院`;
         break;
-      case 'plan_gongguan':  // 工程管理学院：第二次金钱数为0
-        if (player.moneyZeroCount >= 2) return `第${player.moneyZeroCount}次金钱为0`;
+      case 'plan_gongguan':  // 工程管理学院：第一次金钱数为0
+        if (player.moneyZeroCount >= 1) return `第${player.moneyZeroCount}次金钱为0`;
         break;
       case 'plan_kuangyaming': { // 匡亚明学院：满足任意玩家的已固定培养计划
         for (const other of state.players) {
@@ -1162,16 +1162,17 @@ export class GameCoordinator {
       case 'plan_haiwai':    // 海外教育学院：有玩家获胜时，若你对其使用过至少两次机会卡
         // 此条件在胜利判定时特殊处理（检查winner时对比）
         break;
-      case 'plan_jianzhu': { // 建筑与城市规划学院：经历过起点、校医院、鼎、候车厅和闯门
+      case 'plan_jianzhu': { // 建筑与城市规划学院：经历过起点、校医院、鼎、候车厅和闯门中任意4个
         if (history) {
           const visited = history.mainCellVisited;
-          const required = ['corner_start', 'corner_hospital', 'corner_ding', 'corner_waiting_room', 'event_chuang_men'];
-          // 也检查position index对应的格子名
           const requiredIndices = [0, 7, 14, 21]; // 起点、校医院、鼎、候车厅
           const visitedIndices = new Set(visited);
-          const hasCorners = requiredIndices.every(i => visitedIndices.has(`main_${i}`));
-          const hasChuangMen = visited.some(v => v.includes('chuang_men'));
-          if (hasCorners && hasChuangMen) return '经历过起点、校医院、鼎、候车厅和闯门';
+          let count = 0;
+          for (const i of requiredIndices) {
+            if (visitedIndices.has(`main_${i}`)) count++;
+          }
+          if (visited.some(v => v.includes('chuang_men'))) count++;
+          if (count >= 4) return `经历过5个标志格中的${count}个`;
         }
         break;
       }
@@ -2078,23 +2079,20 @@ export class GameCoordinator {
           }
         });
       }
-      if (fx.customEffect === 'xinxiguanli_redistribute') {
-        const activePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
-        const allCards = activePlayers.flatMap(p => {
-          const cards = [...p.heldCards];
-          p.heldCards = [];
-          return cards;
-        });
-        for (let i = allCards.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
-        }
-        let idx = 0;
-        for (const card of allCards) {
-          activePlayers[idx % activePlayers.length].heldCards.push(card);
-          idx++;
-        }
-        this.addLog(playerId, '信息管理学院能力：所有玩家手牌已重新分配');
+      if (fx.customEffect === 'xinxiguanli_give_card') {
+        const infoCard: Card = {
+          id: 'xinxiguanli_data_integration',
+          name: '数据整合',
+          description: '信息管理学院专属。选择至多两位有卡牌的玩家，从他们手中获取卡牌（每人至多2张，总计不超过3张）',
+          deckType: 'destiny',
+          holdable: true,
+          singleUse: true,
+          returnToDeck: false,
+          useTiming: 'own_turn',
+          effects: [],
+        };
+        this.engine.addCardToPlayer(playerId, infoCard);
+        this.addLog(playerId, `${player.name} 获得信息管理学院专属卡牌「数据整合」`);
       }
       if (fx.customEffect === 'shengming_maimen') {
         const shieldCard: Card = {
@@ -3504,6 +3502,16 @@ export class GameCoordinator {
           return '没有辅修培养计划，无法使用跨院准出';
         }
         break;
+      case 'xinxiguanli_data_integration': {
+        const state = this.engine.getState();
+        const othersWithCards = state.players.filter(p =>
+          p.id !== player.id && !p.isBankrupt && p.heldCards.length > 0
+        );
+        if (othersWithCards.length === 0) {
+          return '当前没有其他玩家持有卡牌，无法使用数据整合';
+        }
+        break;
+      }
     }
     return null;
   }

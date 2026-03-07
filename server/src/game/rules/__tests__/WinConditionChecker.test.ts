@@ -293,22 +293,22 @@ describe('WinConditionChecker', () => {
   // Plan 5: plan_shangxue — 商学院
   // =========================================================================
 
-  describe('plan_shangxue (Commerce) — money >= 5000', () => {
-    it('should win at exactly 5000 money', () => {
-      const player = createMockPlayer({ majorPlan: 'plan_shangxue', money: 5000, gpa: 2.0, exploration: 5 });
+  describe('plan_shangxue (Commerce) — money >= 5555', () => {
+    it('should win at exactly 5555 money', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_shangxue', money: 5555, gpa: 2.0, exploration: 5 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_shangxue');
     });
 
-    it('should win above 5000 money', () => {
+    it('should win above 5555 money', () => {
       const player = createMockPlayer({ majorPlan: 'plan_shangxue', money: 8000, gpa: 2.0, exploration: 5 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(true);
     });
 
-    it('should NOT win at 4999 money', () => {
-      const player = createMockPlayer({ majorPlan: 'plan_shangxue', money: 4999, gpa: 2.0, exploration: 5 });
+    it('should NOT win at 5554 money', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_shangxue', money: 5554, gpa: 2.0, exploration: 5 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(false);
     });
@@ -384,8 +384,8 @@ describe('WinConditionChecker', () => {
   // Plan 8: plan_zhengguan — 政府管理学院
   // =========================================================================
 
-  describe('plan_zhengguan (Government) — exploration>=20 and money gap<=500', () => {
-    it('should win when exploration>=20 and money gap<=500', () => {
+  describe('plan_zhengguan (Government) — exploration>=20 and money gap<=666', () => {
+    it('should win when exploration>=20 and money gap<=666', () => {
       const player = createMockPlayer({ majorPlan: 'plan_zhengguan', money: 1500, gpa: 3.5, exploration: 20 });
       const other = createMockPlayer({ id: 'player2', money: 1800, gpa: 2.0, exploration: 8 });
       const state = createMockGameState([player, other]);
@@ -402,7 +402,7 @@ describe('WinConditionChecker', () => {
       expect(result.won).toBe(false);
     });
 
-    it('should NOT win when money gap>500', () => {
+    it('should NOT win when money gap>666', () => {
       const player = createMockPlayer({ majorPlan: 'plan_zhengguan', money: 500, gpa: 3.0, exploration: 25 });
       const other = createMockPlayer({ id: 'player2', money: 2000, gpa: 3.0, exploration: 10 });
       const state = createMockGameState([player, other]);
@@ -558,13 +558,13 @@ describe('WinConditionChecker', () => {
       expect(result.planId).toBe('base');
     });
 
-    it('should win via plan_wuli when two stats sum >= 90 (gpa*10 + money/100)', () => {
-      // gpa*10 = 30, money/100 = 60 => 30 + 60 = 90 >= 90 => wins via physics
+    it('should win via plan_wuli when two stats sum >= 85 (gpa*10 + money/100)', () => {
+      // gpa*10 = 30, money/100 = 55 => 30 + 55 = 85 >= 85 => wins via physics
       const player = createMockPlayer({
         majorPlan: 'plan_wuli',
         exploration: 0,     // base = gpa*10 + 0 = 30, not >= 60
         gpa: 3.0,           // gpa*10 = 30
-        money: 6000,        // money/100 = 60
+        money: 5500,        // money/100 = 55
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(true);
@@ -618,16 +618,16 @@ describe('WinConditionChecker', () => {
   // Plan 15: plan_huaxue — 化学化工学院
   // =========================================================================
 
-  describe('plan_huaxue (Chemistry) — consecutive 4 positive turns', () => {
-    it('should win with 4 consecutive positive turns (base not met)', () => {
-      const player = createMockPlayer({ majorPlan: 'plan_huaxue', consecutivePositiveTurns: 4, gpa: 1.0, exploration: 5 });
+  describe('plan_huaxue (Chemistry) — consecutive 6 positive turns', () => {
+    it('should win with 6 consecutive positive turns (base not met)', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_huaxue', consecutivePositiveTurns: 6, gpa: 1.0, exploration: 5 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_huaxue');
     });
 
-    it('should NOT win with only 3 consecutive positive turns (base not met)', () => {
-      const player = createMockPlayer({ majorPlan: 'plan_huaxue', consecutivePositiveTurns: 3, gpa: 1.0, exploration: 5 });
+    it('should NOT win with only 5 consecutive positive turns (base not met)', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_huaxue', consecutivePositiveTurns: 5, gpa: 1.0, exploration: 5 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), createMockHistory());
       expect(result.won).toBe(false);
     });
@@ -857,13 +857,13 @@ describe('WinConditionChecker', () => {
   // Plan 24: plan_daqi — 大气科学学院
   // =========================================================================
 
-  describe('plan_daqi (Atmospheric Sciences) — never uniquely richest for 20 rounds', () => {
+  describe('plan_daqi (Atmospheric Sciences) — never uniquely richest for 18 rounds', () => {
     it('should win when not uniquely richest with enough history', () => {
       const player = createMockPlayer({ majorPlan: 'plan_daqi', money: 1000, gpa: 2.0, exploration: 5 });
       const other = createMockPlayer({ id: 'player2', money: 2000 });
       const state = createMockGameState([player, other]);
       const history = createMockHistory({
-        moneyHistory: Array(20).fill(1000),
+        moneyHistory: Array(18).fill(1000),
       });
       const result = checker.checkWinConditions(player, state, history);
       expect(result.won).toBe(true);
@@ -875,7 +875,7 @@ describe('WinConditionChecker', () => {
       const other = createMockPlayer({ id: 'player2', money: 2000 });
       const state = createMockGameState([player, other]);
       const history = createMockHistory({
-        moneyHistory: Array(19).fill(1000),
+        moneyHistory: Array(17).fill(1000),
       });
       const result = checker.checkWinConditions(player, state, history);
       expect(result.won).toBe(false);
@@ -928,18 +928,18 @@ describe('WinConditionChecker', () => {
   // Plan 27: plan_gongguan — 工程管理学院
   // =========================================================================
 
-  describe('plan_gongguan (Engineering Management) — money zero 2 times', () => {
-    it('should win when money hit zero 2 times', () => {
+  describe('plan_gongguan (Engineering Management) — money zero 1 time', () => {
+    it('should win when money hit zero 1 time', () => {
       const player = createMockPlayer({ majorPlan: 'plan_gongguan', gpa: 2.0, exploration: 5 });
-      const history = createMockHistory({ moneyZeroCount: 2 });
+      const history = createMockHistory({ moneyZeroCount: 1 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_gongguan');
     });
 
-    it('should NOT win with only 1 money zero', () => {
+    it('should NOT win with 0 money zero', () => {
       const player = createMockPlayer({ majorPlan: 'plan_gongguan', gpa: 2.0, exploration: 5 });
-      const history = createMockHistory({ moneyZeroCount: 1 });
+      const history = createMockHistory({ moneyZeroCount: 0 });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(false);
     });
@@ -953,13 +953,13 @@ describe('WinConditionChecker', () => {
     it('should win when satisfying another player plan condition', () => {
       const player = createMockPlayer({
         majorPlan: 'plan_kuangyaming',
-        money: 5000,
+        money: 5555,
         gpa: 2.0,
         exploration: 5,
       });
       const other = createMockPlayer({
         id: 'player2',
-        majorPlan: 'plan_shangxue', // commerce: money >= 5000
+        majorPlan: 'plan_shangxue', // commerce: money >= 5555
       });
       const state = createMockGameState([player, other]);
       const result = checker.checkWinConditions(player, state, createMockHistory());
@@ -1024,21 +1024,21 @@ describe('WinConditionChecker', () => {
   // Plan 30: plan_jianzhu — 建筑与城市规划学院
   // =========================================================================
 
-  describe('plan_jianzhu (Architecture) — visit all main cells', () => {
-    it('should win when all required main cells visited', () => {
+  describe('plan_jianzhu (Architecture) — visit 4 of 5 main cells', () => {
+    it('should win when 4 of 5 required main cells visited', () => {
       const player = createMockPlayer({ majorPlan: 'plan_jianzhu', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        mainCellVisited: ['start', 'hospital', 'ding', 'waiting_room', 'chuangmen'],
+        mainCellVisited: ['start', 'hospital', 'ding', 'waiting_room'], // 4 of 5, missing chuangmen
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_jianzhu');
     });
 
-    it('should NOT win when missing one required cell', () => {
+    it('should NOT win when only 3 required cells visited', () => {
       const player = createMockPlayer({ majorPlan: 'plan_jianzhu', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        mainCellVisited: ['start', 'hospital', 'ding', 'waiting_room'], // missing chuangmen
+        mainCellVisited: ['start', 'hospital', 'ding'], // only 3
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(false);

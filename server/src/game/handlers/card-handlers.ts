@@ -2090,5 +2090,151 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
+  // ===================================================================
+  // 信息管理学院专属卡：数据整合
+  // 选择至多两位有卡牌的玩家，从他们手中获取卡牌（每人至多2张，总计不超过3张）
+  // ===================================================================
+
+  // State tracker for multi-step data integration interactions
+  const dataIntegrationState = new Map<string, {
+    takenCards: { fromPlayerId: string; cardId: string }[];
+    selectedPlayers: string[];
+  }>();
+
+  function buildDataIntegrationOptions(
+    engine: GameEngine, playerId: string
+  ): { label: string; value: string; description?: string }[] | null {
+    const st = dataIntegrationState.get(playerId);
+    if (!st) return null;
+
+    const state = engine.getState();
+    const remaining = 3 - st.takenCards.length;
+    if (remaining <= 0) return null;
+
+    const options: { label: string; value: string; description?: string }[] = [];
+
+    for (const p of state.players) {
+      if (p.id === playerId || p.isBankrupt || p.heldCards.length === 0) continue;
+
+      // Check per-player limit (max 2 per player)
+      const takenFromThis = st.takenCards.filter(t => t.fromPlayerId === p.id).length;
+      if (takenFromThis >= 2) continue;
+
+      // Check max 2 distinct players
+      const isExistingTarget = st.selectedPlayers.includes(p.id);
+      if (!isExistingTarget && st.selectedPlayers.length >= 2) continue;
+
+      for (const c of p.heldCards) {
+        // Skip cards already taken (by ID match within same player)
+        if (st.takenCards.some(t => t.cardId === c.id && t.fromPlayerId === p.id)) continue;
+        options.push({
+          label: `${p.name}: ${c.name}`,
+          value: JSON.stringify({ pid: p.id, cid: c.id }),
+          description: c.description,
+        });
+      }
+    }
+
+    return options.length > 0 ? options : null;
+  }
+
+  eventHandler.registerHandler('card_xinxiguanli_data_integration', (engine, playerId) => {
+    const state = engine.getState();
+    const playersWithCards = state.players.filter(p =>
+      p.id !== playerId && !p.isBankrupt && p.heldCards.length > 0
+    );
+
+    if (playersWithCards.length === 0) {
+      engine.log('数据整合：没有其他玩家持有卡牌', playerId);
+      return null;
+    }
+
+    // Initialize state
+    dataIntegrationState.set(playerId, {
+      takenCards: [],
+      selectedPlayers: [],
+    });
+
+    const options = buildDataIntegrationOptions(engine, playerId);
+    if (!options) {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    options.push({ label: '不获取，直接结束', value: 'done' });
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_option',
+      '数据整合：选择要获取的卡牌（可获取3张）',
+      options
+    );
+    action.callbackHandler = 'data_integration_pick';
+    return action;
+  });
+
+  eventHandler.registerHandler('data_integration_pick', (engine, playerId, choice) => {
+    const st = dataIntegrationState.get(playerId);
+    if (!st) return null;
+
+    if (!choice || choice === 'done') {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    // Parse choice
+    let parsed: { pid: string; cid: string };
+    try {
+      parsed = JSON.parse(choice);
+    } catch {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    const target = engine.getPlayer(parsed.pid);
+    const player = engine.getPlayer(playerId);
+    if (!target || !player) {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    // Transfer card
+    const cardIdx = target.heldCards.findIndex(c => c.id === parsed.cid);
+    if (cardIdx >= 0) {
+      const card = target.heldCards.splice(cardIdx, 1)[0];
+      player.heldCards.push(card);
+      st.takenCards.push({ fromPlayerId: parsed.pid, cardId: parsed.cid });
+
+      // Track selected player
+      if (!st.selectedPlayers.includes(parsed.pid)) {
+        st.selectedPlayers.push(parsed.pid);
+      }
+
+      engine.log(`数据整合：从 ${target.name} 获得 ${card.name}`, playerId);
+    }
+
+    // Check if can continue
+    if (st.takenCards.length >= 3) {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    const options = buildDataIntegrationOptions(engine, playerId);
+    if (!options) {
+      dataIntegrationState.delete(playerId);
+      return null;
+    }
+
+    options.push({ label: '完成选择', value: 'done' });
+
+    const remaining = 3 - st.takenCards.length;
+    const action = engine.createPendingAction(
+      playerId, 'choose_option',
+      `数据整合：已获取${st.takenCards.length}张，还可获取${remaining}张`,
+      options
+    );
+    action.callbackHandler = 'data_integration_pick';
+    return action;
+  });
+
   console.log('[CardHandlers] Registered card handlers');
 }

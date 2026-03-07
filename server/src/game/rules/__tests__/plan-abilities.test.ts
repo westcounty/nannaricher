@@ -192,13 +192,13 @@ describe('Plan Abilities — on_confirm trigger', () => {
     expect(result!.effects?.customEffect).toBe('guoji_target_draw');
   });
 
-  it('plan_xinxiguanli (Information Management) redistributes on confirm', () => {
+  it('plan_xinxiguanli (Information Management) gives exclusive card on confirm', () => {
     const ability = getPlanAbility('plan_xinxiguanli')!;
     expect(ability.trigger).toBe('on_confirm');
     const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.customEffect).toBe('xinxiguanli_redistribute');
+    expect(result!.effects?.customEffect).toBe('xinxiguanli_give_card');
   });
 
   it('plan_tianwen (Astronomy) moves to waiting room on confirm', () => {

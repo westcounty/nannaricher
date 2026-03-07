@@ -33,7 +33,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_shangxue',
     name: '商学院',
-    winCondition: '当你金钱数达到5000时，你获胜',
+    winCondition: '当你金钱数达到5555时，你获胜',
     passiveAbility: '直接移动至赚在南哪，不交入场费，经过起点不领取工资',
 
   },
@@ -54,7 +54,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_zhengguan',
     name: '政府管理学院',
-    winCondition: '当你的探索值达到20，且场上金钱最高和最低玩家的金钱差不超过500时，你获胜',
+    winCondition: '当你的探索值达到20，且场上金钱最高和最低玩家的金钱差不超过666时，你获胜',
     passiveAbility: '你进入四个校区线的入场费改为150金钱',
 
   },
@@ -69,7 +69,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_xinxiguanli',
     name: '信息管理学院',
     winCondition: '当你抽到过不重复的五个标题中以数字开头的机会卡/命运卡后，你获胜',
-    passiveAbility: '你可以立即重新分配场上所有玩家拥有的卡片，至多三张',
+    passiveAbility: '获得专属卡牌「数据整合」：在你的回合使用，选择至多两位有卡牌的玩家，从他们手中获取卡牌（每人至多2张，总计不超过3张）',
 
   },
   {
@@ -89,7 +89,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_wuli',
     name: '物理学院',
-    winCondition: '你在计算基础胜利条件时，可以从金钱、GPA和探索值中任选两项参与计算，其中每项分数=探索值=GPA*10=金钱数/100，两项相加达到90，你获胜',
+    winCondition: '你在计算基础胜利条件时，可以从金钱、GPA和探索值中任选两项参与计算，其中每项分数=探索值=GPA*10=金钱数/100，两项相加达到85，你获胜',
     passiveAbility: '下一回合你选择前进双倍点数或后退双倍点数',
 
   },
@@ -103,7 +103,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_huaxue',
     name: '化学化工学院',
-    winCondition: '当你连续4个回合均触发了增益效果（金钱、GPA或探索值任一增加）后，你获胜',
+    winCondition: '当你连续6个回合均触发了增益效果（金钱、GPA或探索值任一增加）后，你获胜',
     passiveAbility: '你可以选定一个格子和一条线，下一回合失效',
 
   },
@@ -166,7 +166,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_daqi',
     name: '大气科学学院',
-    winCondition: '如果在20个回合内，你的金钱数额始终不为唯一最多，你获胜',
+    winCondition: '如果在18个回合内，你的金钱数额始终不为唯一最多，你获胜',
     passiveAbility: '你可以立即抽取三张机会卡或命运卡，并至多选择其中一张执行',
 
   },
@@ -187,7 +187,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_gongguan',
     name: '工程管理学院',
-    winCondition: '当你第二次金钱数为0时，你获胜',
+    winCondition: '当你第一次金钱数为0时，你获胜',
     passiveAbility: '获得场上或卡堆中的余额为负（单次使用，可以抵消一次不小于当前剩余金钱的支出）',
 
   },
@@ -208,7 +208,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_jianzhu',
     name: '建筑与城市规划学院',
-    winCondition: '当你经历过起点、校医院、鼎、候车厅和闯门后，你获胜',
+    winCondition: '当你经历过起点、校医院、鼎、候车厅和闯门中的任意四个后，你获胜',
     passiveAbility: '你进入鼓楼校区线，不需要支付入场费',
 
   },

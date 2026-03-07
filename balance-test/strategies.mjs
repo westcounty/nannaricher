@@ -222,6 +222,15 @@ class BaseStrategy {
       if (card.id === 'destiny_alternative_path' && me.position?.type === 'line' && Math.random() < 0.3) {
         return { cardId: card.id };
       }
+      // 信息管理学院专属：数据整合 — use when others have cards
+      if (card.id === 'xinxiguanli_data_integration') {
+        const othersWithCards = state.players?.filter(p =>
+          p.id !== playerId && !p.isBankrupt && p.heldCards?.length > 0
+        );
+        if (othersWithCards?.length > 0) {
+          return { cardId: card.id };
+        }
+      }
     }
 
     // Targeting cards (any_turn) - target the leading player

@@ -682,6 +682,146 @@ function normalCDF(z) {
 }
 
 // ============================================================
+// Resource Source Analysis (by card, event, plan, position)
+// ============================================================
+function analyzeResourceSources() {
+  // Categorize resource changes by source prefix
+  const categories = {
+    card: { label: '卡牌效果', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    'card-use': { label: '主动使用卡牌', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    'card-cb': { label: '卡牌回调效果', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    event: { label: '格子事件', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    'event-cb': { label: '事件回调效果', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    corner: { label: '角落格子', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    line: { label: '支线事件', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    'line-entry': { label: '支线入场费', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    plan: { label: '培养计划能力', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+    unknown: { label: '未分类', money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 }, details: {} },
+  };
+
+  let totalChanges = 0;
+  let sourcedChanges = 0;
+
+  for (const game of validGames) {
+    for (const p of (game.players || [])) {
+      for (const rc of (p.resourceChanges || [])) {
+        totalChanges++;
+        const source = rc.source || 'unknown';
+        const prefix = source.split(':')[0];
+        const detailName = source.includes(':') ? source.substring(source.indexOf(':') + 1) : source;
+        const cat = categories[prefix] || categories.unknown;
+        const stat = rc.stat;
+
+        if (source !== 'unknown') sourcedChanges++;
+
+        if (cat[stat]) {
+          cat[stat].count++;
+          if (rc.delta > 0) cat[stat].gain += rc.delta;
+          else cat[stat].loss += Math.abs(rc.delta);
+        }
+
+        // Track per-detail breakdown (e.g. per specific event/card name)
+        if (!cat.details[detailName]) {
+          cat.details[detailName] = { money: { gain: 0, loss: 0, count: 0 }, gpa: { gain: 0, loss: 0, count: 0 }, exploration: { gain: 0, loss: 0, count: 0 } };
+        }
+        const detail = cat.details[detailName];
+        if (detail[stat]) {
+          detail[stat].count++;
+          if (rc.delta > 0) detail[stat].gain += rc.delta;
+          else detail[stat].loss += Math.abs(rc.delta);
+        }
+      }
+    }
+  }
+
+  return { categories, totalChanges, sourcedChanges };
+}
+
+// ============================================================
+// Card Usage Analysis
+// ============================================================
+function analyzeCardUsage() {
+  const cardStats = {};       // cardName -> { used, usedByWinner, usedByLoser }
+  const stratCardStats = {};  // strategy -> { totalCards, wins, losses }
+  let totalCardsUsed = 0;
+  let gamesWithCards = 0;
+  let winnerUsedCards = 0;
+  let winnerNoCards = 0;
+  let loserUsedCards = 0;
+  let loserNoCards = 0;
+
+  for (const game of validGames) {
+    if (!game.players) continue;
+    let gameHasCards = false;
+
+    for (const p of game.players) {
+      const cards = p.cardsUsed || [];
+      const usedCount = cards.length;
+      const strat = p.strategy || 'unknown';
+
+      if (!stratCardStats[strat]) stratCardStats[strat] = { totalCards: 0, wins: 0, losses: 0, gamesWithCards: 0, gamesWithoutCards: 0 };
+
+      if (usedCount > 0) {
+        gameHasCards = true;
+        stratCardStats[strat].totalCards += usedCount;
+        if (p.isWinner) {
+          winnerUsedCards++;
+          stratCardStats[strat].gamesWithCards++;
+          stratCardStats[strat].wins++;
+        } else {
+          loserUsedCards++;
+          stratCardStats[strat].gamesWithCards++;
+          stratCardStats[strat].losses++;
+        }
+      } else {
+        if (p.isWinner) {
+          winnerNoCards++;
+          stratCardStats[strat].gamesWithoutCards++;
+          stratCardStats[strat].wins++;
+        } else {
+          loserNoCards++;
+          stratCardStats[strat].gamesWithoutCards++;
+          stratCardStats[strat].losses++;
+        }
+      }
+
+      for (const c of cards) {
+        const name = c.cardName || c.cardId || 'unknown';
+        if (!cardStats[name]) cardStats[name] = { used: 0, usedByWinner: 0, usedByLoser: 0 };
+        cardStats[name].used++;
+        if (p.isWinner) cardStats[name].usedByWinner++;
+        else cardStats[name].usedByLoser++;
+      }
+
+      totalCardsUsed += usedCount;
+    }
+
+    if (gameHasCards) gamesWithCards++;
+  }
+
+  // Card drawn stats (from cardsDrawn field)
+  const cardDrawStats = {};
+  for (const game of validGames) {
+    for (const cd of (game.cardsDrawn || [])) {
+      const name = cd.cardName || 'unknown';
+      if (!cardDrawStats[name]) cardDrawStats[name] = 0;
+      cardDrawStats[name]++;
+    }
+  }
+
+  return {
+    totalCardsUsed,
+    gamesWithCards,
+    avgCardsPerGame: validGames.length > 0 ? totalCardsUsed / validGames.length : 0,
+    winnerUsedCards, winnerNoCards,
+    loserUsedCards, loserNoCards,
+    cardStats,
+    stratCardStats,
+    cardDrawStats,
+  };
+}
+
+// ============================================================
 // Report Generation
 // ============================================================
 function generateReport() {
@@ -704,6 +844,8 @@ function generateReport() {
   const planChiSq = planWinRateChiSquared();
   const giniStats = analyzeResourceGini();
   const corrStats = analyzeResourceWinCorrelation();
+  const cardUsageStats = analyzeCardUsage();
+  const resourceSourceStats = analyzeResourceSources();
 
   const totalPlayers = validGames.reduce((s, g) => s + (g.players?.length || 0), 0);
   const lines = [];
@@ -1033,7 +1175,12 @@ function generateReport() {
     w('');
     const planYearEntries = Object.entries(yearSnapshots.byPlanYear)
       .filter(([, ys]) => Object.values(ys).some(y => y.money.length >= 3))
-      .sort((a, b) => a[0].localeCompare(b[0]));
+      .sort((a, b) => {
+        // Sort by final year composite score (GPA*10 + explore) descending
+        const scoreA = (a[1][3]?.gpa?.length ? mean(a[1][3].gpa) * 10 + mean(a[1][3].explore) : a[1][2]?.gpa?.length ? mean(a[1][2].gpa) * 10 + mean(a[1][2].explore) : 0);
+        const scoreB = (b[1][3]?.gpa?.length ? mean(b[1][3].gpa) * 10 + mean(b[1][3].explore) : b[1][2]?.gpa?.length ? mean(b[1][2].gpa) * 10 + mean(b[1][2].explore) : 0);
+        return scoreB - scoreA;
+      });
     if (planYearEntries.length > 0) {
       w('| 培养计划 | 大一末金钱 | 大一末GPA | 大一末探索 | 大二末金钱 | 大二末GPA | 大二末探索 | 大三末金钱 | 大三末GPA | 大三末探索 |');
       w('|---------|----------|----------|----------|----------|----------|----------|----------|----------|----------|');
@@ -1129,16 +1276,72 @@ function generateReport() {
   w('## 12. 线路资源收支分析');
   w('');
   {
-    const entries = Object.entries(lineDeltaStats).sort((a, b) => b[1].entries - a[1].entries);
+    // Compute composite score for sorting: normalize money/100 + gpa*5 + explore*0.5
+    const entries = Object.entries(lineDeltaStats)
+      .map(([id, s]) => {
+        const avgTurns = mean(s.turnsSpent) || 1;
+        const composite = mean(s.moneyDeltas) / 100 + mean(s.gpaDeltas) * 5 + mean(s.exploreDeltas) * 0.5;
+        return [id, s, composite, avgTurns];
+      })
+      .sort((a, b) => b[2] - a[2]); // Sort by composite score descending
+
     if (entries.length > 0) {
-      w('| 线路 | 进入次数 | 平均金钱收支 | 平均GPA收支 | 平均探索收支 | 平均停留回合 |');
-      w('|------|---------|-----------|----------|----------|-----------|');
-      for (const [, s] of entries) {
+      w('### 12.1 各支线走完后平均资源收益（按综合评分排序）');
+      w('');
+      w('| 线路 | 进入次数 | 平均金钱 | 平均GPA | 平均探索 | 平均停留回合 | 综合评分 |');
+      w('|------|---------|---------|--------|---------|-----------|---------|');
+      for (const [, s, composite] of entries) {
         const avgMoney = mean(s.moneyDeltas);
         const avgGpa = mean(s.gpaDeltas);
         const avgExplore = mean(s.exploreDeltas);
         const avgTurns = mean(s.turnsSpent);
-        w(`| ${s.name} | ${s.entries} | ${avgMoney >= 0 ? '+' : ''}${avgMoney.toFixed(0)} | ${avgGpa >= 0 ? '+' : ''}${avgGpa.toFixed(2)} | ${avgExplore >= 0 ? '+' : ''}${avgExplore.toFixed(1)} | ${avgTurns.toFixed(1)} |`);
+        w(`| ${s.name} | ${s.entries} | ${avgMoney >= 0 ? '+' : ''}${avgMoney.toFixed(0)} | ${avgGpa >= 0 ? '+' : ''}${avgGpa.toFixed(2)} | ${avgExplore >= 0 ? '+' : ''}${avgExplore.toFixed(1)} | ${avgTurns.toFixed(1)} | ${composite >= 0 ? '+' : ''}${composite.toFixed(2)} |`);
+      }
+      w('');
+
+      // Detailed stats: median, stdev, min, max
+      w('### 12.2 各支线收益详细统计');
+      w('');
+      w('| 线路 | 资源 | 平均 | 中位数 | 标准差 | 最小 | 最大 | 正收益率 |');
+      w('|------|------|------|-------|-------|------|------|---------|');
+      for (const [, s] of entries) {
+        const stats = [
+          { label: '金钱', arr: s.moneyDeltas, fmt: 0 },
+          { label: 'GPA', arr: s.gpaDeltas, fmt: 2 },
+          { label: '探索', arr: s.exploreDeltas, fmt: 1 },
+        ];
+        for (const st of stats) {
+          if (st.arr.length === 0) continue;
+          const avg = mean(st.arr);
+          const med = median(st.arr);
+          const sd = stdev(st.arr);
+          const mn = Math.min(...st.arr);
+          const mx = Math.max(...st.arr);
+          const posRate = st.arr.filter(v => v > 0).length / st.arr.length;
+          w(`| ${st.label === '金钱' ? s.name : ''} | ${st.label} | ${avg >= 0 ? '+' : ''}${avg.toFixed(st.fmt)} | ${med >= 0 ? '+' : ''}${med.toFixed(st.fmt)} | ${sd.toFixed(st.fmt)} | ${mn.toFixed(st.fmt)} | +${mx.toFixed(st.fmt)} | ${(posRate * 100).toFixed(0)}% |`);
+        }
+      }
+      w('');
+
+      // Per-turn efficiency (resource gain per turn spent)
+      w('### 12.3 各支线每回合资源效率（按效率评分排序）');
+      w('');
+      w('> 资源效率 = 平均净收益 / 平均停留回合，衡量单位时间的收益价值');
+      w('');
+      // Sort by per-turn composite efficiency
+      const effEntries = entries.map(([id, s]) => {
+        const avgTurns = mean(s.turnsSpent) || 1;
+        const moneyEff = mean(s.moneyDeltas) / avgTurns;
+        const gpaEff = mean(s.gpaDeltas) / avgTurns;
+        const expEff = mean(s.exploreDeltas) / avgTurns;
+        const composite = moneyEff / 100 + gpaEff * 5 + expEff * 0.5;
+        return { name: s.name, moneyEff, gpaEff, expEff, composite };
+      }).sort((a, b) => b.composite - a.composite);
+
+      w('| 线路 | 金钱/回合 | GPA/回合 | 探索/回合 | 效率评分 |');
+      w('|------|----------|---------|----------|---------|');
+      for (const e of effEntries) {
+        w(`| ${e.name} | ${e.moneyEff >= 0 ? '+' : ''}${e.moneyEff.toFixed(0)} | ${e.gpaEff >= 0 ? '+' : ''}${e.gpaEff.toFixed(3)} | ${e.expEff >= 0 ? '+' : ''}${e.expEff.toFixed(2)} | ${e.composite >= 0 ? '+' : ''}${e.composite.toFixed(2)} |`);
       }
     } else {
       w('暂无线路收支数据（需运行带新事件广播的模拟）。');
@@ -1263,8 +1466,174 @@ function generateReport() {
   w('> 相关系数接近1表示强正相关，接近-1表示强负相关，接近0表示无关。');
   w('');
 
+  // ---- Card Usage Analysis ----
+  w('## 17. 卡牌使用与收益分析');
+  w('');
+
+  if (cardUsageStats.totalCardsUsed === 0) {
+    w('> 本次模拟中未检测到主动卡牌使用数据。');
+    w('');
+  } else {
+    w('### 17.1 卡牌使用概况');
+    w('');
+    w(`| 指标 | 数值 |`);
+    w(`|------|------|`);
+    w(`| 总卡牌使用次数 | ${cardUsageStats.totalCardsUsed} |`);
+    w(`| 有卡牌使用的局数 | ${cardUsageStats.gamesWithCards} / ${validGames.length} (${pct(cardUsageStats.gamesWithCards, validGames.length)}) |`);
+    w(`| 平均每局使用卡牌 | ${cardUsageStats.avgCardsPerGame.toFixed(2)} 张 |`);
+    w('');
+
+    // Winner vs loser card usage rate
+    const totalWinners = cardUsageStats.winnerUsedCards + cardUsageStats.winnerNoCards;
+    const totalLosers = cardUsageStats.loserUsedCards + cardUsageStats.loserNoCards;
+    w('### 17.2 卡牌使用与胜率关联');
+    w('');
+    w(`| 类别 | 使用卡牌人次 | 未使用卡牌人次 | 使用卡牌占比 |`);
+    w(`|------|-------------|---------------|-------------|`);
+    w(`| 胜者 | ${cardUsageStats.winnerUsedCards} | ${cardUsageStats.winnerNoCards} | ${pct(cardUsageStats.winnerUsedCards, totalWinners)} |`);
+    w(`| 败者 | ${cardUsageStats.loserUsedCards} | ${cardUsageStats.loserNoCards} | ${pct(cardUsageStats.loserUsedCards, totalLosers)} |`);
+    w('');
+    if (totalWinners > 0 && totalLosers > 0) {
+      const winnerRate = cardUsageStats.winnerUsedCards / totalWinners;
+      const loserRate = cardUsageStats.loserUsedCards / totalLosers;
+      const diff = winnerRate - loserRate;
+      w(`> 胜者使用卡牌率 ${(winnerRate * 100).toFixed(1)}% vs 败者 ${(loserRate * 100).toFixed(1)}%，差值 ${diff > 0 ? '+' : ''}${(diff * 100).toFixed(1)}%`);
+      if (Math.abs(diff) > 0.05) {
+        w(`> ${diff > 0 ? '使用卡牌与胜率呈正相关，卡牌系统提供了有意义的策略深度。' : '使用卡牌并未显著提升胜率，可能需要加强卡牌效果。'}`);
+      } else {
+        w('> 使用卡牌与胜率关联不显著。');
+      }
+    }
+    w('');
+
+    // Per-card stats
+    const cardRanked = Object.entries(cardUsageStats.cardStats)
+      .map(([name, s]) => ({
+        name,
+        used: s.used,
+        winRate: s.used > 0 ? s.usedByWinner / s.used : 0,
+        usedByWinner: s.usedByWinner,
+        usedByLoser: s.usedByLoser,
+      }))
+      .sort((a, b) => b.used - a.used);
+
+    if (cardRanked.length > 0) {
+      w('### 17.3 各卡牌使用频率（按使用次数排序）');
+      w('');
+      w(`| 卡牌名称 | 使用次数 | 胜者使用 | 败者使用 |`);
+      w(`|----------|---------|---------|---------|`);
+      for (const c of cardRanked) {
+        w(`| ${c.name} | ${c.used} | ${c.usedByWinner} | ${c.usedByLoser} |`);
+      }
+      w('');
+    }
+
+    // Per-strategy card usage
+    const stratEntries = Object.entries(cardUsageStats.stratCardStats);
+    if (stratEntries.length > 0) {
+      w('### 17.4 各策略卡牌使用情况');
+      w('');
+      w(`| 策略 | 总卡牌使用 | 有卡牌局数 | 无卡牌局数 | 平均使用量 |`);
+      w(`|------|-----------|-----------|-----------|-----------|`);
+      for (const [strat, s] of stratEntries.sort((a, b) => b[1].totalCards - a[1].totalCards)) {
+        const total = s.gamesWithCards + s.gamesWithoutCards;
+        w(`| ${strat} | ${s.totalCards} | ${s.gamesWithCards} | ${s.gamesWithoutCards} | ${total > 0 ? (s.totalCards / total).toFixed(2) : '0'} |`);
+      }
+      w('');
+    }
+  }
+
+  // ---- Resource Source Analysis ----
+  w('## 18. 资源收益来源分析');
+  w('');
+
+  const { categories: srcCats, totalChanges: srcTotal, sourcedChanges: srcSourced } = resourceSourceStats;
+
+  if (srcTotal === 0) {
+    w('> 本次模拟中未检测到资源变动数据。');
+    w('');
+  } else {
+    w(`> 总资源变动次数: ${srcTotal}，有来源标记: ${srcSourced} (${pct(srcSourced, srcTotal)})`);
+    w('');
+
+    // Overview table by category
+    w('### 18.1 各来源类型资源总览');
+    w('');
+    w(`| 来源类型 | 金钱收入 | 金钱支出 | 金钱净值 | GPA增 | GPA减 | GPA净值 | 探索增 | 探索减 | 探索净值 | 变动次数 |`);
+    w(`|---------|---------|---------|---------|------|------|--------|-------|------|---------|---------|`);
+
+    const catOrder = ['event', 'event-cb', 'line', 'line-entry', 'corner', 'card', 'card-use', 'card-cb', 'plan', 'unknown'];
+    for (const key of catOrder) {
+      const cat = srcCats[key];
+      if (!cat) continue;
+      const totalCount = cat.money.count + cat.gpa.count + cat.exploration.count;
+      if (totalCount === 0) continue;
+      const moneyNet = cat.money.gain - cat.money.loss;
+      const gpaNet = (cat.gpa.gain - cat.gpa.loss);
+      const expNet = cat.exploration.gain - cat.exploration.loss;
+      w(`| ${cat.label} | +${cat.money.gain.toFixed(0)} | -${cat.money.loss.toFixed(0)} | ${moneyNet >= 0 ? '+' : ''}${moneyNet.toFixed(0)} | +${cat.gpa.gain.toFixed(1)} | -${cat.gpa.loss.toFixed(1)} | ${gpaNet >= 0 ? '+' : ''}${gpaNet.toFixed(1)} | +${cat.exploration.gain.toFixed(0)} | -${cat.exploration.loss.toFixed(0)} | ${expNet >= 0 ? '+' : ''}${expNet.toFixed(0)} | ${totalCount} |`);
+    }
+    w('');
+
+    // Per-game average
+    const gCount = validGames.length || 1;
+    w('### 18.2 每局平均资源收益（按来源）');
+    w('');
+    w(`| 来源类型 | 金钱净值/局 | GPA净值/局 | 探索净值/局 |`);
+    w(`|---------|-----------|-----------|-----------|`);
+    for (const key of catOrder) {
+      const cat = srcCats[key];
+      if (!cat) continue;
+      const totalCount = cat.money.count + cat.gpa.count + cat.exploration.count;
+      if (totalCount === 0) continue;
+      const moneyNet = (cat.money.gain - cat.money.loss) / gCount;
+      const gpaNet = (cat.gpa.gain - cat.gpa.loss) / gCount;
+      const expNet = (cat.exploration.gain - cat.exploration.loss) / gCount;
+      w(`| ${cat.label} | ${moneyNet >= 0 ? '+' : ''}${moneyNet.toFixed(1)} | ${gpaNet >= 0 ? '+' : ''}${gpaNet.toFixed(2)} | ${expNet >= 0 ? '+' : ''}${expNet.toFixed(1)} |`);
+    }
+    w('');
+
+    // Detailed breakdowns for categories with data
+    const detailSections = [
+      { key: 'event', title: '18.3 格子事件明细' },
+      { key: 'line', title: '18.4 支线事件明细' },
+      { key: 'card', title: '18.5 卡牌效果明细' },
+      { key: 'plan', title: '18.6 培养计划能力明细' },
+      { key: 'corner', title: '18.7 角落格子明细' },
+    ];
+
+    for (const section of detailSections) {
+      const cat = srcCats[section.key];
+      if (!cat) continue;
+      const details = Object.entries(cat.details)
+        .map(([name, d]) => {
+          const moneyNet = d.money.gain - d.money.loss;
+          const gpaNet = d.gpa.gain - d.gpa.loss;
+          const expNet = d.exploration.gain - d.exploration.loss;
+          const count = d.money.count + d.gpa.count + d.exploration.count;
+          return { name, moneyNet, gpaNet, expNet, count, ...d };
+        })
+        .filter(d => d.count > 0)
+        .sort((a, b) => b.count - a.count);
+
+      if (details.length === 0) continue;
+
+      w(`### ${section.title}`);
+      w('');
+      w(`| 名称 | 次数 | 金钱净值 | GPA净值 | 探索净值 |`);
+      w(`|------|------|---------|--------|---------|`);
+      for (const d of details.slice(0, 30)) { // Top 30
+        w(`| ${d.name} | ${d.count} | ${d.moneyNet >= 0 ? '+' : ''}${d.moneyNet.toFixed(0)} | ${d.gpaNet >= 0 ? '+' : ''}${d.gpaNet.toFixed(1)} | ${d.expNet >= 0 ? '+' : ''}${d.expNet.toFixed(0)} |`);
+      }
+      if (details.length > 30) {
+        w(`| ... 共 ${details.length} 项，仅显示前 30 | | | | |`);
+      }
+      w('');
+    }
+  }
+
   // ---- Balance Recommendations ----
-  w('## 17. 平衡性调整建议');
+  w('## 19. 平衡性调整建议');
   w('');
   const recommendations = [];
 
@@ -1396,7 +1765,7 @@ function generateReport() {
   }
 
   // ---- Raw Data Summary ----
-  w('## 18. 数据说明');
+  w('## 20. 数据说明');
   w('');
   w(`- 数据来源: ${inputPath}`);
   w(`- 总模拟局数: ${rawData.length} (有效: ${validGames.length})`);

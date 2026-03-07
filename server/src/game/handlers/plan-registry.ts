@@ -194,7 +194,7 @@ register({
 });
 
 // ---------- 10. plan_xinxiguanli — 信息管理学院 ----------
-// 确认时重新分配手牌
+// 确认时获得专属卡牌「数据整合」
 register({
   planId: 'plan_xinxiguanli',
   trigger: 'on_confirm',
@@ -202,8 +202,8 @@ register({
     if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '信息管理学院能力：重新分配卡片',
-      effects: { customEffect: 'xinxiguanli_redistribute' },
+      message: '信息管理学院能力：获得专属卡牌「数据整合」',
+      effects: { customEffect: 'xinxiguanli_give_card' },
     };
   },
 });

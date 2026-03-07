@@ -1236,17 +1236,17 @@ export class GameEngine implements IGameEngine {
 
     switch (planId) {
       case 'plan_shangxue':
-        // 商学院：金钱达到5000
-        if (player.money >= 5000) {
-          this.declareWinner(playerId, '商学院：金钱达到5000');
+        // 商学院：金钱达到5555
+        if (player.money >= 5555) {
+          this.declareWinner(playerId, '商学院：金钱达到5555');
           return true;
         }
         break;
 
       case 'plan_huaxue':
-        // 化学化工学院：连续4回合触发增益（链式反应）
-        if (player.consecutivePositiveTurns >= 4) {
-          this.declareWinner(playerId, '化学化工学院：连续4回合触发增益（链式反应）');
+        // 化学化工学院：连续6回合触发增益（链式反应）
+        if (player.consecutivePositiveTurns >= 6) {
+          this.declareWinner(playerId, '化学化工学院：连续6回合触发增益（链式反应）');
           return true;
         }
         break;
@@ -1296,7 +1296,7 @@ export class GameEngine implements IGameEngine {
         break;
 
       case 'plan_wuli':
-        // 物理学院：任选两项之和>=90 (探索值, GPA*10, 金钱/100)
+        // 物理学院：任选两项之和>=85 (探索值, GPA*10, 金钱/100)
         const scores = [
           player.exploration,
           player.gpa * 10,
@@ -1305,21 +1305,21 @@ export class GameEngine implements IGameEngine {
         let validPair = false;
         for (let i = 0; i < scores.length && !validPair; i++) {
           for (let j = i + 1; j < scores.length && !validPair; j++) {
-            if (scores[i] + scores[j] >= 90) {
+            if (scores[i] + scores[j] >= 85) {
               validPair = true;
             }
           }
         }
         if (validPair) {
-          this.declareWinner(playerId, '物理学院：两项属性之和达到90');
+          this.declareWinner(playerId, '物理学院：两项属性之和达到85');
           return true;
         }
         break;
 
       case 'plan_gongguan':
-        // 工程管理学院：第二次金钱为0
-        if (player.moneyZeroCount >= 2) {
-          this.declareWinner(playerId, '工程管理学院：第二次金钱为0');
+        // 工程管理学院：第一次金钱为0
+        if (player.moneyZeroCount >= 1) {
+          this.declareWinner(playerId, '工程管理学院：第一次金钱为0');
           return true;
         }
         break;
@@ -1364,8 +1364,8 @@ export class GameEngine implements IGameEngine {
         const govMonies = activeForGov.map(p => p.money);
         const govMax = Math.max(...govMonies);
         const govMin = Math.min(...govMonies);
-        if (govMax - govMin <= 500) {
-          this.declareWinner(playerId, `政府管理学院：探索值≥20且金钱差≤500`);
+        if (govMax - govMin <= 666) {
+          this.declareWinner(playerId, `政府管理学院：探索值≥20且金钱差≤666`);
           return true;
         }
         break;

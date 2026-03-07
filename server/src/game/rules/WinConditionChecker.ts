@@ -62,16 +62,16 @@ export class WinConditionChecker {
     history: PlayerHistory
   ): WinResult {
     switch (planId) {
-      // 商学院：金钱达到5000
+      // 商学院：金钱达到5555
       case 'plan_shangxue':
-        if (player.money >= 5000) {
+        if (player.money >= 5555) {
           return { won: true, condition: `商学院：金钱达到${player.money}`, planId };
         }
         break;
 
-      // 化学化工学院：连续4回合触发增益效果（链式反应）
+      // 化学化工学院：连续6回合触发增益效果（链式反应）
       case 'plan_huaxue':
-        if (player.consecutivePositiveTurns >= 4) {
+        if (player.consecutivePositiveTurns >= 6) {
           return { won: true, condition: `化学化工学院：连续${player.consecutivePositiveTurns}回合触发增益（链式反应）`, planId };
         }
         break;
@@ -105,10 +105,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 工程管理学院：第2次金钱为0
+      // 工程管理学院：第1次金钱为0
       case 'plan_gongguan':
-        if (history.moneyZeroCount >= 2) {
-          return { won: true, condition: '工程管理学院：第2次金钱为0', planId };
+        if (history.moneyZeroCount >= 1) {
+          return { won: true, condition: '工程管理学院：第1次金钱为0', planId };
         }
         break;
 
@@ -126,10 +126,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 物理学院：任意两项属性分数之和≥90
+      // 物理学院：任意两项属性分数之和≥85
       case 'plan_wuli':
         if (this.checkPhysicsWin(player)) {
-          return { won: true, condition: '物理学院：任意两项属性分数之和≥90', planId };
+          return { won: true, condition: '物理学院：任意两项属性分数之和≥85', planId };
         }
         break;
 
@@ -179,18 +179,19 @@ export class WinConditionChecker {
         }
         break;
 
-      // 建筑学院：经历过起点、校医院、鼎、候车厅、闯门
+      // 建筑学院：经历过起点、校医院、鼎、候车厅、闯门中的任意4个
       case 'plan_jianzhu':
         const requiredCells = ['start', 'hospital', 'ding', 'waiting_room', 'chuangmen'];
-        if (requiredCells.every(cellId => history.mainCellVisited.includes(cellId))) {
-          return { won: true, condition: '建筑学院：经历过所有主要格子', planId };
+        const visitedCount = requiredCells.filter(cellId => history.mainCellVisited.includes(cellId)).length;
+        if (visitedCount >= 4) {
+          return { won: true, condition: `建筑学院：经历过${visitedCount}/5个主要格子`, planId };
         }
         break;
 
       // 政府管理学院：探索值达到20且场上金钱最高最低差不超过500
       case 'plan_zhengguan':
         if (this.checkZhengguanWin(player, state)) {
-          return { won: true, condition: '政府管理学院：探索值≥20且金钱差≤500', planId };
+          return { won: true, condition: '政府管理学院：探索值≥20且金钱差≤666', planId };
         }
         break;
 
@@ -293,10 +294,10 @@ export class WinConditionChecker {
         break;
       }
 
-      // 大气科学学院：连续20回合金钱从未是所有玩家中唯一最多
+      // 大气科学学院：连续18回合金钱从未是所有玩家中唯一最多
       case 'plan_daqi':
-        if (this.checkNeverRichest(player, state, history, 20)) {
-          return { won: true, condition: '大气科学学院：连续20回合金钱从未唯一最多', planId };
+        if (this.checkNeverRichest(player, state, history, 18)) {
+          return { won: true, condition: '大气科学学院：连续18回合金钱从未唯一最多', planId };
         }
         break;
 
@@ -330,7 +331,7 @@ export class WinConditionChecker {
     ];
     for (let i = 0; i < scores.length; i++) {
       for (let j = i + 1; j < scores.length; j++) {
-        if (scores[i] + scores[j] >= 90) {
+        if (scores[i] + scores[j] >= 85) {
           return true;
         }
       }
@@ -363,7 +364,7 @@ export class WinConditionChecker {
     const monies = activePlayers.map(p => p.money);
     const maxMoney = Math.max(...monies);
     const minMoney = Math.min(...monies);
-    return maxMoney - minMoney <= 500;
+    return maxMoney - minMoney <= 666;
   }
 
   private checkAllPlayersSharedCellTwice(player: Player, state: GameState, history: PlayerHistory): boolean {
