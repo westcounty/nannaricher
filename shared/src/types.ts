@@ -31,9 +31,10 @@ export interface Card {
   holdable: boolean;        // can be kept in hand
   singleUse: boolean;
   returnToDeck: boolean;    // return after use
-  effects: CardEffect[];
+  effects: CardEffect[];  // UI展示用; 有自定义handler的卡牌以handler为准
   useTiming?: 'own_turn' | 'any_turn'; // when holdable card can be used from hand
   // Complex cards use server-side handler by id
+  tags?: string[];  // UI标签: ['响应卡', '防御', '移动'] 等
 }
 
 export interface TrainingPlan {
@@ -93,7 +94,8 @@ export interface PendingAction {
   type: 'choose_option' | 'roll_dice' | 'choose_player' | 'choose_line'
     | 'choose_card' | 'multi_player_choice' | 'draw_training_plan'
     | 'multi_vote'           // 全体投票（如四校联动、泳馆常客）
-    | 'chain_action';        // 连锁行动（如八卦秘闻、南行玫瑰）
+    | 'chain_action'         // 连锁行动（如八卦秘闻、南行玫瑰）
+    | 'parallel_plan_selection';
   prompt: string;
   options?: {
     label: string;
@@ -114,6 +116,15 @@ export interface PendingAction {
   cardId?: string;            // 触发此action的卡牌ID
   chainOrder?: string[];      // 连锁行动的玩家顺序
   callbackHandler?: string;   // 回调handler ID，choice作为第三参数传入
+  planSelectionData?: {
+    perPlayer: Record<string, {
+      drawnPlans: TrainingPlan[];
+      existingPlanIds: string[];
+      currentMajor: string | null;
+      currentMinors: string[];
+      planSlotLimit: number;
+    }>;
+  };
 }
 
 // === Game State ===
