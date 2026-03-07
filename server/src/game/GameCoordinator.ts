@@ -795,19 +795,30 @@ export class GameCoordinator {
         return;
       }
       if (ce === 'huaxue_disable') {
-        // 化工学院：选择禁用格子/线路，持续生效直到不再是主修或新学年重新选择
-        const mainCells = boardData.mainBoard
-          .filter(c => c.type === 'event' || c.type === 'chance' || c.type === 'line_entry')
-          .slice(0, 12)
+        // 化工学院：可禁用主线上有负面效果的格子或线路入口，持续生效
+        const NEGATIVE_CELL_IDS = new Set([
+          'tuition',      // 交学费：扣钱
+          'hospital',     // 校医院：被困
+          'ding',         // 鼎：暂停
+          'jiang_gong',   // 蒋公的面子：有负面选项
+          'society',      // 社团：扣钱或GPA
+          'kechuang',     // 科创赛事：扣GPA
+          'nanna_cp',     // 南哪诚品：给别人钱
+          'chuangmen',    // 闯门：扣GPA选项
+          'retake',       // 重修：扣钱
+          'qingong',      // 勤工助学：暂停1回合
+        ]);
+        const disableOptions = boardData.mainBoard
+          .filter(c => NEGATIVE_CELL_IDS.has(c.id) || c.type === 'line_entry')
           .map(c => ({ label: `禁用: ${c.name}`, value: `disable_${c.id}` }));
-        mainCells.push({ label: '不禁用', value: 'huaxue_skip' });
+        disableOptions.push({ label: '不禁用', value: 'huaxue_skip' });
 
         state.pendingAction = {
           id: `huaxue_${Date.now()}`,
           playerId: currentPlayer.id,
           type: 'choose_option',
-          prompt: '化学化工学院能力：选择一个格子使其持续失效（直到主修变更或新学年重新选择）',
-          options: mainCells,
+          prompt: '化学化工学院能力：选择一个格子或线路入口使其持续失效（直到主修变更或新学年重新选择）',
+          options: disableOptions,
           callbackHandler: 'plan_huaxue_choice',
           timeoutMs: 15000,
         };
