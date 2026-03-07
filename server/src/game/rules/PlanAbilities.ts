@@ -3,6 +3,7 @@
 import { Player, GameState } from '@nannaricher/shared';
 import {
   getPlanAbility,
+  getPlanAbilities,
   PlanAbilityContext as RegistryContext,
   PlanAbilityResult as RegistryResult,
   AbilityTrigger,
@@ -45,12 +46,13 @@ export class PlanAbilityHandler {
     // 只有主修方向的被动效果生效
     if (!player.majorPlan) return null;
 
-    const ability = getPlanAbility(player.majorPlan);
-    if (!ability || ability.trigger !== trigger) return null;
-
-    const ctx: RegistryContext = { player, state, trigger, ...extra };
-    const result = ability.apply(ctx);
-    if (result?.activated) return result;
+    const defs = getPlanAbilities(player.majorPlan);
+    for (const ability of defs) {
+      if (ability.trigger !== trigger) continue;
+      const ctx: RegistryContext = { player, state, trigger, ...extra };
+      const result = ability.apply(ctx);
+      if (result?.activated) return result;
+    }
     return null;
   }
 
@@ -65,11 +67,14 @@ export class PlanAbilityHandler {
     trigger: AbilityTrigger,
     extra?: Partial<RegistryContext>,
   ): RegistryResult | null {
-    const ability = getPlanAbility(planId);
-    if (!ability || ability.trigger !== trigger) return null;
-    const ctx: RegistryContext = { player, state, trigger, ...extra };
-    const result = ability.apply(ctx);
-    return result?.activated ? result : null;
+    const defs = getPlanAbilities(planId);
+    for (const ability of defs) {
+      if (ability.trigger !== trigger) continue;
+      const ctx: RegistryContext = { player, state, trigger, ...extra };
+      const result = ability.apply(ctx);
+      if (result?.activated) return result;
+    }
+    return null;
   }
 
   /**

@@ -44,10 +44,12 @@ export interface PlanAbilityDef {
   apply: (ctx: PlanAbilityContext) => PlanAbilityResult | null;
 }
 
-const PLAN_ABILITIES = new Map<string, PlanAbilityDef>();
+const PLAN_ABILITIES = new Map<string, PlanAbilityDef[]>();
 
 function register(def: PlanAbilityDef): void {
-  PLAN_ABILITIES.set(def.planId, def);
+  const existing = PLAN_ABILITIES.get(def.planId) || [];
+  existing.push(def);
+  PLAN_ABILITIES.set(def.planId, existing);
 }
 
 // ---------- 1. plan_wenxue — 文学院 ----------
@@ -568,5 +570,10 @@ register({
 export { PLAN_ABILITIES };
 
 export function getPlanAbility(planId: string): PlanAbilityDef | undefined {
-  return PLAN_ABILITIES.get(planId);
+  const defs = PLAN_ABILITIES.get(planId);
+  return defs?.[0];
+}
+
+export function getPlanAbilities(planId: string): PlanAbilityDef[] {
+  return PLAN_ABILITIES.get(planId) || [];
 }
