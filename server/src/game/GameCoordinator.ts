@@ -339,12 +339,6 @@ export class GameCoordinator {
         callbackHandler: 'negate_response',
       };
 
-      // Anonymous waiting notification
-      this.io.to(this.roomId).emit('game:announcement', {
-        message: '有玩家正在考虑是否使用响应卡牌',
-        type: 'info' as const,
-      });
-
       this.broadcastState();
       return; // Wait for player response
     }
@@ -748,18 +742,24 @@ export class GameCoordinator {
           type: 'choose_option',
           prompt: '计算机系能力：选择回合奖励',
           options: [
-            { label: '探索+1', value: 'jisuanji_explore' },
-            { label: '金钱+100', value: 'jisuanji_money' },
+            { label: '探索+1', value: 'jisuanji_explore_plus' },
+            { label: '金钱+101', value: 'jisuanji_money_plus' },
+            { label: '探索-1', value: 'jisuanji_explore_minus' },
+            { label: '金钱-100', value: 'jisuanji_money_minus' },
           ],
           callbackHandler: 'plan_jisuanji_choice',
           timeoutMs: 15000,
         };
         if (!this.engine.getEventHandler().hasHandler('plan_jisuanji_choice')) {
           this.engine.getEventHandler().registerHandler('plan_jisuanji_choice', (eng, pid, choice) => {
-            if (choice === 'jisuanji_explore') {
+            if (choice === 'jisuanji_explore_plus') {
               eng.modifyPlayerExploration(pid, 1);
-            } else {
-              eng.modifyPlayerMoney(pid, 100);
+            } else if (choice === 'jisuanji_money_plus') {
+              eng.modifyPlayerMoney(pid, 101);
+            } else if (choice === 'jisuanji_explore_minus') {
+              eng.modifyPlayerExploration(pid, -1);
+            } else if (choice === 'jisuanji_money_minus') {
+              eng.modifyPlayerMoney(pid, -100);
             }
             return null;
           });
@@ -825,6 +825,41 @@ export class GameCoordinator {
                 data: { moveModifier: 'double_backward' },
               });
               eng.log('物理学院：本回合双倍后退', pid);
+            }
+            return null;
+          });
+        }
+        this.broadcastState();
+        return;
+      }
+      if (ce === 'haiwai_turn_choice') {
+        state.pendingAction = {
+          id: `haiwai_${Date.now()}`,
+          playerId: currentPlayer.id,
+          type: 'choose_option',
+          prompt: '海外教育学院能力：选择本回合操作',
+          options: [
+            { label: '获得400金钱', value: 'haiwai_money', effectPreview: { money: 400 } },
+            { label: '花费1200金钱抽取机会卡', value: 'haiwai_draw', effectPreview: { money: -1200 } },
+            { label: '不操作', value: 'skip' },
+          ],
+          callbackHandler: 'plan_haiwai_turn_choice',
+          timeoutMs: 15000,
+        };
+        if (!this.engine.getEventHandler().hasHandler('plan_haiwai_turn_choice')) {
+          this.engine.getEventHandler().registerHandler('plan_haiwai_turn_choice', (eng, pid, choice) => {
+            if (choice === 'haiwai_money') {
+              eng.modifyPlayerMoney(pid, 400);
+              eng.log('海外教育学院：获得400金钱', pid);
+            } else if (choice === 'haiwai_draw') {
+              const p = eng.getPlayer(pid);
+              if (p && p.money >= 1200) {
+                eng.modifyPlayerMoney(pid, -1200);
+                eng.drawAndProcessCard(pid, 'chance');
+                eng.log('海外教育学院：花费1200金钱抽取机会卡', pid);
+              } else {
+                eng.log('海外教育学院：金钱不足，无法抽卡', pid);
+              }
             }
             return null;
           });
@@ -1022,27 +1057,22 @@ export class GameCoordinator {
         break;
 
       // === 基于跟踪数据的条件 ===
-      case 'plan_wenxue': {  // 文学院：离开赚在南哪线时金钱未变化
+      case 'plan_wenxue': {  // 文学院：离开赚在南哪线时没有赚钱（只计算支线内事件变化）
         if (history) {
           const moneyExits = history.lineExits.filter(e => e.lineId === 'money');
           for (const exit of moneyExits) {
-            if (exit.moneyBefore === exit.moneyAfter) return '离开赚在南哪线时金钱未变化';
+            if (exit.moneyAfter <= exit.moneyBefore) return '离开赚在南哪线时没有赚钱';
           }
         }
         break;
       }
-      case 'plan_lishi': {   // 历史学院：按顺序经过鼓楼、浦口、仙林、苏州
-        if (history) {
-          const order = history.campusLineOrder;
-          const required = ['gulou', 'pukou', 'xianlin', 'suzhou'];
-          let idx = 0;
-          for (const campus of order) {
-            if (campus === required[idx]) {
-              idx++;
-              if (idx >= required.length) return '按顺序经过鼓楼、浦口、仙林、苏州校区线';
-            }
-          }
+      case 'plan_lishi': {   // 历史学院：四个校区线累计到达过12个格子
+        const campusLineIds = ['pukou', 'gulou', 'xianlin', 'suzhou'];
+        let totalCampusCells = 0;
+        for (const lid of campusLineIds) {
+          totalCampusCells += (player.lineEventsTriggered[lid] || []).length;
         }
+        if (totalCampusCells >= 12) return `四个校区线累计到达${totalCampusCells}个格子`;
         break;
       }
       case 'plan_zhexue': {  // 哲学系：完整进出某条线且探索值和GPA无变化且钱没减少
@@ -1057,9 +1087,12 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_faxue':     // 法学院：场上出现破产玩家且不是你
+      case 'plan_faxue':     // 法学院：出现其他破产玩家或罚没收入达到1000
         if (state.players.some(p => p.isBankrupt && p.id !== player.id)) {
           return '场上出现破产玩家';
+        }
+        if (player.confiscatedIncome >= 1000) {
+          return `罚没收入达到${player.confiscatedIncome}`;
         }
         break;
       case 'plan_waiguoyu':  // 外国语学院：抽到过两张包含英文字母的卡
@@ -1086,12 +1119,13 @@ export class GameCoordinator {
         if (maxMoney - minMoney <= 666) return `探索值≥20且金钱差≤666 (max=${maxMoney}, min=${minMoney})`;
         break;
       }
-      case 'plan_guoji': {   // 国际关系学院：和至少两名其他玩家互相使用过机会卡
-        const usedOnCount = Object.keys(player.chanceCardsUsedOnPlayers).filter(pid => {
-          const other = state.players.find(p => p.id === pid);
-          return other && other.chanceCardsUsedOnPlayers[player.id] > 0;
-        }).length;
-        if (usedOnCount >= 2) return `与${usedOnCount}名玩家互相使用过机会卡`;
+      case 'plan_guoji': {   // 国际关系学院：累计给他人使用3次机会卡，或被他人累计使用3次机会卡
+        const totalGiven = Object.values(player.chanceCardsUsedOnPlayers).reduce((s, v) => s + v, 0);
+        const totalReceived = state.players
+          .filter(p => p.id !== player.id)
+          .reduce((s, p) => s + (p.chanceCardsUsedOnPlayers[player.id] ?? 0), 0);
+        if (totalGiven >= 3) return `累计给他人使用${totalGiven}次机会卡`;
+        if (totalReceived >= 3) return `被他人累计使用${totalReceived}次机会卡`;
         break;
       }
       case 'plan_xinxiguanli':  // 信息管理学院：抽到过4个不重复的数字开头卡
@@ -1147,16 +1181,24 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_ruanjian':  // 软件学院：到达交学费格支出3200金钱（需在event_tuition时特殊处理，此处仅检查标记）
-        // 此胜利条件在交学费事件中触发检查
+      case 'plan_ruanjian':  // 软件学院：累计交学费超过4200且没有破产
+        if (player.totalTuitionPaid >= 4200 && !player.isBankrupt) {
+          return `累计交学费${player.totalTuitionPaid} ≥ 4200且未破产`;
+        }
         break;
-      case 'plan_dianzi':   // 电子科学与工程学院：科创赛事投到6（在kechuang_join中标记）
-        // 此胜利条件在科创赛事handler中触发标记
+      case 'plan_dianzi':   // 电子科学与工程学院：科创赛事累计获得0.6及以上GPA
+        if (player.kechuangGpaGained >= 0.6) {
+          return `科创赛事累计GPA ${player.kechuangGpaGained.toFixed(1)} ≥ 0.6`;
+        }
         break;
-      case 'plan_xiandai': { // 现代工程与应用科学学院：进入过除苏州校区外所有线
-        const requiredLines = ['pukou', 'study', 'money', 'explore', 'gulou', 'xianlin', 'food'];
-        const allVisited = requiredLines.every(l => player.linesVisited.includes(l));
-        if (allVisited) return '进入过除苏州外所有线路';
+      case 'plan_xiandai': { // 现代工程与应用科学学院：GPA>=4且金钱>=4000，或探索值+GPA*10+金钱/1000>=60
+        if (player.gpa >= 4 && player.money >= 4000) {
+          return `GPA=${player.gpa.toFixed(1)}≥4 且 金钱=${player.money}≥4000`;
+        }
+        const xiandaiScore = player.exploration + player.gpa * 10 + player.money / 1000;
+        if (xiandaiScore >= 60) {
+          return `探索值+GPA×10+金钱÷1000 = ${xiandaiScore.toFixed(1)} ≥ 60`;
+        }
         break;
       }
       case 'plan_huanjing': { // 环境学院：经历过仙林校区线至少5个不同事件
@@ -1164,17 +1206,16 @@ export class GameCoordinator {
         if (xianlinEvents.length >= 5) return `经历过仙林线${xianlinEvents.length}个不同事件`;
         break;
       }
-      case 'plan_diqiu': {   // 地球科学与工程学院：进入过每一条线
-        const allLines = ['pukou', 'study', 'money', 'suzhou', 'explore', 'gulou', 'xianlin', 'food'];
-        const allVisited = allLines.every(l => player.linesVisited.includes(l));
-        if (allVisited) return '进入过全部8条线路';
+      case 'plan_diqiu': {   // 地球科学与工程学院：进入过浦口、仙林、苏州、鼓楼线
+        const campusLines = ['pukou', 'xianlin', 'suzhou', 'gulou'];
+        const allVisited = campusLines.every(l => player.linesVisited.includes(l));
+        if (allVisited) return '进入过四个校区线';
         break;
       }
-      case 'plan_dili': {    // 地理与海洋科学学院：执行过四个校区线的终点效果
-        const campusLines = ['pukou', 'suzhou', 'gulou', 'xianlin'];
-        const campusExits = history?.lineExits.filter(e => campusLines.includes(e.lineId)) || [];
-        const completedCampus = new Set(campusExits.map(e => e.lineId));
-        if (completedCampus.size >= 4) return '执行过四个校区线终点效果';
+      case 'plan_dili': {    // 地理与海洋科学学院：进入过赚钱、学习、探索和食堂线
+        const targetLines = ['money', 'study', 'explore', 'food'];
+        const allVisited = targetLines.every(l => player.linesVisited.includes(l));
+        if (allVisited) return '进入过赚钱、学习、探索和食堂线';
         break;
       }
       case 'plan_daqi': {    // 大气科学学院：18回合内金钱始终不为唯一最多
@@ -1193,16 +1234,16 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_shengming':  // 生命科学学院：食堂线连续三次无负面效果
-        if (player.cafeteriaNoNegativeStreak >= 3) {
-          return `食堂线连续${player.cafeteriaNoNegativeStreak}次无负面效果`;
+      case 'plan_shengming':  // 生命科学学院：单次食堂线累计触发3次非负面效果
+        if (player.foodLineNonNegativeCount >= 3) {
+          return `食堂线累计${player.foodLineNonNegativeCount}次非负面效果`;
         }
         break;
       case 'plan_yixue':     // 医学院：进入过三次医院
         if (player.hospitalVisits >= 3) return `进入${player.hospitalVisits}次医院`;
         break;
-      case 'plan_gongguan':  // 工程管理学院：金钱在0-200且未破产
-        if (player.money >= 0 && player.money <= 200 && !player.isBankrupt) return `金钱${player.money}在0-200范围内且未破产`;
+      case 'plan_gongguan':  // 工程管理学院：连续6回合金钱在500及以内
+        if (player.consecutiveLowMoneyTurns >= 6) return `连续${player.consecutiveLowMoneyTurns}回合金钱≤500`;
         break;
       case 'plan_kuangyaming': { // 匡亚明学院：满足≥2个不同玩家的培养计划条件
         let matchedCount = 0;
@@ -2264,16 +2305,64 @@ export class GameCoordinator {
         player.lawyerShield = true;
         this.addLog(playerId, '法学院能力：获得法律护盾（一次免除金钱损失）');
       }
-      if (plan.id === 'plan_haiwai') {
-        if (!player.effects.find(e => e.type === 'custom' && e.data?.foodLineOptional)) {
-          this.engine.addEffectToPlayer(playerId, {
-            id: `haiwai_food_optional_${Date.now()}`,
-            type: 'custom',
-            turnsRemaining: 999,
-            data: { foodLineOptional: true },
+      if (fx.customEffect === 'lishi_choose_campus') {
+        const lishiState = this.engine.getState();
+        lishiState.pendingAction = {
+          id: `lishi_campus_${Date.now()}`,
+          playerId,
+          type: 'choose_option',
+          prompt: '历史学院能力：选择移动到哪个校区线入口',
+          options: [
+            { label: '鼓楼线入口', value: 'lishi_gulou' },
+            { label: '仙林线入口', value: 'lishi_xianlin' },
+          ],
+          callbackHandler: 'plan_lishi_campus_choice',
+          timeoutMs: 15000,
+        };
+        if (!this.engine.getEventHandler().hasHandler('plan_lishi_campus_choice')) {
+          this.engine.getEventHandler().registerHandler('plan_lishi_campus_choice', (eng, pid, choice) => {
+            const lineId = choice === 'lishi_gulou' ? 'gulou' : 'xianlin';
+            const cellIndex = boardData.mainBoard.findIndex(c => c.type === 'line_entry' && c.lineId === lineId);
+            if (cellIndex >= 0) {
+              const p = eng.getPlayer(pid);
+              if (p) {
+                p.position = { type: 'main', index: cellIndex };
+                eng.log(`历史学院：移动到${lineId === 'gulou' ? '鼓楼' : '仙林'}线入口`, pid);
+              }
+            }
+            return null;
           });
         }
-        this.addLog(playerId, '海外教育学院能力：食堂线改为可选进入');
+      }
+      if (fx.customEffect === 'dianzi_move_to_kechuang') {
+        const dianziState = this.engine.getState();
+        dianziState.pendingAction = {
+          id: `dianzi_kechuang_${Date.now()}`,
+          playerId,
+          type: 'choose_option',
+          prompt: '电子学院能力：是否移动到科创赛事？',
+          options: [
+            { label: '移动到科创赛事', value: 'dianzi_go_kechuang' },
+            { label: '不移动', value: 'skip' },
+          ],
+          callbackHandler: 'plan_dianzi_kechuang_choice',
+          timeoutMs: 15000,
+        };
+        if (!this.engine.getEventHandler().hasHandler('plan_dianzi_kechuang_choice')) {
+          this.engine.getEventHandler().registerHandler('plan_dianzi_kechuang_choice', (eng, pid, choice) => {
+            if (choice === 'dianzi_go_kechuang') {
+              const kechuangIndex = boardData.mainBoard.findIndex(c => c.id === 'kechuang');
+              if (kechuangIndex >= 0) {
+                const p = eng.getPlayer(pid);
+                if (p) {
+                  p.position = { type: 'main', index: kechuangIndex };
+                  eng.log('电子学院：移动到科创赛事', pid);
+                }
+              }
+            }
+            return null;
+          });
+        }
       }
     }
   }
