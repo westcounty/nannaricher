@@ -581,6 +581,21 @@ export class GameCoordinator {
   advanceTurn(): void {
     const state = this.engine.getState();
 
+    // 化学院链式反应：回合结束时检查是否有增益
+    const outgoingPlayer = state.players[state.currentPlayerIndex];
+    if (outgoingPlayer && outgoingPlayer.turnStartSnapshot) {
+      const snap = outgoingPlayer.turnStartSnapshot;
+      const hasPositive = outgoingPlayer.money > snap.money
+        || outgoingPlayer.gpa > snap.gpa + 0.001
+        || outgoingPlayer.exploration > snap.exploration;
+      if (hasPositive) {
+        outgoingPlayer.consecutivePositiveTurns++;
+      } else {
+        outgoingPlayer.consecutivePositiveTurns = 0;
+      }
+      outgoingPlayer.turnStartSnapshot = undefined;
+    }
+
     // Find next player who can play
     let nextIndex = state.currentPlayerIndex;
     let attempts = 0;
@@ -673,6 +688,13 @@ export class GameCoordinator {
 
     // Set pending action for next player
     const currentPlayer = state.players[state.currentPlayerIndex];
+
+    // 化学院链式反应：记录回合开始时的资源快照
+    currentPlayer.turnStartSnapshot = {
+      money: currentPlayer.money,
+      gpa: currentPlayer.gpa,
+      exploration: currentPlayer.exploration,
+    };
 
     // --- PlanAbilities: on_turn_start check ---
     const planAbilities = this.engine.getPlanAbilities();
@@ -938,8 +960,8 @@ export class GameCoordinator {
       case 'plan_shangxue':  // 商学院：金钱达到5000
         if (player.money >= 5000) return '金钱达到5000';
         break;
-      case 'plan_huaxue':    // 化学化工学院：探索值达到45
-        if (player.exploration >= 45) return '探索值达到45';
+      case 'plan_huaxue':    // 化学化工学院：连续4回合触发增益（链式反应）
+        if (player.consecutivePositiveTurns >= 4) return `连续${player.consecutivePositiveTurns}回合触发增益`;
         break;
       case 'plan_makesi':    // 马克思主义学院：GPA达到4.5
         if (player.gpa >= 4.5) return 'GPA达到4.5';
@@ -999,14 +1021,14 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_zhengguan': {  // 政府管理学院：探索值、GPA、金钱均不与其他玩家一致
-        const others = state.players.filter(p => p.id !== player.id && !p.isBankrupt);
-        const allUnique = others.every(p =>
-          p.exploration !== player.exploration &&
-          Math.abs(p.gpa - player.gpa) >= 0.01 &&
-          p.money !== player.money
-        );
-        if (allUnique && others.length > 0) return '探索值、GPA、金钱均与其他玩家不同';
+      case 'plan_zhengguan': {  // 政府管理学院：探索值达到20且场上金钱差不超过500
+        if (player.exploration < 20) break;
+        const activePlayers = state.players.filter(p => !p.isBankrupt);
+        if (activePlayers.length < 2) break;
+        const monies = activePlayers.map(p => p.money);
+        const maxMoney = Math.max(...monies);
+        const minMoney = Math.min(...monies);
+        if (maxMoney - minMoney <= 500) return `探索值≥20且金钱差≤500 (max=${maxMoney}, min=${minMoney})`;
         break;
       }
       case 'plan_guoji': {   // 国际关系学院：和至少两名其他玩家互相使用过机会卡
@@ -1042,13 +1064,13 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_tianwen': { // 天文与空间科学学院：和每个其他玩家同格停留过
+      case 'plan_tianwen': { // 天文与空间科学学院：和每位其他玩家同格停留次数均>=2
         if (history) {
           const otherIds = state.players.filter(p => p.id !== player.id && !p.isBankrupt).map(p => p.id);
-          const allShared = otherIds.every(pid =>
-            history.sharedCellsWith[pid] && history.sharedCellsWith[pid].length > 0
+          const allSharedTwice = otherIds.length > 0 && otherIds.every(pid =>
+            (history.sharedCellsWith[pid]?.length ?? 0) >= 2
           );
-          if (allShared && otherIds.length > 0) return '与每位其他玩家同格停留过';
+          if (allSharedTwice) return '与每位其他玩家同格停留≥2次';
         }
         break;
       }
@@ -1225,6 +1247,7 @@ export class GameCoordinator {
     groups: Record<string, string[]>,
     counts: Record<string, number>,
   ): void {
+    this.engine.setResourceSource(`card-cb:${cardId}`);
     switch (cardId) {
       case 'chance_light_shadow': {
         // 光影变幻 — majority decides
@@ -1490,6 +1513,7 @@ export class GameCoordinator {
         break;
       }
     }
+    this.engine.clearResourceSource();
   }
 
   /**

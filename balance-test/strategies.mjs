@@ -60,6 +60,15 @@ const STRATEGY_PLAN_PREFS = {
   greedy_explore: ['explore', 'lines', 'special', 'gpa', 'money'],
 };
 
+// Cells that are predominantly negative — 化学化工学院 should prioritize disabling these
+const NEGATIVE_CELLS = new Set([
+  'tuition',     // 交学费 — always costs money
+  'nanna_cp',    // 南哪诚品 — give money to others
+  'ding',        // 鼎 — skip turn
+  'chuangmen',   // 闯门 — lose GPA or skip turn
+  'society',     // 社团 — costs money or GPA to gamble
+]);
+
 // Line entry probability per strategy (pukou/food are forced, not listed)
 const LINE_ENTER_PREFS = {
   random:        { study: 0.5, money: 0.5, suzhou: 0.5, explore: 0.5, xianlin: 0.5, gulou: 0.5 },
@@ -129,6 +138,11 @@ class BaseStrategy {
     // Negate window: decide whether to use a negate card
     if (options.some(o => o.value?.startsWith('negate_'))) {
       return this._chooseNegate(options, state, pa, playerId);
+    }
+
+    // 化学化工学院能力：优先禁用负面格子
+    if (options.some(o => o.value?.startsWith('disable_'))) {
+      return this._chooseHuaxueDisable(options, state, playerId);
     }
 
     // Plan selection: options are plan names
@@ -204,12 +218,6 @@ class BaseStrategy {
       if (card.id === 'destiny_maimen_shield' && Math.random() < 0.4) {
         return { cardId: card.id };
       }
-      if (card.id === 'destiny_stop_loss' && Math.random() < 0.3) {
-        return { cardId: card.id };
-      }
-      if (card.id === 'destiny_how_to_explain' && Math.random() < 0.3) {
-        return { cardId: card.id };
-      }
       // Line shortcut
       if (card.id === 'destiny_alternative_path' && me.position?.type === 'line' && Math.random() < 0.3) {
         return { cardId: card.id };
@@ -219,9 +227,6 @@ class BaseStrategy {
     // Targeting cards (any_turn) - target the leading player
     if (card.useTiming === 'any_turn') {
       const leadPlayer = this._findLeadingPlayer(state, playerId);
-      if (card.id === 'chance_pie_in_sky' && leadPlayer && Math.random() < 0.3) {
-        return { cardId: card.id, targetPlayerId: leadPlayer };
-      }
       if (card.id === 'chance_leap_of_joy' && leadPlayer && Math.random() < 0.25) {
         return { cardId: card.id, targetPlayerId: leadPlayer };
       }
@@ -235,18 +240,118 @@ class BaseStrategy {
 
   /**
    * Decide whether to use a negate card during a negate window.
-   * Base strategy: use negate with 25% probability.
-   * Override in subclasses for smarter play.
+   * Smart strategy: negate events that hurt self or benefit opponents.
    */
   _chooseNegate(options, state, pa, playerId) {
-    const isCounterNegate = pa?.prompt?.includes('反制');
-    // Counter-negate: lower probability (15%)
-    if (isCounterNegate && Math.random() < 0.85) return 'negate_pass';
-    // Initial negate: use with 25% probability
-    if (Math.random() < 0.75) return 'negate_pass';
-    // Pick a random negate card from available options
     const negateOptions = options.filter(o => o.value?.startsWith('negate_use:'));
-    return negateOptions.length > 0 ? rand(negateOptions).value : 'negate_pass';
+    if (negateOptions.length === 0) return 'negate_pass';
+
+    const prompt = pa?.prompt || '';
+    const isCounterNegate = prompt.includes('反制');
+
+    // Determine who the event affects
+    const targetId = pa?.targetPlayerId || this._inferNegateTarget(state, playerId);
+    const isTargetSelf = targetId === playerId;
+
+    // Analyze event sentiment from prompt keywords
+    const sentiment = this._analyzeEventSentiment(prompt);
+
+    let useProb = 0;
+
+    if (isCounterNegate) {
+      // Counter-negate: someone is trying to cancel our negate
+      // If we originally negated to help ourselves, counter at moderate rate
+      useProb = 0.4;
+    } else if (isTargetSelf) {
+      // Event targets self
+      if (sentiment < 0) {
+        // Negative event on self → negate it (save ourselves)
+        useProb = 0.7;
+      } else if (sentiment > 0) {
+        // Positive event on self → don't negate
+        useProb = 0.0;
+      } else {
+        useProb = 0.1; // Unknown → slight chance
+      }
+    } else {
+      // Event targets an opponent
+      if (sentiment > 0) {
+        // Positive event on opponent → negate it (deny their benefit)
+        useProb = 0.5;
+      } else if (sentiment < 0) {
+        // Negative event on opponent → don't negate (let them suffer)
+        useProb = 0.0;
+      } else {
+        useProb = 0.15;
+      }
+    }
+
+    if (Math.random() >= useProb) return 'negate_pass';
+    return rand(negateOptions).value;
+  }
+
+  /** Infer negate target: current turn player is most likely the target */
+  _inferNegateTarget(state, selfId) {
+    if (!state?.players || state.currentPlayerIndex == null) return selfId;
+    return state.players[state.currentPlayerIndex]?.id || selfId;
+  }
+
+  /** Analyze event sentiment from prompt text. Returns -1 (negative), 0 (neutral), +1 (positive) */
+  _analyzeEventSentiment(prompt) {
+    if (!prompt) return 0;
+    // Negative keywords
+    if (/失去|扣[减除]|损失|罚款|住院|破产|暂停|跳过|减少|负面/.test(prompt)) return -1;
+    // Positive keywords
+    if (/获得|增[加长]|奖[励金]|领取|收益|免费|翻倍/.test(prompt)) return 1;
+    // Card names that are typically negative/positive
+    if (/补天|考试|挂科|迟到|逃课|差评|欠费/.test(prompt)) return -1;
+    if (/奖学金|实习|推免|科研|志愿|优秀/.test(prompt)) return 1;
+    return 0;
+  }
+
+  /**
+   * 化学化工学院能力：选择禁用哪个格子。
+   * 优先禁用自己即将踩到的负面格子；否则禁用已知负面格子。
+   */
+  _chooseHuaxueDisable(options, state, playerId) {
+    const disableOptions = options.filter(o => o.value?.startsWith('disable_'));
+    if (disableOptions.length === 0) return options.find(o => o.value === 'huaxue_skip')?.value || rand(options).value;
+
+    // 1. Check if any of the next few cells we'll land on are in the disable list
+    const me = state?.players?.find(p => p.id === playerId);
+    if (me?.position?.type === 'main') {
+      const currentIdx = me.position.index;
+      // Look ahead 1-6 cells (dice range)
+      for (let step = 1; step <= 6; step++) {
+        const futureIdx = (currentIdx + step) % 28;
+        const futureCellId = this._getCellIdByIndex(futureIdx);
+        if (futureCellId && NEGATIVE_CELLS.has(futureCellId)) {
+          const match = disableOptions.find(o => o.value === `disable_${futureCellId}`);
+          if (match) return match.value;
+        }
+      }
+    }
+
+    // 2. Fallback: disable any known negative cell from the options
+    for (const opt of disableOptions) {
+      const cellId = opt.value.replace('disable_', '');
+      if (NEGATIVE_CELLS.has(cellId)) return opt.value;
+    }
+
+    // 3. Disable a random cell rather than skipping
+    return rand(disableOptions).value;
+  }
+
+  /** Map board index to cell id */
+  _getCellIdByIndex(index) {
+    // Main board cells: hardcoded mapping (matches shared/src/board-data.ts)
+    const CELL_IDS = [
+      'start', 'line_study', 'tuition', 'chance_2', 'line_pukou', 'zijing', 'chance_1',
+      'hospital', 'line_money', 'qingong', 'chance_3', 'line_suzhou', 'retake', 'chance_4',
+      'ding', 'line_explore', 'jiang_gong', 'chance_5', 'line_xianlin', 'society', 'chance_6',
+      'waiting_room', 'line_gulou', 'kechuang', 'chance_7', 'line_food', 'nanna_cp', 'chuangmen',
+    ];
+    return CELL_IDS[index] || null;
   }
 
   /** Find the player with highest score (excluding self) */
@@ -284,16 +389,12 @@ class GreedyGpaStrategy extends BaseStrategy {
     if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
     // GPA-focused: eagerly use GPA protection
     if (card.id === 'destiny_ancestor_exam' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
-    // Use event cancellation more aggressively
-    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
-    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
     // Line shortcut if in line
     if (card.id === 'destiny_alternative_path' && isMyTurn && me.position?.type === 'line' && Math.random() < 0.4) return { cardId: card.id };
     // Food line shield
     if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
     // Target leading player with disruptive cards
     const lead = this._findLeadingPlayer(state, playerId);
-    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.4) return { cardId: card.id, targetPlayerId: lead };
     if (lead && card.id === 'chance_power_outage' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
     return null;
   }
@@ -301,6 +402,8 @@ class GreedyGpaStrategy extends BaseStrategy {
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+    if (options.some(o => o.value?.startsWith('negate_'))) return this._chooseNegate(options, state, pa, playerId);
+    if (options.some(o => o.value?.startsWith('disable_'))) return this._chooseHuaxueDisable(options, state, playerId);
 
     // Plan selection
     if (options.some(o => isPlanOption(o.label))) {
@@ -345,13 +448,10 @@ class GreedyMoneyStrategy extends BaseStrategy {
     // Money-focused: eagerly use money protection cards
     if (card.id === 'destiny_negative_balance' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
     if (card.id === 'destiny_test_waters' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
-    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
-    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
     if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
     // Use line shortcut to save time (time = money)
     if (card.id === 'destiny_alternative_path' && isMyTurn && me.position?.type === 'line' && Math.random() < 0.5) return { cardId: card.id };
     const lead = this._findLeadingPlayer(state, playerId);
-    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.35) return { cardId: card.id, targetPlayerId: lead };
     if (lead && card.id === 'chance_leap_of_joy' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
     return null;
   }
@@ -359,6 +459,8 @@ class GreedyMoneyStrategy extends BaseStrategy {
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+    if (options.some(o => o.value?.startsWith('negate_'))) return this._chooseNegate(options, state, pa, playerId);
+    if (options.some(o => o.value?.startsWith('disable_'))) return this._chooseHuaxueDisable(options, state, playerId);
 
     // Plan selection
     if (options.some(o => isPlanOption(o.label))) {
@@ -399,20 +501,19 @@ class GreedyExploreStrategy extends BaseStrategy {
     if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
     // Explore-focused: protect exploration
     if (card.id === 'destiny_campus_legend' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
-    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
-    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
     // Explore players want to visit more lines - use familiar route to re-enter
     if (card.id === 'destiny_familiar_route' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
     if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
     const lead = this._findLeadingPlayer(state, playerId);
     if (lead && card.id === 'chance_power_outage' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
-    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
     return null;
   }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+    if (options.some(o => o.value?.startsWith('negate_'))) return this._chooseNegate(options, state, pa, playerId);
+    if (options.some(o => o.value?.startsWith('disable_'))) return this._chooseHuaxueDisable(options, state, playerId);
 
     // Plan selection
     if (options.some(o => isPlanOption(o.label))) {
@@ -455,9 +556,7 @@ class PlanFocusedStrategy extends BaseStrategy {
     if (card.id === 'destiny_cross_college_exit' && (me.minorPlans || []).length > 0 && Math.random() < 0.4) {
       return { cardId: card.id };
     }
-    // Use all protection cards moderately
-    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
-    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    // Use protection cards moderately
     if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
     // Line shortcut for line-focused plans
     const planName = getMajorPlanNameFromState(me);
@@ -470,14 +569,14 @@ class PlanFocusedStrategy extends BaseStrategy {
     if (card.id === 'destiny_familiar_route' && isMyTurn && focus === 'lines' && Math.random() < 0.6) {
       return { cardId: card.id };
     }
-    const lead = this._findLeadingPlayer(state, playerId);
-    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.35) return { cardId: card.id, targetPlayerId: lead };
     return null;
   }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+    if (options.some(o => o.value?.startsWith('negate_'))) return this._chooseNegate(options, state, pa, playerId);
+    if (options.some(o => o.value?.startsWith('disable_'))) return this._chooseHuaxueDisable(options, state, playerId);
 
     // Plan selection — pick a plan matching our focus
     if (options.some(o => isPlanOption(o.label))) {
@@ -545,13 +644,10 @@ class BalancedStrategy extends BaseStrategy {
       if (card.id === 'destiny_test_waters' && minResource === moneyNorm && Math.random() < 0.5) return { cardId: card.id };
       if (card.id === 'destiny_ancestor_exam' && minResource === gpaNorm && Math.random() < 0.5) return { cardId: card.id };
       if (card.id === 'destiny_campus_legend' && minResource === exploreNorm && Math.random() < 0.5) return { cardId: card.id };
-      if (card.id === 'destiny_stop_loss' && Math.random() < 0.35) return { cardId: card.id };
-      if (card.id === 'destiny_how_to_explain' && Math.random() < 0.35) return { cardId: card.id };
       if (card.id === 'destiny_maimen_shield' && Math.random() < 0.4) return { cardId: card.id };
       if (card.id === 'destiny_alternative_path' && me.position?.type === 'line' && Math.random() < 0.3) return { cardId: card.id };
     }
     const lead = this._findLeadingPlayer(state, playerId);
-    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
     if (lead && card.id === 'chance_leap_of_joy' && Math.random() < 0.25) return { cardId: card.id, targetPlayerId: lead };
     return null;
   }
@@ -559,6 +655,8 @@ class BalancedStrategy extends BaseStrategy {
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
+    if (options.some(o => o.value?.startsWith('negate_'))) return this._chooseNegate(options, state, pa, playerId);
+    if (options.some(o => o.value?.startsWith('disable_'))) return this._chooseHuaxueDisable(options, state, playerId);
 
     if (options.some(o => isPlanOption(o.label))) {
       // Pick a plan with balanced focus

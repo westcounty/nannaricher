@@ -54,7 +54,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_zhengguan',
     name: '政府管理学院',
-    winCondition: '当你的探索值、GPA和金钱数均不和场上除你外任何玩家一致时，你获胜',
+    winCondition: '当你的探索值达到20，且场上金钱最高和最低玩家的金钱差不超过500时，你获胜',
     passiveAbility: '你进入四个校区线的入场费改为150金钱',
 
   },
@@ -96,14 +96,14 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_tianwen',
     name: '天文与空间科学学院',
-    winCondition: '你和场上剩余每一个其他玩家同时在同一个格子停留过，你获胜',
+    winCondition: '你和每位其他玩家停留在同一格子的次数均大于等于2次后，你获胜',
     passiveAbility: '移动去候车厅，经过起点不领取低保',
 
   },
   {
     id: 'plan_huaxue',
     name: '化学化工学院',
-    winCondition: '当你的探索值达到45时，你获胜',
+    winCondition: '当你连续4个回合均触发了增益效果（金钱、GPA或探索值任一增加）后，你获胜',
     passiveAbility: '你可以选定一个格子和一条线，下一回合失效',
 
   },

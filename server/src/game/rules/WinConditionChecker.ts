@@ -69,10 +69,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 化学化工学院：探索值达到45
+      // 化学化工学院：连续4回合触发增益效果（链式反应）
       case 'plan_huaxue':
-        if (player.exploration >= 45) {
-          return { won: true, condition: `化学化工学院：探索值达到${player.exploration}`, planId };
+        if (player.consecutivePositiveTurns >= 4) {
+          return { won: true, condition: `化学化工学院：连续${player.consecutivePositiveTurns}回合触发增益（链式反应）`, planId };
         }
         break;
 
@@ -187,17 +187,17 @@ export class WinConditionChecker {
         }
         break;
 
-      // 政府管理学院：三项属性均不与其他任何玩家一致
+      // 政府管理学院：探索值达到20且场上金钱最高最低差不超过500
       case 'plan_zhengguan':
-        if (this.checkUniqueStats(player, state)) {
-          return { won: true, condition: '政府管理学院：三项属性均独一无二', planId };
+        if (this.checkZhengguanWin(player, state)) {
+          return { won: true, condition: '政府管理学院：探索值≥20且金钱差≤500', planId };
         }
         break;
 
-      // 天文学院：与所有其他玩家在同一格停留过
+      // 天文学院：与每位其他玩家同格停留次数均>=2
       case 'plan_tianwen':
-        if (this.checkAllPlayersSharedCell(player, state, history)) {
-          return { won: true, condition: '天文学院：与所有其他玩家在同一格相遇', planId };
+        if (this.checkAllPlayersSharedCellTwice(player, state, history)) {
+          return { won: true, condition: '天文学院：与每位其他玩家同格停留≥2次', planId };
         }
         break;
 
@@ -356,19 +356,20 @@ export class WinConditionChecker {
     return true;
   }
 
-  private checkUniqueStats(player: Player, state: GameState): boolean {
-    for (const other of state.players) {
-      if (other.id === player.id) continue;
-      if (other.money === player.money && other.gpa === player.gpa && other.exploration === player.exploration) {
-        return false;
-      }
-    }
-    return true;
+  private checkZhengguanWin(player: Player, state: GameState): boolean {
+    if (player.exploration < 20) return false;
+    const activePlayers = state.players.filter(p => !p.isBankrupt);
+    if (activePlayers.length < 2) return false;
+    const monies = activePlayers.map(p => p.money);
+    const maxMoney = Math.max(...monies);
+    const minMoney = Math.min(...monies);
+    return maxMoney - minMoney <= 500;
   }
 
-  private checkAllPlayersSharedCell(player: Player, state: GameState, history: PlayerHistory): boolean {
-    const otherPlayerIds = state.players.filter(p => p.id !== player.id).map(p => p.id);
-    return otherPlayerIds.every(id => history.sharedCellsWith[id]?.length > 0);
+  private checkAllPlayersSharedCellTwice(player: Player, state: GameState, history: PlayerHistory): boolean {
+    const otherPlayerIds = state.players.filter(p => p.id !== player.id && !p.isBankrupt).map(p => p.id);
+    if (otherPlayerIds.length === 0) return false;
+    return otherPlayerIds.every(id => (history.sharedCellsWith[id]?.length ?? 0) >= 2);
   }
 
   /**

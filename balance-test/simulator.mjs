@@ -104,10 +104,12 @@ class PlayerAgent {
     this.diceResults = [];          // { playerId, values, total }
     this.voteResults = [];          // { cardId, results, winnerOption, turn, round }
     this.chainResults = [];         // { cardId, chainLength, participants, turn, round }
+    this.cardsUsed = [];            // { turn, round, cardId, cardName, targetPlayerId }
     this.hospitalEntries = 0;
     this.bankruptOccurrences = 0;
     this._prevInHospital = false;
     this._prevBankrupt = false;
+    this._cardUseCooldown = 0;      // prevent rapid-fire card usage
   }
 
   connect(serverUrl) {
@@ -173,6 +175,7 @@ class PlayerAgent {
       this.chainResults.push(data);
     });
     s.on('game:player-won', (data) => { this.winner = data; });
+    s.on('game:card-use-error', (data) => { /* silently ignore card use errors */ });
     s.on('room:error', (data) => { this.errors.push(data.message); });
     s.on('disconnect', () => {});
   }
@@ -221,6 +224,14 @@ class PlayerAgent {
   startGame() { this.socket.emit('game:start'); }
   rollDice() { this.socket.emit('game:roll-dice'); }
   chooseAction(actionId, choice) { this.socket.emit('game:choose-action', { actionId, choice }); }
+  useCard(cardId, targetPlayerId) {
+    this.socket.emit('game:use-card', { cardId, targetPlayerId });
+    const round = this.latestState?.roundNumber || 0;
+    const turn = this.latestState?.turnNumber || 0;
+    const card = this.latestState?.players?.find(p => p.id === this.playerId)
+      ?.heldCards?.find(c => c.id === cardId);
+    this.cardsUsed.push({ turn, round, cardId, cardName: card?.name || cardId, targetPlayerId });
+  }
   disconnect() { if (this.socket) this.socket.disconnect(); }
 }
 
@@ -284,6 +295,9 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
 
       // Game timeout
       if (Date.now() - startTime > CONFIG.gameTimeoutMs) break;
+
+      // Proactive card usage: check if any agent wants to use held cards
+      await tryUseCards(agents, state);
 
       const pa = state.pendingAction;
       if (!pa) { await sleep(80); continue; }
@@ -381,6 +395,8 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
           diceResults: (agent?.diceResults || []).filter(d => d.playerId === p.id),
           hospitalEntries: agent?.hospitalEntries || 0,
           bankruptOccurrences: agent?.bankruptOccurrences || 0,
+          cardsUsed: agent?.cardsUsed || [],
+          cardsUsedCount: agent?.cardsUsed?.length || 0,
         };
       }),
       // Aggregate event and card data for the whole game
@@ -392,6 +408,7 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
       allLineExitSummaries: agents[0]?.lineExitSummaries || [],
       voteResults: agents[0]?.voteResults || [],
       chainResults: agents[0]?.chainResults || [],
+      allCardsUsed: agents.flatMap(a => a.cardsUsed || []),
       errors: agents.flatMap(a => a.errors),
     };
   } catch (err) {
@@ -408,6 +425,27 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
   }
 
   return result;
+}
+
+async function tryUseCards(agents, state) {
+  if (!state?.players || state.phase === 'finished') return;
+
+  for (const agent of agents) {
+    // Cooldown: don't spam card usage
+    if (agent._cardUseCooldown > 0) { agent._cardUseCooldown--; continue; }
+
+    const me = state.players.find(p => p.id === agent.playerId);
+    if (!me || !me.heldCards || me.heldCards.length === 0) continue;
+
+    const actions = agent.strategy.chooseCardsToUse(me.heldCards, state, agent.playerId);
+    if (actions.length === 0) continue;
+
+    // Use at most one card per iteration to avoid race conditions
+    const action = actions[0];
+    agent.useCard(action.cardId, action.targetPlayerId);
+    agent._cardUseCooldown = 5; // Wait 5 iterations before trying again
+    await sleep(150); // Let server process
+  }
 }
 
 async function handlePendingAction(agents, state, pa) {
@@ -773,6 +811,10 @@ async function main() {
       }
     }
   }
+
+  // Card usage summary
+  const totalCardsUsed = validGames.reduce((s, g) => s + (g.allCardsUsed?.length || 0), 0);
+  console.log(`  Cards used:      ${totalCardsUsed} (avg ${(totalCardsUsed / validGames.length).toFixed(1)}/game)`);
 
   console.log('\n  Top 5 highest win-rate plans:');
   const ranked = Object.entries(planStats)

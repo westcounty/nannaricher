@@ -81,6 +81,8 @@ export interface Player {
   disabledWinConditions: string[];  // 被禁用的胜利条件（'base' 或 planId）
   lawyerShield: boolean;        // 法学院：金钱保护盾
   lastDiceValues: number[];     // 上次骰子值（供能力使用）
+  consecutivePositiveTurns: number;  // 化学院：连续增益回合数
+  turnStartSnapshot?: { money: number; gpa: number; exploration: number }; // 回合开始快照
 }
 
 // === Pending Action (waiting for player input) ===

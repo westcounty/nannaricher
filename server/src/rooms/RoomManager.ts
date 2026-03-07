@@ -56,6 +56,7 @@ function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: n
     disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
+    consecutivePositiveTurns: 0,
   };
 }
 

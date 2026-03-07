@@ -40,6 +40,7 @@ function createMockPlayer(overrides: Partial<Player> & { id: string; name: strin
     disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
+    consecutivePositiveTurns: 0,
     ...overrides,
   };
 }

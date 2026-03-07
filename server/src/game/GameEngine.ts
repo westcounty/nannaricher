@@ -446,11 +446,14 @@ export class GameEngine implements IGameEngine {
     if (oldPosition.type === 'main' && position.type === 'main') {
       if (position.index < oldPosition.index) {
         // Passed start
+        this.setResourceSource('corner:start');
         this.eventHandler.execute('corner_start_pass', playerId);
+        this.clearResourceSource();
       }
     }
 
     // --- PlanAbilities: on_move (teleport/direct moves) ---
+    this.setResourceSource('plan:on_move');
     const moveResult = this.checkAbilitiesAndBroadcast(player, this.state, 'on_move');
     if (moveResult?.effects) {
       if (moveResult.message) this.log(moveResult.message, playerId);
@@ -458,6 +461,7 @@ export class GameEngine implements IGameEngine {
         this.modifyPlayerExploration(playerId, moveResult.effects.exploration);
       }
     }
+    this.clearResourceSource();
 
     this.log(`移动到 ${this.getPositionName(position)}`, playerId);
 
@@ -481,7 +485,9 @@ export class GameEngine implements IGameEngine {
 
     // Check if passing start
     if (newIndex < oldIndex) {
+      this.setResourceSource('corner:start');
       this.eventHandler.execute('corner_start_pass', playerId);
+      this.clearResourceSource();
     }
 
     player.position = { type: 'main', index: newIndex };
@@ -1238,9 +1244,9 @@ export class GameEngine implements IGameEngine {
         break;
 
       case 'plan_huaxue':
-        // 化学化工学院：探索值达到45
-        if (player.exploration >= 45) {
-          this.declareWinner(playerId, '化学化工学院：探索值达到45');
+        // 化学化工学院：连续4回合触发增益（链式反应）
+        if (player.consecutivePositiveTurns >= 4) {
+          this.declareWinner(playerId, '化学化工学院：连续4回合触发增益（链式反应）');
           return true;
         }
         break;
@@ -1350,19 +1356,20 @@ export class GameEngine implements IGameEngine {
       }
         break;
 
-      case 'plan_zhengguan':
-        // 政府管理学院：3项属性均不与任何其他玩家一致
-        const othersForGov = this.state.players.filter(p => p.id !== playerId);
-        const noMatch = othersForGov.every(p =>
-          p.money !== player.money &&
-          p.gpa !== player.gpa &&
-          p.exploration !== player.exploration
-        );
-        if (noMatch && othersForGov.length > 0) {
-          this.declareWinner(playerId, '政府管理学院：属性均与其他玩家不同');
+      case 'plan_zhengguan': {
+        // 政府管理学院：探索值达到20且场上金钱差不超过500
+        if (player.exploration < 20) break;
+        const activeForGov = this.state.players.filter(p => !p.isBankrupt);
+        if (activeForGov.length < 2) break;
+        const govMonies = activeForGov.map(p => p.money);
+        const govMax = Math.max(...govMonies);
+        const govMin = Math.min(...govMonies);
+        if (govMax - govMin <= 500) {
+          this.declareWinner(playerId, `政府管理学院：探索值≥20且金钱差≤500`);
           return true;
         }
         break;
+      }
 
       case 'plan_diqiu':
         // 地球科学与工程学院：进入过每一条线

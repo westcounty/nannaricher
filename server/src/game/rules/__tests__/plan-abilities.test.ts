@@ -47,6 +47,7 @@ function createMockPlayer(overrides: Partial<Player> = {}): Player {
     disabledWinConditions: [],
     lawyerShield: false,
     lastDiceValues: [],
+    consecutivePositiveTurns: 0,
     ...overrides,
   };
 }
