@@ -145,6 +145,8 @@ register({
   },
 });
 
+// 外国语学院持续被动：抽到含英文卡时额外+2探索（在 GameEngine.drawCard 中直接处理）
+
 // ---------- 7. plan_xinwen — 新闻传播学院 ----------
 // 进入乐在南哪线（explore线）免入场费
 register({
@@ -269,15 +271,15 @@ register({
 });
 
 // ---------- 15. plan_huaxue — 化学化工学院 ----------
-// 回合开始时可禁用一个格子
+// 设为主修时选择禁用格子/线路，持续生效直到不再是主修或新学年重新选择
 register({
   planId: 'plan_huaxue',
-  trigger: 'on_turn_start',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'on_turn_start') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '化学化工学院能力：使格子/线路失效',
+      message: '化学化工学院能力：选择禁用格子/线路（持续生效）',
       effects: { customEffect: 'huaxue_disable' },
     };
   },
@@ -359,16 +361,16 @@ register({
 });
 
 // ---------- 21. plan_huanjing — 环境学院 ----------
-// 传送(直接移动)时+2探索
+// 进入线路时+1探索
 register({
   planId: 'plan_huanjing',
-  trigger: 'on_move',
+  trigger: 'on_line_enter',
   apply(ctx) {
-    if (ctx.trigger !== 'on_move') return null;
+    if (ctx.trigger !== 'on_line_enter') return null;
     return {
       activated: true,
-      message: '环境学院能力：直接移动事件+2探索',
-      effects: { exploration: 2 },
+      message: '环境学院能力：进入线路+1探索',
+      effects: { exploration: 1 },
     };
   },
 });
@@ -454,7 +456,7 @@ register({
 });
 
 // ---------- 27. plan_gongguan — 工程管理学院 ----------
-// 确认时获得余额为负卡
+// 第一次成为主修时获得「资金调度令」专属卡
 register({
   planId: 'plan_gongguan',
   trigger: 'on_confirm',
@@ -462,8 +464,8 @@ register({
     if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
-      message: '工程管理学院能力：获得余额为负卡',
-      effects: { customEffect: 'gongguan_negative_balance' },
+      message: '工程管理学院能力：获得「资金调度令」专属卡',
+      effects: { customEffect: 'gongguan_fund_dispatch' },
     };
   },
 });

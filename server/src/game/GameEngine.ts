@@ -791,8 +791,14 @@ export class GameEngine implements IGameEngine {
     if (!card) return null;
 
     // Track cards with English letters or digits for achievements
-    if (/[a-zA-Z]/.test(card.name) && !card.name.includes('GPA')) {
+    const hasEnglish = /[a-zA-Z]/.test(card.name) && !card.name.includes('GPA');
+    if (hasEnglish) {
       player.cardsDrawnWithEnglish++;
+      // 外国语学院被动：抽到含英文卡时+2探索
+      if (player.majorPlan === 'plan_waiguoyu') {
+        this.modifyPlayerExploration(playerId, 2);
+        this.log(`外国语学院被动：抽到含英文卡「${card.name}」，探索值+2`, playerId);
+      }
     }
     if (/^\d/.test(card.name)) {
       player.cardsDrawnWithDigitStart.push(card.id);

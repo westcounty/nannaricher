@@ -83,6 +83,7 @@ export interface Player {
   lastDiceValues: number[];     // 上次骰子值（供能力使用）
   consecutivePositiveTurns: number;  // 化学院：连续增益回合数
   turnStartSnapshot?: { money: number; gpa: number; exploration: number }; // 回合开始快照
+  gongguan_card_given?: boolean;  // 工管学院：是否已获得资金调度令
 }
 
 // === Pending Action (waiting for player input) ===
@@ -144,7 +145,7 @@ export interface GameState {
   turnOrderReversed: boolean;
   winner: string | null;        // player id
   log: GameLogEntry[];
-  disabledCells?: string[];     // 化学化工学院禁用的格子（单回合）
+  disabledCells?: string[];     // 化学化工学院禁用的格子（持续生效直到主修变更或新学年重选）
 }
 
 export interface GameLogEntry {

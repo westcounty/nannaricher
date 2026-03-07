@@ -2236,5 +2236,51 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return action;
   });
 
+  // ---------- 资金调度令（工程管理学院专属） ----------
+  eventHandler.registerHandler('card_fund_dispatch', (engine, playerId) => {
+    const state = engine.getState();
+    const player = engine.getPlayer(playerId);
+    if (!player) return null;
+
+    const activePlayers = state.players.filter(p => !p.isBankrupt);
+    const maxMoney = Math.max(...activePlayers.map(p => p.money));
+    const minMoney = Math.min(...activePlayers.map(p => p.money));
+
+    const options = [
+      { label: `变为全场最高金钱 (${maxMoney})`, value: 'max' },
+      { label: `变为全场最低金钱 (${minMoney})`, value: 'min' },
+      { label: '取消使用', value: 'cancel' },
+    ];
+
+    const action = engine.createPendingAction(
+      playerId, 'choose_option',
+      `资金调度令：选择将你的金钱(当前${player.money})变为全场最高或最低`,
+      options
+    );
+    action.callbackHandler = 'fund_dispatch_choice';
+    return action;
+  });
+
+  eventHandler.registerHandler('fund_dispatch_choice', (engine, playerId, choice) => {
+    const player = engine.getPlayer(playerId);
+    if (!player || !choice || choice === 'cancel') return null;
+
+    const state = engine.getState();
+    const activePlayers = state.players.filter(p => !p.isBankrupt);
+
+    if (choice === 'max') {
+      const maxMoney = Math.max(...activePlayers.map(p => p.money));
+      const diff = maxMoney - player.money;
+      if (diff !== 0) engine.modifyPlayerMoney(playerId, diff);
+      engine.log(`资金调度令：金钱变为全场最高 ${maxMoney}`, playerId);
+    } else if (choice === 'min') {
+      const minMoney = Math.min(...activePlayers.map(p => p.money));
+      const diff = minMoney - player.money;
+      if (diff !== 0) engine.modifyPlayerMoney(playerId, diff);
+      engine.log(`资金调度令：金钱变为全场最低 ${minMoney}`, playerId);
+    }
+    return null;
+  });
+
   console.log('[CardHandlers] Registered card handlers');
 }

@@ -219,13 +219,13 @@ describe('Plan Abilities — on_confirm trigger', () => {
     expect(result!.effects?.customEffect).toBe('shengming_maimen');
   });
 
-  it('plan_gongguan (Engineering Management) gets negative balance card on confirm', () => {
+  it('plan_gongguan (Engineering Management) gets fund dispatch card on confirm', () => {
     const ability = getPlanAbility('plan_gongguan')!;
     expect(ability.trigger).toBe('on_confirm');
     const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.customEffect).toBe('gongguan_negative_balance');
+    expect(result!.effects?.customEffect).toBe('gongguan_fund_dispatch');
   });
 });
 
@@ -432,28 +432,28 @@ describe('Plan Abilities — on_turn_start trigger', () => {
     expect(result!.effects?.customEffect).toBe('wuli_double_move');
   });
 
-  it('plan_huaxue (Chemistry) offers cell disable option', () => {
+  it('plan_huaxue (Chemistry) offers cell disable option on confirm', () => {
     const ability = getPlanAbility('plan_huaxue')!;
-    expect(ability.trigger).toBe('on_turn_start');
-    const result = ability.apply(createAbilityCtx('on_turn_start'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('huaxue_disable');
   });
 
-  it('plan_jisuanji (Computer Science) offers exploration or money bonus', () => {
+  it('plan_jisuanji (Computer Science) offers exploration or money bonus on confirm', () => {
     const ability = getPlanAbility('plan_jisuanji')!;
-    expect(ability.trigger).toBe('on_turn_start');
-    const result = ability.apply(createAbilityCtx('on_turn_start'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('jisuanji_bonus');
   });
 
-  it('plan_kuangyaming (Kuang Yaming) offers GPA or exploration bonus', () => {
+  it('plan_kuangyaming (Kuang Yaming) offers GPA or exploration bonus on confirm', () => {
     const ability = getPlanAbility('plan_kuangyaming')!;
-    expect(ability.trigger).toBe('on_turn_start');
-    const result = ability.apply(createAbilityCtx('on_turn_start'));
+    expect(ability.trigger).toBe('on_confirm');
+    const result = ability.apply(createAbilityCtx('on_confirm'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
     expect(result!.effects?.customEffect).toBe('kuangyaming_bonus');
@@ -480,14 +480,14 @@ describe('Plan Abilities — on_confirm trigger (xiandai/daqi)', () => {
   });
 });
 
-describe('Plan Abilities — on_move trigger', () => {
-  it('plan_huanjing (Environment) gains +2 exploration on move', () => {
+describe('Plan Abilities — on_line_enter trigger', () => {
+  it('plan_huanjing (Environment) gains +1 exploration on line enter', () => {
     const ability = getPlanAbility('plan_huanjing')!;
-    expect(ability.trigger).toBe('on_move');
-    const result = ability.apply(createAbilityCtx('on_move'));
+    expect(ability.trigger).toBe('on_line_enter');
+    const result = ability.apply(createAbilityCtx('on_line_enter'));
     expect(result).not.toBeNull();
     expect(result!.activated).toBe(true);
-    expect(result!.effects?.exploration).toBe(2);
+    expect(result!.effects?.exploration).toBe(1);
   });
 });
 

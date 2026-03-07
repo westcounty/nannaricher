@@ -105,17 +105,17 @@ export class WinConditionChecker {
         }
         break;
 
-      // 工程管理学院：第1次金钱为0
+      // 工程管理学院：金钱在0-200区间且未破产
       case 'plan_gongguan':
-        if (history.moneyZeroCount >= 1) {
-          return { won: true, condition: '工程管理学院：第1次金钱为0', planId };
+        if (player.money >= 0 && player.money <= 200 && !player.isBankrupt) {
+          return { won: true, condition: `工程管理学院：金钱为${player.money}(0-200区间)且未破产`, planId };
         }
         break;
 
-      // 数学系：第3次到达鼓楼线终点
+      // 数学系：第2次到达鼓楼线终点
       case 'plan_shuxue':
-        if (history.gulouEndpointReached >= 3) {
-          return { won: true, condition: '数学系：第3次到达鼓楼线终点', planId };
+        if (history.gulouEndpointReached >= 2) {
+          return { won: true, condition: '数学系：第2次到达鼓楼线终点', planId };
         }
         break;
 
@@ -155,11 +155,11 @@ export class WinConditionChecker {
         }
         break;
 
-      // 环境学院：经历仙林线每个事件
+      // 环境学院：经历仙林线任意5个不同事件
       case 'plan_huanjing':
         const xianlinEvents = history.lineEventsTriggered['xianlin'] || [];
-        if (xianlinEvents.length >= 7) {
-          return { won: true, condition: '环境学院：经历仙林线所有事件', planId };
+        if (xianlinEvents.length >= 5) {
+          return { won: true, condition: `环境学院：经历仙林线${xianlinEvents.length}个事件(≥5)`, planId };
         }
         break;
 
@@ -209,10 +209,10 @@ export class WinConditionChecker {
         }
         break;
 
-      // 哲学系：完成一条支线且GPA和探索值均无变化
+      // 哲学系：完成一条支线且GPA、探索值无变化且金钱未减少
       case 'plan_zhexue':
-        if (this.checkLineNoGpaExpChange(history)) {
-          return { won: true, condition: '哲学系：完成一条支线且GPA和探索值无变化', planId };
+        if (this.checkLineNoGpaExpChangeNoMoneyLoss(history)) {
+          return { won: true, condition: '哲学系：完成一条支线且GPA、探索值无变化且金钱未减少', planId };
         }
         break;
 
@@ -232,21 +232,21 @@ export class WinConditionChecker {
         break;
       }
 
-      // 信息管理学院：抽取过5张不同的数字开头卡
+      // 信息管理学院：抽取过4张不同的数字开头卡
       case 'plan_xinxiguanli': {
         const uniqueDigitCards = new Set(player.cardsDrawnWithDigitStart);
-        if (uniqueDigitCards.size >= 5) {
+        if (uniqueDigitCards.size >= 4) {
           return { won: true, condition: `信息管理学院：抽到${uniqueDigitCards.size}张不同的数字开头卡`, planId };
         }
         break;
       }
 
-      // 社会学院：探索值比最低者高出阈值（支持动态调整）
+      // 社会学院：自身探索≥15且探索值比最低者高出阈值（支持动态调整）
       case 'plan_shehuixue': {
         const shehuiThreshold = player.modifiedWinThresholds?.['plan_shehuixue'] ?? 20;
         const minExploration = Math.min(...state.players.filter(p => p.id !== player.id).map(p => p.exploration));
-        if (player.exploration - minExploration >= shehuiThreshold) {
-          return { won: true, condition: `社会学院：探索值领先最低者${player.exploration - minExploration}(≥${shehuiThreshold})`, planId };
+        if (player.exploration >= 15 && player.exploration - minExploration >= shehuiThreshold) {
+          return { won: true, condition: `社会学院：探索值${player.exploration}(≥15)且领先最低者${player.exploration - minExploration}(≥${shehuiThreshold})`, planId };
         }
         break;
       }
@@ -301,12 +301,14 @@ export class WinConditionChecker {
         }
         break;
 
-      // 匡亚明学院：满足任意其他玩家的已确认培养计划条件
-      case 'plan_kuangyaming':
-        if (this.checkMatchAnyOtherPlanWin(player, state, history)) {
-          return { won: true, condition: '匡亚明学院：满足其他玩家的培养计划条件', planId };
+      // 匡亚明学院：满足至少2个不同玩家的已确认培养计划条件
+      case 'plan_kuangyaming': {
+        const matchResult = this.checkMatchMultiplePlayerPlanWins(player, state, history);
+        if (matchResult.matched >= 2) {
+          return { won: true, condition: `匡亚明学院：满足${matchResult.matched}个不同玩家的培养计划条件`, planId };
         }
         break;
+      }
 
       // 海外教育学院：当有玩家获胜时，若对其使用过2+次机会卡，优先获胜
       // 此条件在其他玩家胜利时触发，参见 checkHaiwaiIntercept
@@ -383,11 +385,13 @@ export class WinConditionChecker {
   }
 
   /**
-   * 哲学系：完成一条支线且GPA和探索值均无变化
+   * 哲学系：完成一条支线且GPA和探索值均无变化，且金钱未减少
    */
-  private checkLineNoGpaExpChange(history: PlayerHistory): boolean {
+  private checkLineNoGpaExpChangeNoMoneyLoss(history: PlayerHistory): boolean {
     return history.lineExits.some(
-      exit => exit.gpaBefore === exit.gpaAfter && exit.explorationBefore === exit.explorationAfter
+      exit => exit.gpaBefore === exit.gpaAfter
+        && exit.explorationBefore === exit.explorationAfter
+        && exit.moneyAfter >= exit.moneyBefore
     );
   }
 
@@ -441,19 +445,24 @@ export class WinConditionChecker {
   }
 
   /**
-   * 匡亚明学院：检查是否满足任意其他玩家的已确认培养计划条件
+   * 匡亚明学院：检查满足了多少个不同玩家的已确认培养计划条件
+   * 返回匹配的不同玩家数量
    */
-  private checkMatchAnyOtherPlanWin(player: Player, state: GameState, history: PlayerHistory): boolean {
+  private checkMatchMultiplePlayerPlanWins(player: Player, state: GameState, history: PlayerHistory): { matched: number } {
+    const matchedPlayerIds = new Set<string>();
     for (const otherPlayer of state.players) {
       if (otherPlayer.id === player.id) continue;
       for (const otherPlanId of getPlayerPlanIds(otherPlayer)) {
         // 跳过匡亚明本身和海外教育学院（特殊触发）
         if (otherPlanId === 'plan_kuangyaming' || otherPlanId === 'plan_haiwai') continue;
         const result = this.checkPlanWinCondition(player, otherPlanId, state, history);
-        if (result.won) return true;
+        if (result.won) {
+          matchedPlayerIds.add(otherPlayer.id);
+          break; // 已匹配该玩家，检查下一个玩家
+        }
       }
     }
-    return false;
+    return { matched: matchedPlayerIds.size };
   }
 
   /**

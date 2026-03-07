@@ -19,7 +19,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_zhexue',
     name: '哲学系',
-    winCondition: '当你完整进出某条线，且探索值和GPA没有任何变化时（不包括终点经验卡效果），你获胜',
+    winCondition: '当你完整进出某条线，且探索值和GPA没有任何变化、金钱没有减少时（不包括终点经验卡效果），你获胜',
     passiveAbility: '你的GPA至低为3.0',
 
   },
@@ -41,7 +41,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_waiguoyu',
     name: '外国语学院',
     winCondition: '当你抽到过两张（可以重复）包含英文字母（除了GPA）的事件/机会/命运卡后，你获胜',
-    passiveAbility: '立即抽取一张机会卡或命运卡',
+    passiveAbility: '立即抽取一张机会卡或命运卡。持续被动：每次抽到含英文字母的卡时，额外获得2探索值',
 
   },
   {
@@ -68,21 +68,21 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_xinxiguanli',
     name: '信息管理学院',
-    winCondition: '当你抽到过不重复的五个标题中以数字开头的机会卡/命运卡后，你获胜',
+    winCondition: '当你抽到过不重复的四个标题中以数字开头的机会卡/命运卡后，你获胜',
     passiveAbility: '获得专属卡牌「数据整合」：在你的回合使用，选择至多两位有卡牌的玩家，从他们手中获取卡牌（每人至多2张，总计不超过3张）',
 
   },
   {
     id: 'plan_shehuixue',
     name: '社会学院',
-    winCondition: '当你的探索值比场上探索值最低玩家高20时，你获胜',
+    winCondition: '当你的探索值不低于15，且比场上探索值最低玩家高20时，你获胜',
     passiveAbility: '你可以选择永久减少一个胜利条件位，将本培养计划的获胜条件修改为高15',
 
   },
   {
     id: 'plan_shuxue',
     name: '数学系',
-    winCondition: '当你第三次到达鼓楼校区线终点后，你获胜',
+    winCondition: '当你第二次到达鼓楼校区线终点后，你获胜',
     passiveAbility: '可以指定下一回合自己的骰子点数',
 
   },
@@ -104,7 +104,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_huaxue',
     name: '化学化工学院',
     winCondition: '当你连续6个回合均触发了增益效果（金钱、GPA或探索值任一增加）后，你获胜',
-    passiveAbility: '你可以选定一个格子和一条线，下一回合失效',
+    passiveAbility: '设为主修时选择禁用一个格子或线路，持续生效直到主修变更或新学年重新选择',
 
   },
   {
@@ -145,8 +145,8 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_huanjing',
     name: '环境学院',
-    winCondition: '当你经历过仙林校区线的每一个事件后，你获胜',
-    passiveAbility: '你每经历一次直接移动事件，获得2探索值',
+    winCondition: '当你经历过仙林校区线至少5个不同事件后，你获胜',
+    passiveAbility: '每次进入线路时，获得1探索值',
 
   },
   {
@@ -187,14 +187,14 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_gongguan',
     name: '工程管理学院',
-    winCondition: '当你第一次金钱数为0时，你获胜',
-    passiveAbility: '获得场上或卡堆中的余额为负（单次使用，可以抵消一次不小于当前剩余金钱的支出）',
+    winCondition: '当你的金钱在0至200之间且未破产时，你获胜',
+    passiveAbility: '第一次成为主修时获得专属卡牌「资金调度令」：在自己回合使用，可选择将自己的金钱变为等同于全场最高或全场最低',
 
   },
   {
     id: 'plan_kuangyaming',
     name: '匡亚明学院',
-    winCondition: '当你满足任意玩家的已固定培养计划时，你获胜',
+    winCondition: '当你满足至少2个不同玩家的已固定培养计划条件时，你获胜',
     passiveAbility: '设为主修时一次性选择：GPA增加0.1或探索值增加1',
 
   },

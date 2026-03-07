@@ -231,6 +231,17 @@ class BaseStrategy {
           return { cardId: card.id };
         }
       }
+      // 工程管理学院专属：资金调度令 — use strategically based on money
+      if (card.id === 'fund_dispatch') {
+        const majorPlan = me.trainingPlans?.find(p => p.id === me.majorPlan);
+        if (majorPlan?.id === 'plan_gongguan' && me.money > 200) {
+          // Need money in 0-200 range to win, use min to get close
+          return { cardId: card.id };
+        } else if (me.money < 500 && Math.random() < 0.4) {
+          // Low money, might want max
+          return { cardId: card.id };
+        }
+      }
     }
 
     // Targeting cards (any_turn) - target the leading player

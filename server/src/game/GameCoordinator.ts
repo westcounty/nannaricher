@@ -683,8 +683,7 @@ export class GameCoordinator {
       }
     }
 
-    // Clear disabledCells at start of each turn (化学化工学院 lasts one round)
-    state.disabledCells = [];
+    // 化学化工学院: disabledCells 持续生效，不再每回合清空
 
     // Set pending action for next player
     const currentPlayer = state.players[state.currentPlayerIndex];
@@ -796,10 +795,10 @@ export class GameCoordinator {
         return;
       }
       if (ce === 'huaxue_disable') {
-        // Simplified: choose a main board cell to disable for this round
+        // 化工学院：选择禁用格子/线路，持续生效直到不再是主修或新学年重新选择
         const mainCells = boardData.mainBoard
           .filter(c => c.type === 'event' || c.type === 'chance' || c.type === 'line_entry')
-          .slice(0, 12) // Limit options to keep UI manageable
+          .slice(0, 12)
           .map(c => ({ label: `禁用: ${c.name}`, value: `disable_${c.id}` }));
         mainCells.push({ label: '不禁用', value: 'huaxue_skip' });
 
@@ -807,19 +806,20 @@ export class GameCoordinator {
           id: `huaxue_${Date.now()}`,
           playerId: currentPlayer.id,
           type: 'choose_option',
-          prompt: '化学化工学院能力：选择一个格子使其本回合失效',
+          prompt: '化学化工学院能力：选择一个格子使其持续失效（直到主修变更或新学年重新选择）',
           options: mainCells,
           callbackHandler: 'plan_huaxue_choice',
           timeoutMs: 15000,
         };
         if (!this.engine.getEventHandler().hasHandler('plan_huaxue_choice')) {
           this.engine.getEventHandler().registerHandler('plan_huaxue_choice', (eng, pid, choice) => {
+            const st = eng.getState();
+            // 先清空旧的禁用（重新选择时）
+            st.disabledCells = [];
             if (choice && choice.startsWith('disable_')) {
               const cellId = choice.replace('disable_', '');
-              const st = eng.getState();
-              if (!st.disabledCells) st.disabledCells = [];
               st.disabledCells.push(cellId);
-              eng.log(`化学化工学院：禁用了格子 ${cellId}`, pid);
+              eng.log(`化学化工学院：持续禁用格子 ${cellId}`, pid);
             }
             return null;
           });
@@ -991,12 +991,13 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_zhexue': {  // 哲学系：完整进出某条线且探索值和GPA无变化
+      case 'plan_zhexue': {  // 哲学系：完整进出某条线且探索值和GPA无变化且钱没减少
         if (history) {
           for (const exit of history.lineExits) {
             if (Math.abs(exit.gpaBefore - exit.gpaAfter) < 0.01 &&
-                Math.abs(exit.explorationBefore - exit.explorationAfter) < 0.01) {
-              return `完整进出${exit.lineId}线，探索值和GPA无变化`;
+                Math.abs(exit.explorationBefore - exit.explorationAfter) < 0.01 &&
+                exit.moneyAfter >= exit.moneyBefore) {
+              return `完整进出${exit.lineId}线，探索值和GPA无变化且钱未减少`;
             }
           }
         }
@@ -1039,21 +1040,22 @@ export class GameCoordinator {
         if (usedOnCount >= 2) return `与${usedOnCount}名玩家互相使用过机会卡`;
         break;
       }
-      case 'plan_xinxiguanli':  // 信息管理学院：抽到过5个不重复的数字开头卡
-        if (player.cardsDrawnWithDigitStart.length >= 5) {
+      case 'plan_xinxiguanli':  // 信息管理学院：抽到过4个不重复的数字开头卡
+        if (player.cardsDrawnWithDigitStart.length >= 4) {
           return `抽到${player.cardsDrawnWithDigitStart.length}张数字开头卡`;
         }
         break;
-      case 'plan_shehuixue': {  // 社会学院：探索值比最低玩家高20（或经修改后高15）
+      case 'plan_shehuixue': {  // 社会学院：自身探索值≥15且比最低玩家高20（或经修改后高15）
         const threshold = player.modifiedWinThresholds['plan_shehuixue'] ?? 20;
+        if (player.exploration < 15) break;
         const minExp = Math.min(...state.players.filter(p => !p.isBankrupt).map(p => p.exploration));
         if (player.exploration >= minExp + threshold) {
-          return `探索值比最低玩家高${threshold} (${player.exploration} vs ${minExp})`;
+          return `探索值≥15且比最低玩家高${threshold} (${player.exploration} vs ${minExp})`;
         }
         break;
       }
-      case 'plan_shuxue':   // 数学系：第三次到达鼓楼校区线终点
-        if (player.gulou_endpoint_count >= 3) return `第${player.gulou_endpoint_count}次到达鼓楼线终点`;
+      case 'plan_shuxue':   // 数学系：第二次到达鼓楼校区线终点
+        if (player.gulou_endpoint_count >= 2) return `第${player.gulou_endpoint_count}次到达鼓楼线终点`;
         break;
       case 'plan_wuli': {   // 物理学院：任选两项指标之和>=85
         const moneyScore = player.money / 100;
@@ -1103,10 +1105,9 @@ export class GameCoordinator {
         if (allVisited) return '进入过除苏州外所有线路';
         break;
       }
-      case 'plan_huanjing': { // 环境学院：经历过仙林校区线每个事件
+      case 'plan_huanjing': { // 环境学院：经历过仙林校区线至少5个不同事件
         const xianlinEvents = player.lineEventsTriggered['xianlin'] || [];
-        // 仙林线有8个事件格(index 0-7)
-        if (xianlinEvents.length >= 8) return '经历过仙林线每个事件';
+        if (xianlinEvents.length >= 5) return `经历过仙林线${xianlinEvents.length}个不同事件`;
         break;
       }
       case 'plan_diqiu': {   // 地球科学与工程学院：进入过每一条线
@@ -1146,17 +1147,25 @@ export class GameCoordinator {
       case 'plan_yixue':     // 医学院：进入过三次医院
         if (player.hospitalVisits >= 3) return `进入${player.hospitalVisits}次医院`;
         break;
-      case 'plan_gongguan':  // 工程管理学院：第一次金钱数为0
-        if (player.moneyZeroCount >= 1) return `第${player.moneyZeroCount}次金钱为0`;
+      case 'plan_gongguan':  // 工程管理学院：金钱在0-200且未破产
+        if (player.money >= 0 && player.money <= 200 && !player.isBankrupt) return `金钱${player.money}在0-200范围内且未破产`;
         break;
-      case 'plan_kuangyaming': { // 匡亚明学院：满足任意玩家的已固定培养计划
+      case 'plan_kuangyaming': { // 匡亚明学院：满足≥2个不同玩家的培养计划条件
+        let matchedCount = 0;
+        const matchedNames: string[] = [];
         for (const other of state.players) {
           if (other.id === player.id) continue;
           for (const otherPlanId of getPlayerPlanIds(other)) {
+            if (otherPlanId === 'plan_kuangyaming' || otherPlanId === 'plan_haiwai') continue;
             const result = this.checkPlanWinCondition(player, otherPlanId, state);
-            if (result) return `满足${other.name}的${otherPlanId}条件: ${result}`;
+            if (result) {
+              matchedCount++;
+              matchedNames.push(other.name);
+              break;
+            }
           }
         }
+        if (matchedCount >= 2) return `满足${matchedCount}个玩家(${matchedNames.join('、')})的计划条件`;
         break;
       }
       case 'plan_haiwai':    // 海外教育学院：有玩家获胜时，若你对其使用过至少两次机会卡
@@ -1953,6 +1962,13 @@ export class GameCoordinator {
     // 将未选中的抽取计划放回牌堆
     this.discardTempDrawnPlans(player.id, ctx.drawnPlanIds.filter(id => !keepIds.includes(id)));
 
+    // 化工不再是主修时清空禁用格子
+    if (oldMajor === 'plan_huaxue' && majorId !== 'plan_huaxue') {
+      const state = this.engine.getState();
+      state.disabledCells = [];
+      this.addLog(player.id, `${player.name} 不再主修化学化工学院，禁用格子效果解除`);
+    }
+
     // 主修方向变化时触发 on_confirm 效果
     if (majorId !== oldMajor) {
       console.log(`[PlanSelection] finalizePlanSelection: ${player.name} major changed ${oldMajor} -> ${majorId}, triggering effects`);
@@ -2108,19 +2124,24 @@ export class GameCoordinator {
         this.engine.addCardToPlayer(playerId, shieldCard);
         this.addLog(playerId, `${player.name} 获得麦门护盾卡`);
       }
-      if (fx.customEffect === 'gongguan_negative_balance') {
-        const negCard: Card = {
-          id: 'negative_balance',
-          name: '余额为负',
-          description: '使目标玩家金钱变为负数',
-          deckType: 'chance',
-          holdable: true,
-          singleUse: true,
-          returnToDeck: false,
-          effects: [],
-        };
-        this.engine.addCardToPlayer(playerId, negCard);
-        this.addLog(playerId, `${player.name} 获得余额为负卡`);
+      if (fx.customEffect === 'gongguan_fund_dispatch') {
+        // 只有第一次成为主修时才获得资金调度令
+        if (!player.gongguan_card_given) {
+          const fundCard: Card = {
+            id: 'fund_dispatch',
+            name: '资金调度令',
+            description: '工程管理学院专属。在自己回合使用，可选择将自己的金钱变为等同于全场最高或全场最低',
+            deckType: 'chance',
+            holdable: true,
+            singleUse: true,
+            returnToDeck: false,
+            useTiming: 'own_turn',
+            effects: [],
+          };
+          this.engine.addCardToPlayer(playerId, fundCard);
+          player.gongguan_card_given = true;
+          this.addLog(playerId, `${player.name} 获得工程管理学院专属卡牌「资金调度令」`);
+        }
       }
       if (fx.customEffect === 'shehuixue_reduce_threshold') {
         player.modifiedWinThresholds['plan_shehuixue_pending'] = 1;
