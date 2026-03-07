@@ -3,10 +3,12 @@ Playwright E2E Test: Complete game simulation for 菜根人生 (Nannaricher)
 Simulates 2 players through a complete game until victory.
 Takes screenshots at key milestones to verify UI quality.
 
-Updated for the new training plan system:
-- No more setup_plans phase (game starts directly in playing)
-- Yearly plan selection happens via choose_option dialogs
-- Plans use majorPlan/minorPlans model
+Updated for:
+- New training plan system (no setup_plans, direct playing)
+- Parallel plan selection UI (.plan-selection-overlay)
+- EventModal uses .option-card (not .option-button)
+- Settlement screen with ready-up and restart buttons
+- Vote panel interactions
 """
 
 import time
@@ -55,6 +57,15 @@ def dismiss_overlays(page: Page) -> bool:
     except:
         pass
 
+    # Read-only event modal — wait for auto-dismiss or click overlay
+    try:
+        ro = page.locator(".event-modal-overlay.read-only")
+        if ro.count() > 0 and ro.first.is_visible():
+            page.wait_for_timeout(1500)
+            dismissed = True
+    except:
+        pass
+
     return dismissed
 
 
@@ -94,10 +105,9 @@ def bypass_auth(page: Page, player_name: str):
     """Inject mock auth tokens into localStorage to bypass login screen."""
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
-    import json, base64, math, time as _time
+    import json, base64, time as _time
     user_id = f"test-{int(_time.time() * 1000)}"
     mock_user = json.dumps({"userId": user_id, "username": player_name, "nickname": player_name})
-    # Build a minimal JWT-shaped token (header.payload.signature)
     header = base64.b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
     now = int(_time.time())
     payload_obj = {"sub": user_id, "iat": now, "exp": now + 86400}
@@ -121,7 +131,6 @@ def create_room(page: Page, player_name: str) -> str:
     page.click(".lobby-button.create")
     page.wait_for_timeout(500)
 
-    # Name field should be pre-filled from auth, but fill to be safe
     name_input = page.locator("input#playerName")
     if name_input.count() > 0 and name_input.first.is_visible():
         name_input.fill(player_name)
@@ -149,7 +158,6 @@ def join_room(page: Page, room_code: str, player_name: str):
     page.wait_for_timeout(500)
 
     page.fill("input#roomCode", room_code)
-    # Name field should be pre-filled from auth, but fill to be safe
     name_input = page.locator("input#playerName")
     if name_input.count() > 0 and name_input.first.is_visible():
         name_input.fill(player_name)
@@ -175,77 +183,97 @@ def start_game(page: Page):
     print("  Game started!")
 
 
+def handle_plan_selection(page: Page, player_name: str) -> bool:
+    """Handle the parallel plan selection panel. Returns True if handled."""
+    panel = page.locator(".plan-selection-overlay")
+    if panel.count() == 0 or not panel.first.is_visible():
+        return False
+
+    # Check if already submitted
+    submitted = page.locator(".plan-selection__submitted")
+    if submitted.count() > 0 and submitted.first.is_visible():
+        return True  # already submitted, wait for others
+
+    # Click first unselected plan item
+    items = page.locator(".plan-selection__item:not(.selected)")
+    if items.count() > 0:
+        items.first.click(force=True)
+        page.wait_for_timeout(300)
+
+    # Try to set a major if needed
+    set_major = page.locator(".plan-selection__set-major")
+    if set_major.count() > 0 and set_major.first.is_visible():
+        set_major.first.click(force=True)
+        page.wait_for_timeout(200)
+
+    # Try confirm button
+    confirm = page.locator(".plan-selection__btn--primary:not([disabled])")
+    if confirm.count() > 0 and confirm.first.is_visible():
+        confirm.first.click(force=True)
+        page.wait_for_timeout(600)
+        return True
+
+    # If can't confirm, try "不调整" button
+    keep = page.locator(".plan-selection__btn--secondary")
+    if keep.count() > 0 and keep.first.is_visible():
+        keep.first.click(force=True)
+        page.wait_for_timeout(600)
+        return True
+
+    return True  # panel visible, processing
+
+
 def handle_action(page: Page, player_name: str) -> str:
     """Try to handle one pending action. Returns action type or ''."""
 
     # Always try dismissing overlays first
     dismiss_overlays(page)
 
-    # 1. Multi-select dialog (yearly plan selection, plan overflow, etc.)
-    multi = page.locator(".choice-dialog.multi-select")
-    if multi.count() > 0 and multi.first.is_visible():
-        # Click first unselected option
-        opts = multi.locator(".option-button:not(.selected):not(.disabled)")
-        if opts.count() > 0:
-            opts.first.click(force=True)
-            page.wait_for_timeout(300)
-        # Try confirm button (may need min selections met)
-        cfm = multi.locator(".confirm-button:not([disabled])")
-        if cfm.count() > 0:
-            try:
-                cfm.first.click(force=True, timeout=2000)
-                page.wait_for_timeout(600)
-                return "multi_select"
-            except:
-                pass
-        # If confirm still disabled, try selecting more options
-        opts2 = multi.locator(".option-button:not(.selected):not(.disabled)")
-        if opts2.count() > 0:
-            opts2.first.click(force=True)
-            page.wait_for_timeout(200)
-        return "multi_select_partial"
+    # 0. Parallel plan selection panel (highest priority)
+    if handle_plan_selection(page, player_name):
+        return "plan_selection"
 
-    # 2. Single-select choice dialog (.choice-dialog but NOT multi-select)
-    choice = page.locator(".choice-dialog:not(.multi-select)")
-    if choice.count() > 0 and choice.first.is_visible():
-        opts = choice.locator(".option-button")
-        if opts.count() > 0:
-            opts.first.click(force=True)
-            page.wait_for_timeout(1000)
-            return "choice_dialog"
-
-    # 3. Event modal with options
+    # 1. Event modal with options (using .option-card selector)
     event = page.locator(".event-modal.has-options")
     if event.count() > 0 and event.first.is_visible():
-        opts = event.locator(".option-button")
+        # Click first option card
+        opts = event.locator(".option-card:not(.selected)")
         if opts.count() > 0:
             opts.first.click(force=True)
-            page.wait_for_timeout(500)
-            # Click confirm if present
-            cfm = event.locator(".confirm-button")
-            if cfm.count() > 0:
-                cfm.first.click(force=True)
             page.wait_for_timeout(800)
-            return "event_choice"
+            return "event_option_card"
+        # If no unselected cards, try confirm
+        cfm = event.locator(".confirm-button")
+        if cfm.count() > 0 and cfm.first.is_visible():
+            cfm.first.click(force=True)
+            page.wait_for_timeout(800)
+            return "event_confirm"
 
-    # 4. Event modal without options — click the confirm button or overlay
-    event_ro = page.locator(".event-modal:not(.has-options)")
+    # 2. Event modal with tabbed options
+    tabbed = page.locator(".options-tabbed")
+    if tabbed.count() > 0 and tabbed.first.is_visible():
+        # Click first available tab content option
+        tab_opts = tabbed.locator(".option-card:not(.selected)")
+        if tab_opts.count() > 0:
+            tab_opts.first.click(force=True)
+            page.wait_for_timeout(800)
+            return "event_tabbed_option"
+
+    # 3. Event modal without options — click confirm or overlay
+    event_ro = page.locator(".event-modal:not(.has-options):not(.read-only)")
     if event_ro.count() > 0 and event_ro.first.is_visible():
-        # Click the "确定" confirm button inside the modal footer
         cfm = event_ro.locator(".confirm-button")
         if cfm.count() > 0 and cfm.first.is_visible():
             cfm.first.click(force=True)
             page.wait_for_timeout(800)
             return "event_confirm"
-        # Fallback: click the overlay background to dismiss
         overlay = page.locator(".event-modal-overlay:not(.read-only)")
         if overlay.count() > 0:
-            # Click at the edge of the overlay (outside the modal)
             overlay.first.click(force=True, position={"x": 10, "y": 10})
             page.wait_for_timeout(800)
             return "event_overlay_dismiss"
 
-    # 5. Vote panel (multi-vote)
+    # 4. Vote panel (multi-vote)
     vote = page.locator(".vote-panel__overlay")
     if vote.count() > 0 and vote.first.is_visible():
         opts = vote.locator(".vote-panel__option-btn:not(.vote-panel__option-btn--selected):not(.vote-panel__option-btn--dimmed):not([disabled])")
@@ -254,16 +282,23 @@ def handle_action(page: Page, player_name: str) -> str:
             page.wait_for_timeout(800)
             return "vote"
 
-    # 6. Dice button (desktop) — check text carefully
+    # 5. Dice button
     dice_btn = page.locator(".action-bar__dice-btn")
     if dice_btn.count() > 0 and dice_btn.first.is_visible():
         txt = get_visible_text(page, ".action-bar__dice-btn")
         if ("掷骰子" in txt or "投骰" in txt) and "等待" not in txt and "中..." not in txt:
             dice_btn.first.click(force=True)
-            page.wait_for_timeout(2000)  # Wait for dice animation
+            page.wait_for_timeout(2000)
             return "roll_dice"
 
-    # 7. Any generic .option-button visible anywhere (fallback)
+    # 6. Fallback: any .option-card visible (newer selector)
+    any_card = page.locator(".option-card:visible")
+    if any_card.count() > 0:
+        any_card.first.click(force=True)
+        page.wait_for_timeout(800)
+        return "generic_option_card"
+
+    # 7. Legacy fallback: any .option-button (older components)
     any_opt = page.locator(".option-button:visible")
     if any_opt.count() > 0:
         any_opt.first.click(force=True)
@@ -282,6 +317,23 @@ def is_game_over(page: Page) -> bool:
     except:
         pass
     return False
+
+
+def handle_settlement(page: Page, player_name: str):
+    """Handle settlement screen — read results, optionally ready up."""
+    try:
+        winner_name = page.locator(".settlement-rankings__row--winner .settlement-rankings__name").inner_text()
+        print(f"  Winner: {winner_name}")
+    except:
+        pass
+
+    try:
+        # Check for ready button
+        ready_btn = page.locator(".settlement-btn--ready")
+        if ready_btn.count() > 0 and ready_btn.first.is_visible():
+            print(f"  [{player_name}] Ready button available")
+    except:
+        pass
 
 
 def main():
@@ -310,11 +362,11 @@ def main():
             page1.wait_for_timeout(1500)
             shot(page1, "both-ready")
 
-            # Start game — goes directly to playing phase (no setup_plans)
+            # Start game
             print("[3] Starting game...")
             start_game(page1)
 
-            # Dismiss any tutorials on both pages
+            # Dismiss tutorials
             page1.wait_for_timeout(2000)
             dismiss_all_overlays(page1)
             dismiss_all_overlays(page2)
@@ -322,14 +374,14 @@ def main():
             shot(page1, "game-start-p1")
             shot(page2, "game-start-p2")
 
-            # Game loop — handles all actions including yearly plan selection
+            # Game loop
             print("[4] Playing game...")
             start_time = time.time()
             actions = 0
             last_shot_action = -10
 
             while time.time() - start_time < MAX_GAME_SECONDS:
-                # Check game over on both pages
+                # Check game over
                 for i, pg in enumerate([page1, page2]):
                     if is_game_over(pg):
                         print(f"\n  GAME OVER detected on {names[i]}'s screen!")
@@ -337,19 +389,10 @@ def main():
                         shot(page2, "game-over-p2")
                         print(f"  Total actions: {actions}")
                         print(f"  Duration: {time.time() - start_time:.0f}s")
-
-                        # Read winner info
-                        try:
-                            winner_name = page1.locator(".settlement-winner__name").inner_text()
-                            win_cond = page1.locator(".settlement-winner__condition").inner_text()
-                            print(f"  Winner: {winner_name}")
-                            print(f"  Condition: {win_cond}")
-                        except:
-                            pass
-
+                        handle_settlement(page1, names[0])
                         return
 
-                # Try action on BOTH players every iteration (no break)
+                # Try actions on BOTH players
                 acted = False
                 for i, pg in enumerate([page1, page2]):
                     action = handle_action(pg, names[i])

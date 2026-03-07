@@ -372,11 +372,11 @@ function analyzeEventEffects() {
   const roundEffects = {}; // { [round]: { money: [], gpa: [], explore: [] } }
 
   for (const game of validGames) {
-    // Aggregate events
+    // Aggregate events (handle both full and compact format)
     for (const evt of (game.events || [])) {
       const title = evt.title || 'unknown';
       if (!eventEffects[title]) eventEffects[title] = { money: [], gpa: [], explore: [], count: 0 };
-      eventEffects[title].count++;
+      eventEffects[title].count += evt.count || 1; // compact mode has {title, count}
     }
 
     // Aggregate resource changes by round
@@ -424,7 +424,8 @@ function analyzePlanAbilities() {
   for (const game of validGames) {
     for (const p of game.players || []) {
       const majorPlan = getPlayerMajorPlan(p);
-      for (const t of (p.planAbilityTriggers || [])) {
+      const triggers = Array.isArray(p.planAbilityTriggers) ? p.planAbilityTriggers : [];
+      for (const t of triggers) {
         const planName = t.planName || majorPlan || 'unknown';
         if (!stats[planName]) stats[planName] = { triggers: {}, totalTriggers: 0, games: 0 };
         if (!stats[planName].triggers[t.trigger]) stats[planName].triggers[t.trigger] = { count: 0, messages: [] };
@@ -682,6 +683,51 @@ function normalCDF(z) {
 }
 
 // ============================================================
+// Strategy Deep Analysis
+// ============================================================
+function analyzeStrategyDeep() {
+  // Strategy × Plan cross-tabulation
+  const stratPlan = {}; // { [strategy]: { [planName]: { total, wins } } }
+  // Strategy win condition distribution
+  const stratWinCond = {}; // { [strategy]: { [condition]: count } }
+  // Strategy × player count
+  const stratByPC = {}; // { [strategy]: { [pc]: { total, wins } } }
+
+  for (const game of validGames) {
+    const pc = game.config?.playerCount || game.players.length;
+    for (const p of game.players || []) {
+      const strat = p.strategy || 'unknown';
+      const majorPlan = getPlayerMajorPlan(p);
+
+      // Strat × Plan
+      if (!stratPlan[strat]) stratPlan[strat] = {};
+      if (majorPlan) {
+        if (!stratPlan[strat][majorPlan]) stratPlan[strat][majorPlan] = { total: 0, wins: 0 };
+        stratPlan[strat][majorPlan].total++;
+        if (p.isWinner) stratPlan[strat][majorPlan].wins++;
+      }
+
+      // Strat win condition
+      if (p.isWinner && game.winner) {
+        if (!stratWinCond[strat]) stratWinCond[strat] = {};
+        const cond = game.winner.condition || 'unknown';
+        const condType = cond.includes('GPA×10') || cond === 'base' || cond === 'base_win' || cond === '毕业结算'
+          ? '基础/毕业' : '计划达成';
+        stratWinCond[strat][condType] = (stratWinCond[strat][condType] || 0) + 1;
+      }
+
+      // Strat × player count
+      if (!stratByPC[strat]) stratByPC[strat] = {};
+      if (!stratByPC[strat][pc]) stratByPC[strat][pc] = { total: 0, wins: 0 };
+      stratByPC[strat][pc].total++;
+      if (p.isWinner) stratByPC[strat][pc].wins++;
+    }
+  }
+
+  return { stratPlan, stratWinCond, stratByPC };
+}
+
+// ============================================================
 // Resource Source Analysis (by card, event, plan, position)
 // ============================================================
 function analyzeResourceSources() {
@@ -845,6 +891,7 @@ function generateReport() {
   const giniStats = analyzeResourceGini();
   const corrStats = analyzeResourceWinCorrelation();
   const cardUsageStats = analyzeCardUsage();
+  const strategyDeep = analyzeStrategyDeep();
   const resourceSourceStats = analyzeResourceSources();
 
   const totalPlayers = validGames.reduce((s, g) => s + (g.players?.length || 0), 0);
@@ -1081,8 +1128,82 @@ function generateReport() {
   }
   w('');
 
+  // Strategy × Plan cross-tabulation
+  w('### 4.4 策略×计划胜率矩阵（Top 10 策略-计划组合）');
+  w('');
+  {
+    const combos = [];
+    for (const [strat, plans] of Object.entries(strategyDeep.stratPlan)) {
+      for (const [plan, s] of Object.entries(plans)) {
+        if (s.total >= 5) {
+          combos.push({ strat, plan, total: s.total, wins: s.wins, winRate: s.wins / s.total });
+        }
+      }
+    }
+    combos.sort((a, b) => b.winRate - a.winRate);
+    if (combos.length > 0) {
+      w('| 策略 | 培养计划 | 胜率 | 样本 | 胜场 |');
+      w('|------|---------|------|------|------|');
+      for (const c of combos.slice(0, 10)) {
+        w(`| ${c.strat} | ${c.plan} | ${pct(c.wins, c.total)} | ${c.total} | ${c.wins} |`);
+      }
+      w('');
+      w('**最弱组合（Bottom 5）：**');
+      w('');
+      w('| 策略 | 培养计划 | 胜率 | 样本 | 胜场 |');
+      w('|------|---------|------|------|------|');
+      for (const c of combos.filter(x => x.total >= 10).slice(-5).reverse()) {
+        w(`| ${c.strat} | ${c.plan} | ${pct(c.wins, c.total)} | ${c.total} | ${c.wins} |`);
+      }
+    } else {
+      w('样本不足（需更多模拟局数）');
+    }
+  }
+  w('');
+
+  // Strategy win condition distribution
+  w('### 4.5 策略胜利条件分布');
+  w('');
+  {
+    const strats = Object.keys(strategyDeep.stratWinCond).sort();
+    if (strats.length > 0) {
+      w('| 策略 | 基础/毕业胜利 | 计划达成胜利 | 计划胜利占比 |');
+      w('|------|------------|------------|------------|');
+      for (const strat of strats) {
+        const conds = strategyDeep.stratWinCond[strat] || {};
+        const base = conds['基础/毕业'] || 0;
+        const plan = conds['计划达成'] || 0;
+        const total = base + plan;
+        w(`| ${strat} | ${base} | ${plan} | ${total > 0 ? pct(plan, total) : '-'} |`);
+      }
+    }
+  }
+  w('');
+
+  // Strategy × player count
+  w('### 4.6 策略胜率（按玩家人数）');
+  w('');
+  {
+    const strats = Object.keys(strategyDeep.stratByPC).sort();
+    const pcs = [...new Set(validGames.map(g => g.config?.playerCount || g.players.length))].sort();
+    if (strats.length > 0 && pcs.length > 0) {
+      const pcHeader = pcs.map(pc => `${pc}人`).join(' | ');
+      w(`| 策略 | ${pcHeader} |`);
+      w(`|------|${pcs.map(() => '------').join('|')}|`);
+      for (const strat of strats) {
+        const cells = pcs.map(pc => {
+          const s = strategyDeep.stratByPC[strat]?.[pc];
+          if (!s || s.total < 5) return `- (${s?.total || 0})`;
+          return `${pct(s.wins, s.total)} (${s.total})`;
+        });
+        w(`| ${strat} | ${cells.join(' | ')} |`);
+      }
+    }
+  }
+  w('');
+
   // Bankruptcy
-  w('### 4.4 破产率分析');
+  w('### 4.7 破产率分析');
   w('');
   w('| 人数 | 总玩家 | 破产数 | 破产率 |');
   w('|------|--------|--------|--------|');

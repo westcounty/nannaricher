@@ -40,14 +40,15 @@ const CONFIG = {
   serverUrl: args.server || 'http://localhost:3001',
   minGames: parseInt(args['min-games']) || 500,
   maxGames: parseInt(args['max-games']) || 5000,
-  concurrency: parseInt(args.concurrency) || 8,
+  concurrency: parseInt(args.concurrency) || 12,
   batchSize: parseInt(args['batch-size']) || 50,
   fixedPlayers: args.players ? parseInt(args.players) : null,
   diceOption: parseInt(args.dice) || 1,
   outputPath: args.output || 'balance-test/report/raw-data.json',
-  gameTimeoutMs: 180_000,  // 3 min max per game
-  actionTimeoutMs: 10_000, // 10s max wait for state update
-  actionDelayMs: 30,       // brief delay between actions
+  gameTimeoutMs: 120_000,  // 2 min max per game
+  actionTimeoutMs: 8_000,  // 8s max wait for state update
+  actionDelayMs: 20,       // brief delay between actions
+  compact: args.compact !== 'false', // compact output by default
 };
 
 // ============================================================
@@ -236,6 +237,19 @@ class PlayerAgent {
 }
 
 // ============================================================
+// Compact mode helpers
+// ============================================================
+function summarizeEvents(events) {
+  // In compact mode, just keep unique event titles with counts
+  const counts = {};
+  for (const e of events) {
+    const key = e.title || 'unknown';
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return Object.entries(counts).map(([title, count]) => ({ title, count }));
+}
+
+// ============================================================
 // Single Game Runner
 // ============================================================
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -254,24 +268,24 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
     // Connect
     await Promise.all(agents.map(a => a.connect(CONFIG.serverUrl)));
 
-    // Create room & join (stagger joins, longer delays for bigger games)
+    // Create room & join (stagger joins, shorter delays)
     const { roomId } = await agents[0].createRoom(diceOption);
-    const joinDelay = playerCount >= 5 ? 600 : 200;
+    const joinDelay = playerCount >= 5 ? 300 : 120;
     for (let i = 1; i < agents.length; i++) {
       await agents[i].joinRoom(roomId, diceOption);
       await sleep(joinDelay);
     }
-    await sleep(500);
+    await sleep(250);
 
     // Start game — goes directly to 'playing' phase (no setup_plans)
     agents[0].startGame();
 
     // Wait for playing phase
     try {
-      await agents[0].waitForState(s => s.phase === 'playing' || s.phase === 'rolling_dice' || s.phase === 'making_choice', 10_000);
+      await agents[0].waitForState(s => s.phase === 'playing' || s.phase === 'rolling_dice' || s.phase === 'making_choice', 8_000);
     } catch { /* proceed anyway */ }
 
-    await sleep(200);
+    await sleep(100);
 
     // Main game loop - simple poll-based approach for reliability
     let lastActionId = '';
@@ -300,7 +314,7 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
       await tryUseCards(agents, state);
 
       const pa = state.pendingAction;
-      if (!pa) { await sleep(80); continue; }
+      if (!pa) { await sleep(50); continue; }
 
       // Track progress for multi-step actions (multi_vote, chain_action)
       const responseCount = pa.responses ? Object.keys(pa.responses).length : 0;
@@ -336,7 +350,7 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
 
       // Handle pending action and give server time to process
       await handlePendingAction(agents, state, pa);
-      await sleep(200); // Wait for server to process and broadcast new state
+      await sleep(100); // Wait for server to process and broadcast new state
     }
 
     // Collect results
@@ -387,12 +401,13 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
           effects: (p.effects || []).map(e => e.type),
           // Per-round resource snapshots (end-of-round values)
           roundSnapshots: agent?.roundSnapshots || {},
-          // Detailed resource change log
-          resourceChanges: (agent?.resourceChanges || []).filter(rc => rc.playerId === p.id),
-          // New: enhanced telemetry per player
-          planAbilityTriggers: (agent?.planAbilityTriggers || []).filter(t => t.playerId === p.id),
+          // Compact mode: only keep summaries, skip verbose per-event logs
+          resourceChanges: CONFIG.compact ? [] : (agent?.resourceChanges || []).filter(rc => rc.playerId === p.id),
+          planAbilityTriggers: CONFIG.compact
+            ? (agent?.planAbilityTriggers || []).filter(t => t.playerId === p.id).length
+            : (agent?.planAbilityTriggers || []).filter(t => t.playerId === p.id),
           lineExitSummaries: (agent?.lineExitSummaries || []).filter(s => s.playerId === p.id),
-          diceResults: (agent?.diceResults || []).filter(d => d.playerId === p.id),
+          diceResults: CONFIG.compact ? [] : (agent?.diceResults || []).filter(d => d.playerId === p.id),
           hospitalEntries: agent?.hospitalEntries || 0,
           bankruptOccurrences: agent?.bankruptOccurrences || 0,
           cardsUsed: agent?.cardsUsed || [],
@@ -400,10 +415,12 @@ async function playOneGame(gameId, playerCount, diceOption, strategyNames) {
         };
       }),
       // Aggregate event and card data for the whole game
-      events: agents.flatMap(a => a.eventsTriggers),
+      events: CONFIG.compact
+        ? summarizeEvents(agents.flatMap(a => a.eventsTriggers))
+        : agents.flatMap(a => a.eventsTriggers),
       cardsDrawn: agents.flatMap(a => a.cardsDrawn),
-      // New: aggregate game-level telemetry (use only first agent to avoid broadcast duplication)
-      allDiceResults: agents[0]?.diceResults || [],
+      // Aggregate game-level telemetry (use only first agent to avoid broadcast duplication)
+      allDiceResults: CONFIG.compact ? [] : (agents[0]?.diceResults || []),
       allPlanAbilityTriggers: agents[0]?.planAbilityTriggers || [],
       allLineExitSummaries: agents[0]?.lineExitSummaries || [],
       voteResults: agents[0]?.voteResults || [],
@@ -538,9 +555,24 @@ async function handlePendingAction(agents, state, pa) {
       break;
     }
 
+    case 'parallel_plan_selection': {
+      // All eligible players respond simultaneously with JSON
+      const responses = pa.responses || {};
+      for (const agent of agents) {
+        if (responses[agent.playerId]) continue; // already responded
+        const myData = pa.planSelectionData?.perPlayer[agent.playerId];
+        if (!myData) continue;
+        const decision = agent.strategy.choosePlanSelection
+          ? agent.strategy.choosePlanSelection(myData, state, agent.playerId)
+          : { action: 'keep' };
+        agent.chooseAction(pa.id, JSON.stringify(decision));
+        await sleep(50);
+      }
+      break;
+    }
+
     case 'draw_training_plan': {
       // Legacy handler — new system uses choose_option for plan selection
-      // This handles any remaining draw_training_plan actions via choose_option fallback
       const agent = findAgent(pa.playerId);
       if (agent && pa.options?.length > 0) {
         const choice = agent.strategy.chooseOption(pa.options, state, pa, agent.playerId);
@@ -752,6 +784,16 @@ async function main() {
 
     const batchResults = await runBatch(batchNum, batchSize, allResults);
     allResults.push(...batchResults);
+
+    // Progress with ETA
+    const elapsed = (Date.now() - overallStart) / 1000;
+    const rate = allResults.length / elapsed;
+    const pctDone = (allResults.length / CONFIG.minGames * 100).toFixed(0);
+    const eta = rate > 0 ? ((CONFIG.minGames - allResults.length) / rate).toFixed(0) : '?';
+    console.log(
+      `  Progress: ${allResults.length}/${CONFIG.minGames} (${pctDone}%) | ` +
+      `${rate.toFixed(1)} games/s | ETA: ${eta}s`
+    );
 
     // Check confidence after minimum games
     if (allResults.length >= CONFIG.minGames) {
