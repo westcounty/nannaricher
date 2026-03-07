@@ -9,6 +9,7 @@ export interface Room {
   phase: 'waiting' | 'playing' | 'finished';
   createdAt: number;
   lastActivity: number;
+  readyPlayerIds: Set<string>;
 }
 
 function generateRoomCode(): string {
@@ -84,6 +85,7 @@ export class RoomManager {
       phase: 'waiting',
       createdAt: Date.now(),
       lastActivity: Date.now(),
+      readyPlayerIds: new Set(),
     };
     this.rooms.set(roomId, room);
     return { roomId, playerId: player.id };
@@ -117,6 +119,44 @@ export class RoomManager {
   updateActivity(roomId: string) {
     const room = this.rooms.get(roomId);
     if (room) room.lastActivity = Date.now();
+  }
+
+  resetPlayerForRestart(player: Player): Player {
+    return {
+      ...player,
+      money: player.diceCount === 2 ? 2000 : 3000,
+      gpa: 3.0,
+      exploration: 0,
+      position: { type: 'main', index: 0 } as Position,
+      trainingPlans: [],
+      majorPlan: null,
+      minorPlans: [],
+      planSlotLimit: DEFAULT_PLAN_SLOTS,
+      heldCards: [],
+      effects: [],
+      skipNextTurn: false,
+      isInHospital: false,
+      isAtDing: false,
+      isBankrupt: false,
+      isDisconnected: false,
+      linesVisited: [],
+      lineEventsTriggered: {},
+      hospitalVisits: 0,
+      moneyZeroCount: 0,
+      cafeteriaNoNegativeStreak: 0,
+      cardsDrawnWithEnglish: 0,
+      cardsDrawnWithDigitStart: [],
+      chanceCardsUsedOnPlayers: {},
+      gulou_endpoint_count: 0,
+      modifiedWinThresholds: {},
+      maxWinConditionSlots: 3,
+      disabledWinConditions: [],
+      lawyerShield: false,
+      lastDiceValues: [],
+      consecutivePositiveTurns: 0,
+      turnStartSnapshot: undefined,
+      gongguan_card_given: undefined,
+    };
   }
 
   // --------------------------------------------------
