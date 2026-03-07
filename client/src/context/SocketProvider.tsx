@@ -320,6 +320,19 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().resetToLobby();
     };
 
+    const handleRestarting = () => {
+      store.getState().setWinner(null);
+      store.getState().setCurrentEvent(null);
+      store.getState().setDiceResult(null);
+      store.getState().setDrawnCard(null);
+      store.getState().setAnnouncement(null);
+      store.getState().setReadyPlayerIds([]);
+    };
+
+    const handleReadyState = (data: { readyPlayerIds: string[] }) => {
+      store.getState().setReadyPlayerIds(data.readyPlayerIds);
+    };
+
     const handleLineExitSummary = (data: {
       playerId: string; lineId: string; lineName: string;
       entryTurn: number; exitTurn: number;
@@ -363,6 +376,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:line-exit-summary', handleLineExitSummary);
     socket.on('game:plan-ability-trigger', handlePlanAbilityTrigger);
     socket.on('room:dissolved', handleRoomDissolved);
+    socket.on('game:restarting', handleRestarting);
+    socket.on('game:ready-state', handleReadyState);
 
     // ------ Cleanup ------
     return () => {
@@ -383,6 +398,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:line-exit-summary', handleLineExitSummary);
       socket.off('game:plan-ability-trigger', handlePlanAbilityTrigger);
       socket.off('room:dissolved', handleRoomDissolved);
+      socket.off('game:restarting', handleRestarting);
+      socket.off('game:ready-state', handleReadyState);
     };
   }, [socket]);
 

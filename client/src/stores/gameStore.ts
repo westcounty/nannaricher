@@ -105,6 +105,8 @@ interface GameStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
+  readyPlayerIds: string[];
+  setReadyPlayerIds: (ids: string[]) => void;
   resetToLobby: () => void;
 
   // === Socket Actions (injected by SocketProvider) ===
@@ -206,6 +208,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setRolling: (rolling) => set({ isRolling: rolling }),
 
+  readyPlayerIds: [],
+  setReadyPlayerIds: (ids) => set({ readyPlayerIds: ids }),
+
   addNotification: (msg, type = 'info') => set((state) => ({
     notifications: [...state.notifications, {
       id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -231,6 +236,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isLoading: false,
     error: null,
     notifications: [],
+    readyPlayerIds: [],
   }),
 
   // --- Socket Actions ---
