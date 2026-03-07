@@ -99,6 +99,7 @@ export interface PendingAction {
     label: string;
     value: string;
     description?: string;
+    group?: string;            // 分组标签，客户端渲染为 tab 切换
     effectPreview?: {
       money?: number | string;
       gpa?: number | string;

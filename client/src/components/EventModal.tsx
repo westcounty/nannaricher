@@ -38,6 +38,7 @@ export function EventModal({
   const { isVisible, opacity, fadeIn } = useFadeAnimation(300);
   const [isClosing, setIsClosing] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Use props or game context data
@@ -147,6 +148,31 @@ export function EventModal({
 
   const hasOptions = !isReadOnly && pendingAction?.options && pendingAction.options.length > 0;
 
+  // Group options by 'group' field for tab display
+  const optionGroups = (() => {
+    if (!hasOptions) return null;
+    const opts = pendingAction!.options!;
+    const groups = new Map<string, typeof opts>();
+    const ungrouped: typeof opts = [];
+    for (const opt of opts) {
+      if (opt.group) {
+        if (!groups.has(opt.group)) groups.set(opt.group, []);
+        groups.get(opt.group)!.push(opt);
+      } else {
+        ungrouped.push(opt);
+      }
+    }
+    if (groups.size < 2) return null; // No need for tabs
+    return { groups, ungrouped };
+  })();
+
+  // Initialize active tab
+  useEffect(() => {
+    if (optionGroups && !activeTab) {
+      setActiveTab([...optionGroups.groups.keys()][0]);
+    }
+  }, [optionGroups, activeTab]);
+
   // Determine sentiment from effects for visual theming
   const sentiment = (() => {
     if (!effects) return 'neutral';
@@ -186,66 +212,98 @@ export function EventModal({
         <div className="modal-body">
           <p className="modal-description">{description}</p>
 
-          {hasOptions && (
-            <div className={`options-container ${pendingAction!.options!.length <= 2 ? 'options-grid' : 'options-list'}`}>
-              {pendingAction!.options!.map((option, index) => (
-                <button
-                  key={option.value}
-                  className={`option-card ${selectedOption === option.value ? 'selected' : ''}`}
-                  onClick={() => handleOptionSelect(option.value)}
-                  disabled={isClosing}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <div className="option-card__content">
-                    <span className="option-card__label">{option.label}</span>
-                    {option.description && (
-                      <span className="option-card__description">{option.description}</span>
-                    )}
-                    {option.effectPreview && (
-                      <div className="option-card__effects">
-                        {option.effectPreview.money !== undefined && (
-                          <span className={`option-card__effect ${
-                            typeof option.effectPreview.money === 'number'
-                              ? (option.effectPreview.money > 0 ? 'positive' : option.effectPreview.money < 0 ? 'negative' : '')
-                              : ''
-                          }`}>
-                            {'\uD83D\uDCB0'}{typeof option.effectPreview.money === 'number'
-                              ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}`
-                              : option.effectPreview.money}
-                          </span>
-                        )}
-                        {option.effectPreview.gpa !== undefined && (
-                          <span className={`option-card__effect ${
-                            typeof option.effectPreview.gpa === 'number'
-                              ? (option.effectPreview.gpa > 0 ? 'positive' : option.effectPreview.gpa < 0 ? 'negative' : '')
-                              : ''
-                          }`}>
-                            {'\uD83D\uDCDA'}{typeof option.effectPreview.gpa === 'number'
-                              ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}`
-                              : option.effectPreview.gpa}
-                          </span>
-                        )}
-                        {option.effectPreview.exploration !== undefined && (
-                          <span className={`option-card__effect ${
-                            typeof option.effectPreview.exploration === 'number'
-                              ? (option.effectPreview.exploration > 0 ? 'positive' : option.effectPreview.exploration < 0 ? 'negative' : '')
-                              : ''
-                          }`}>
-                            {'\uD83D\uDDFA\uFE0F'}{typeof option.effectPreview.exploration === 'number'
-                              ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}`
-                              : option.effectPreview.exploration}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {selectedOption === option.value && (
-                    <span className="option-checkmark">{'\u2713'}</span>
+          {hasOptions && (() => {
+            const renderOption = (option: typeof pendingAction!.options![0], index: number) => (
+              <button
+                key={option.value}
+                className={`option-card ${selectedOption === option.value ? 'selected' : ''}`}
+                onClick={() => handleOptionSelect(option.value)}
+                disabled={isClosing}
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div className="option-card__content">
+                  <span className="option-card__label">{option.label}</span>
+                  {option.description && (
+                    <span className="option-card__description">{option.description}</span>
                   )}
-                </button>
-              ))}
-            </div>
-          )}
+                  {option.effectPreview && (
+                    <div className="option-card__effects">
+                      {option.effectPreview.money !== undefined && (
+                        <span className={`option-card__effect ${
+                          typeof option.effectPreview.money === 'number'
+                            ? (option.effectPreview.money > 0 ? 'positive' : option.effectPreview.money < 0 ? 'negative' : '')
+                            : ''
+                        }`}>
+                          {'\uD83D\uDCB0'}{typeof option.effectPreview.money === 'number'
+                            ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}`
+                            : option.effectPreview.money}
+                        </span>
+                      )}
+                      {option.effectPreview.gpa !== undefined && (
+                        <span className={`option-card__effect ${
+                          typeof option.effectPreview.gpa === 'number'
+                            ? (option.effectPreview.gpa > 0 ? 'positive' : option.effectPreview.gpa < 0 ? 'negative' : '')
+                            : ''
+                        }`}>
+                          {'\uD83D\uDCDA'}{typeof option.effectPreview.gpa === 'number'
+                            ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}`
+                            : option.effectPreview.gpa}
+                        </span>
+                      )}
+                      {option.effectPreview.exploration !== undefined && (
+                        <span className={`option-card__effect ${
+                          typeof option.effectPreview.exploration === 'number'
+                            ? (option.effectPreview.exploration > 0 ? 'positive' : option.effectPreview.exploration < 0 ? 'negative' : '')
+                            : ''
+                        }`}>
+                          {'\uD83D\uDDFA\uFE0F'}{typeof option.effectPreview.exploration === 'number'
+                            ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}`
+                            : option.effectPreview.exploration}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedOption === option.value && (
+                  <span className="option-checkmark">{'\u2713'}</span>
+                )}
+              </button>
+            );
+
+            if (optionGroups) {
+              const tabOptions = activeTab ? (optionGroups.groups.get(activeTab) || []) : [];
+              return (
+                <div className="options-tabbed">
+                  <div className="options-tabs">
+                    {[...optionGroups.groups.keys()].map(group => (
+                      <button
+                        key={group}
+                        className={`options-tab ${activeTab === group ? 'active' : ''}`}
+                        onClick={() => setActiveTab(group)}
+                      >
+                        {group}
+                        <span className="options-tab__count">{optionGroups.groups.get(group)!.length}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="options-container options-list options-tab-content">
+                    {tabOptions.map((opt, i) => renderOption(opt, i))}
+                  </div>
+                  {optionGroups.ungrouped.length > 0 && (
+                    <div className="options-container options-list options-ungrouped">
+                      {optionGroups.ungrouped.map((opt, i) => renderOption(opt, i))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div className={`options-container ${pendingAction!.options!.length <= 2 ? 'options-grid' : 'options-list'}`}>
+                {pendingAction!.options!.map((opt, i) => renderOption(opt, i))}
+              </div>
+            );
+          })()}
 
           {hasEffects && (
             <div className="effects-preview">

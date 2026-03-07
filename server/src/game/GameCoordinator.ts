@@ -808,9 +808,14 @@ export class GameCoordinator {
           'retake',       // 重修：扣钱
           'qingong',      // 勤工助学：暂停1回合
         ]);
-        const disableOptions = boardData.mainBoard
-          .filter(c => NEGATIVE_CELL_IDS.has(c.id) || c.type === 'line_entry')
-          .map(c => ({ label: `禁用: ${c.name}`, value: `disable_${c.id}` }));
+        const disableOptions: { label: string; value: string; group?: string }[] = [];
+        for (const c of boardData.mainBoard) {
+          if (NEGATIVE_CELL_IDS.has(c.id)) {
+            disableOptions.push({ label: c.name, value: `disable_${c.id}`, group: '负面格子' });
+          } else if (c.type === 'line_entry') {
+            disableOptions.push({ label: c.name, value: `disable_${c.id}`, group: '线路入口' });
+          }
+        }
         disableOptions.push({ label: '不禁用', value: 'huaxue_skip' });
 
         state.pendingAction = {

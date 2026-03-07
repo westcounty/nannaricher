@@ -337,6 +337,72 @@
   padding: 20px 24px;
 }
 
+/* Tabbed options */
+.options-tabbed {
+  margin-top: 16px;
+}
+
+.options-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(139, 95, 191, 0.25);
+  padding-bottom: 0;
+}
+
+.options-tab {
+  flex: 1;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.options-tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.options-tab.active {
+  color: #c9a227;
+  border-bottom-color: #c9a227;
+}
+
+.options-tab__count {
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.options-tab.active .options-tab__count {
+  background: rgba(201, 162, 39, 0.2);
+  color: #c9a227;
+}
+
+.options-tab-content {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-top: 0;
+}
+
+.options-ungrouped {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(139, 95, 191, 0.2);
+}
+
 /* Read-only mode (other player's event) */
 .event-modal-overlay.read-only {
   pointer-events: none;
