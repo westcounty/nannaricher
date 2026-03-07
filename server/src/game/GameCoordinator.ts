@@ -62,6 +62,7 @@ export class GameCoordinator {
   private pendingActionTimer: ReturnType<typeof setTimeout> | null = null;
   private onFinishedCallback: (() => void) | null = null;
   private negateWindow: NegateWindow | null = null;
+  private planResolutionQueue: { playerId: string; response: string }[] | null = null;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
@@ -491,6 +492,25 @@ export class GameCoordinator {
         // Process as the last player in chain to trigger completion
         const lastPlayer = chainOrder[chainOrder.length - 1] || pa.playerId;
         this._processAction(pa.id, lastPlayer, defaultChoice);
+      } else if (currentPa.type === ('parallel_plan_selection' as any)) {
+        // Fill unsubmitted players with default choices
+        const targetIds = currentPa.targetPlayerIds || [];
+        const responses = currentPa.responses || {};
+        for (const pid of targetIds) {
+          if (!responses[pid]) {
+            const playerData = currentPa.planSelectionData?.perPlayer[pid];
+            if (playerData?.currentMajor) {
+              responses[pid] = JSON.stringify({ action: 'keep' });
+            } else {
+              const firstPlan = playerData?.drawnPlans[0];
+              responses[pid] = firstPlan
+                ? JSON.stringify({ action: 'adjust', keepPlanIds: [firstPlan.id], majorId: firstPlan.id })
+                : JSON.stringify({ action: 'keep' });
+            }
+          }
+        }
+        currentPa.responses = responses;
+        this.resolveParallelPlanSelections();
       } else {
         const defaultChoice = currentPa.options?.[0]?.value || 'skip';
         this._processAction(pa.id, pa.playerId, defaultChoice);
@@ -695,7 +715,7 @@ export class GameCoordinator {
         const eligiblePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
         if (eligiblePlayers.length > 0) {
           this.yearlyDrawnPlanIds.clear();
-          this.startPlanSelectionForPlayer(eligiblePlayers, 0);
+          this.startParallelPlanSelection(eligiblePlayers);
           return;
         }
       }
@@ -1712,6 +1732,57 @@ export class GameCoordinator {
    * 大二起：每年开始时的培养计划选择流程
    * 每个玩家顺序执行：抽3张 → 根据状态决定流程
    */
+
+  private startParallelPlanSelection(eligiblePlayers: Player[]): void {
+    const state = this.engine.getState();
+
+    const perPlayer: Record<string, {
+      drawnPlans: import('@nannaricher/shared').TrainingPlan[];
+      existingPlanIds: string[];
+      currentMajor: string | null;
+      currentMinors: string[];
+      planSlotLimit: number;
+    }> = {};
+
+    for (const player of eligiblePlayers) {
+      const drawnPlans = this.drawPlansForPlayer(player);
+      // drawPlansForPlayer already adds to trainingPlans, but for parallel selection
+      // we need to keep them there for UI display AND track drawn IDs
+      this.redrawDrawnPlanIds.set(player.id, drawnPlans.map(p => p.id));
+
+      const confirmedIds = [
+        ...(player.majorPlan ? [player.majorPlan] : []),
+        ...player.minorPlans,
+      ];
+
+      perPlayer[player.id] = {
+        drawnPlans,
+        existingPlanIds: confirmedIds,
+        currentMajor: player.majorPlan,
+        currentMinors: [...player.minorPlans],
+        planSlotLimit: player.planSlotLimit,
+      };
+    }
+
+    state.pendingAction = {
+      id: `parallel_plan_${Date.now()}`,
+      playerId: 'all',
+      type: 'parallel_plan_selection' as any,
+      prompt: '升学阶段：选择培养计划',
+      targetPlayerIds: eligiblePlayers.map(p => p.id),
+      responses: {},
+      timeoutMs: 60000,
+      planSelectionData: { perPlayer },
+    };
+
+    this.broadcastState();
+    this.startPendingActionTimeout();
+    this.io.to(this.roomId).emit('game:announcement', {
+      message: '升学阶段：所有玩家同时选择培养计划（60秒）',
+      type: 'info' as const,
+    });
+  }
+
   private startPlanSelectionForPlayer(eligiblePlayers: Player[], playerIdx: number): void {
     const state = this.engine.getState();
     console.log(`[PlanSelection] startPlanSelectionForPlayer: playerIdx=${playerIdx}, total=${eligiblePlayers.length}`);
@@ -2394,6 +2465,181 @@ export class GameCoordinator {
     return null;
   }
 
+  private handleParallelPlanResponse(playerId: string, choice: string): void {
+    const state = this.engine.getState();
+    const action = state.pendingAction;
+    if (!action || action.type !== ('parallel_plan_selection' as any)) return;
+
+    const playerData = action.planSelectionData?.perPlayer[playerId];
+    if (!playerData) return;
+
+    // Validate choice
+    try {
+      const parsed = JSON.parse(choice);
+      if (parsed.action === 'adjust') {
+        const allAvailable = [
+          ...playerData.existingPlanIds,
+          ...playerData.drawnPlans.map((p: any) => p.id),
+        ];
+        if (!parsed.keepPlanIds?.every((id: string) => allAvailable.includes(id))) return;
+        if (parsed.keepPlanIds.length > playerData.planSlotLimit) return;
+        if (parsed.majorId && !parsed.keepPlanIds.includes(parsed.majorId)) return;
+      }
+    } catch {
+      return;
+    }
+
+    action.responses![playerId] = choice;
+    this.broadcastState();
+
+    const allSubmitted = action.targetPlayerIds!.every(
+      (id: string) => action.responses![id] !== undefined
+    );
+    if (allSubmitted) {
+      this.clearPendingActionTimeout();
+      this.resolveParallelPlanSelections();
+    }
+  }
+
+  private resolveParallelPlanSelections(): void {
+    const state = this.engine.getState();
+    const action = state.pendingAction;
+    if (!action || action.type !== ('parallel_plan_selection' as any)) return;
+
+    const queue: { playerId: string; response: string }[] = [];
+    for (const idx of state.turnOrder) {
+      const player = state.players[idx];
+      if (action.targetPlayerIds!.includes(player.id)) {
+        queue.push({
+          playerId: player.id,
+          response: action.responses![player.id] || JSON.stringify({ action: 'keep' }),
+        });
+      }
+    }
+
+    this.planResolutionQueue = queue;
+    state.pendingAction = null;
+    this.resolveNextPlayerPlan();
+  }
+
+  private resolveNextPlayerPlan(): void {
+    const state = this.engine.getState();
+
+    if (!this.planResolutionQueue || this.planResolutionQueue.length === 0) {
+      this.returnUnselectedPlans();
+      this.planResolutionQueue = null;
+
+      // Resume normal game flow
+      const currentPlayer = state.players[state.currentPlayerIndex];
+      console.log(`[PlanSelection] All parallel selections resolved, setting roll_dice for ${currentPlayer.name}`);
+      state.pendingAction = {
+        id: `roll_dice_${Date.now()}`,
+        playerId: currentPlayer.id,
+        type: 'roll_dice',
+        prompt: '请投骰子',
+        timeoutMs: 60000,
+      };
+      this.broadcastState();
+      this.startPendingActionTimeout();
+      return;
+    }
+
+    const { playerId, response } = this.planResolutionQueue.shift()!;
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      this.resolveNextPlayerPlan();
+      return;
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(response);
+    } catch {
+      parsed = { action: 'keep' };
+    }
+
+    if (parsed.action === 'keep') {
+      // Return drawn plans, keep existing
+      const drawnIds = this.redrawDrawnPlanIds.get(playerId) || [];
+      this.discardTempDrawnPlans(playerId, drawnIds);
+
+      this.io.to(this.roomId).emit('game:announcement', {
+        message: `${player.name} 保持当前培养计划`,
+        type: 'info' as const,
+      });
+      this.broadcastState();
+      setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+      return;
+    }
+
+    // action === 'adjust'
+    const keepPlanIds: string[] = parsed.keepPlanIds || [];
+    const majorId: string = parsed.majorId;
+    const oldMajor = player.majorPlan;
+    const drawnIds = this.redrawDrawnPlanIds.get(playerId) || [];
+
+    // Discard un-kept drawn plans
+    const unKeptDrawnIds = drawnIds.filter((id: string) => !keepPlanIds.includes(id));
+    this.discardTempDrawnPlans(playerId, unKeptDrawnIds);
+
+    // Remove un-kept existing plans from player
+    const existingToRemove = player.trainingPlans.filter(
+      p => !keepPlanIds.includes(p.id) && !drawnIds.includes(p.id)
+    );
+    for (const plan of existingToRemove) {
+      const idx = player.trainingPlans.findIndex(p => p.id === plan.id);
+      if (idx >= 0) {
+        const [removed] = player.trainingPlans.splice(idx, 1);
+        state.cardDecks.training.push(removed);
+      }
+    }
+
+    // Update major/minor
+    player.majorPlan = majorId;
+    player.minorPlans = keepPlanIds.filter(id => id !== majorId);
+
+    const majorName = player.trainingPlans.find(p => p.id === majorId)?.name || majorId;
+    this.addLog(player.id, `${player.name} 设置主修方向: ${majorName}`);
+    if (player.minorPlans.length > 0) {
+      const minorNames = player.minorPlans.map(id => player.trainingPlans.find(p => p.id === id)?.name || id);
+      this.addLog(player.id, `${player.name} 辅修方向: ${minorNames.join(', ')}`);
+    }
+
+    this.io.to(this.roomId).emit('game:announcement', {
+      message: `${player.name} 主修变更为 ${majorName}`,
+      type: 'success' as const,
+    });
+
+    // Handle huaxue reset
+    if (oldMajor === 'plan_huaxue' && majorId !== 'plan_huaxue') {
+      state.disabledCells = [];
+      this.addLog(player.id, `${player.name} 不再主修化学化工学院，禁用格子效果解除`);
+    }
+
+    // Trigger on_confirm if major changed
+    if (majorId !== oldMajor) {
+      console.log(`[PlanSelection] resolveNextPlayerPlan: ${player.name} major changed ${oldMajor} -> ${majorId}, triggering effects`);
+      this.triggerPlanConfirmEffects(player.id, majorId);
+
+      const postAction = this.createPostConfirmAction(player, player.id);
+      if (postAction) {
+        // Save resolution context via pendingConfirmContext
+        // continuePostConfirmChain will check planResolutionQueue
+        this.pendingConfirmContext = {
+          eligiblePlayers: [],  // Not used in parallel mode
+          playerIdx: -1,        // Not used in parallel mode
+        };
+        state.pendingAction = postAction;
+        this.broadcastState();
+        this.startPendingActionTimeout();
+        return; // Will resume via continuePostConfirmChain → resolveNextPlayerPlan
+      }
+    }
+
+    this.broadcastState();
+    setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+  }
+
   /**
    * Continue the post-confirm chain: check for more post-actions, then next player.
    */
@@ -2417,7 +2663,14 @@ export class GameCoordinator {
     const ctx = this.pendingConfirmContext;
     this.pendingConfirmContext = null;
 
-    // Continue to next player in plan selection
+    // Check if we're in parallel resolution mode
+    if (this.planResolutionQueue !== null) {
+      console.log(`[PlanSelection] continuePostConfirmChain: ${player.name} done (parallel mode), resolving next player`);
+      setTimeout(() => this.resolveNextPlayerPlan(), 1500);
+      return;
+    }
+
+    // Legacy serial mode fallback
     console.log(`[PlanSelection] continuePostConfirmChain: ${player.name} done, continuing to playerIdx=${ctx.playerIdx + 1}`);
     this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
   }
@@ -3137,6 +3390,11 @@ export class GameCoordinator {
     const pendingActionId = state.pendingAction.id;
 
     // Handle based on pending action type
+    if (state.pendingAction.type === ('parallel_plan_selection' as any)) {
+      this.handleParallelPlanResponse(playerId, choice);
+      return;
+    }
+
     if (state.pendingAction.type === 'choose_option') {
       // Save and clear pendingAction BEFORE processing to avoid infinite broadcast loop
       const savedPendingAction = state.pendingAction;
@@ -3176,7 +3434,8 @@ export class GameCoordinator {
           || pendingActionId.startsWith('plan_redraw_') || pendingActionId.startsWith('plan_overflow_')
           || pendingActionId.startsWith('win_slot_overflow_')
           || pendingActionId.startsWith('plan_select_') || pendingActionId.startsWith('plan_major_')
-          || pendingActionId.startsWith('plan_adjust_');
+          || pendingActionId.startsWith('plan_adjust_')
+          || pendingActionId.startsWith('parallel_plan_');
         const isPlanBonus = pendingActionId.startsWith('jisuanji_') || pendingActionId.startsWith('kuangyaming_')
           || pendingActionId.startsWith('wuli_') || pendingActionId.startsWith('huaxue_')
           || pendingActionId.startsWith('shuxue_');
@@ -3205,11 +3464,15 @@ export class GameCoordinator {
             // If pendingAction is null here, the chain callback may have failed
             console.log(`[PlanSelection] _processAction: isPlanConfirm path, pendingActionId=${pendingActionId}, newPa is null`);
             if (this.pendingConfirmContext) {
-              // Recover: continue the plan selection chain
-              console.warn(`[PlanSelection] Recovering from broken chain: pendingConfirmContext exists, resuming next player`);
               const ctx = this.pendingConfirmContext;
               this.pendingConfirmContext = null;
-              this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+              if (this.planResolutionQueue !== null) {
+                console.warn(`[PlanSelection] Recovering: parallel mode, resolving next player`);
+                setTimeout(() => this.resolveNextPlayerPlan(), 500);
+              } else {
+                console.warn(`[PlanSelection] Recovering from broken chain: resuming next player`);
+                this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+              }
             }
             this.broadcastState();
           } else if (isPlanBonus) {
@@ -3254,11 +3517,13 @@ export class GameCoordinator {
         if (state.pendingAction) {
           this.broadcastState();
         } else if (this.pendingConfirmContext) {
-          // Plan confirmation chain context exists but no action was set — recover
-          console.warn(`[PlanSelection] choose_player handler didn't set pendingAction but pendingConfirmContext exists, recovering...`);
           const ctx = this.pendingConfirmContext;
           this.pendingConfirmContext = null;
-          this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+          if (this.planResolutionQueue !== null) {
+            setTimeout(() => this.resolveNextPlayerPlan(), 500);
+          } else {
+            this.startPlanSelectionForPlayer(ctx.eligiblePlayers, ctx.playerIdx + 1);
+          }
           this.broadcastState();
         } else {
           state.pendingAction = null;
