@@ -10,6 +10,12 @@
  * - balanced: prioritize the weakest resource dimension
  */
 
+// Negate cards — can only be used reactively during negate windows, not proactively
+const NEGATE_CARD_IDS = new Set([
+  'chance_pie_in_sky', 'destiny_stop_loss', 'destiny_how_to_explain',
+  'chance_info_blocked', 'chance_false_move',
+]);
+
 // Plan categorization by win condition focus
 const PLAN_FOCUS = {
   '马克思主义学院': 'gpa',
@@ -120,6 +126,11 @@ class BaseStrategy {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
 
+    // Negate window: decide whether to use a negate card
+    if (options.some(o => o.value?.startsWith('negate_'))) {
+      return this._chooseNegate(options, state, pa, playerId);
+    }
+
     // Plan selection: options are plan names
     if (options.some(o => isPlanOption(o.label))) {
       return this.pickPlanFromOptions(options);
@@ -152,6 +163,104 @@ class BaseStrategy {
     return Math.random() < 0.6 ? 'continue' : 'pass';
   }
 
+  /**
+   * Decide which held cards to use proactively.
+   * Returns array of { cardId, targetPlayerId? } to use, in order.
+   * Called each iteration of the game loop for the current turn player.
+   */
+  chooseCardsToUse(heldCards, state, playerId) {
+    if (!heldCards || heldCards.length === 0) return [];
+    const me = state?.players?.find(p => p.id === playerId);
+    if (!me) return [];
+    const isMyTurn = state.players[state.currentPlayerIndex]?.id === playerId;
+    const actions = [];
+
+    for (const card of heldCards) {
+      if (NEGATE_CARD_IDS.has(card.id)) continue; // Negate cards are reactive-only
+      const decision = this._evaluateCard(card, me, state, playerId, isMyTurn);
+      if (decision) actions.push(decision);
+    }
+    return actions;
+  }
+
+  /** Evaluate a single card for use. Override in subclasses for smarter play. */
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    // Negate cards cannot be used proactively — skip
+    if (NEGATE_CARD_IDS.has(card.id)) return null;
+
+    // Always-use cards (pure benefit, any_turn)
+    if (card.id === 'destiny_professional_intent') {
+      return { cardId: card.id };
+    }
+
+    // Hospital escape - use immediately when stuck
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) {
+      return { cardId: card.id };
+    }
+
+    // Own-turn protective cards - use with some probability
+    if (isMyTurn) {
+      // Preemptive shields
+      if (card.id === 'destiny_maimen_shield' && Math.random() < 0.4) {
+        return { cardId: card.id };
+      }
+      if (card.id === 'destiny_stop_loss' && Math.random() < 0.3) {
+        return { cardId: card.id };
+      }
+      if (card.id === 'destiny_how_to_explain' && Math.random() < 0.3) {
+        return { cardId: card.id };
+      }
+      // Line shortcut
+      if (card.id === 'destiny_alternative_path' && me.position?.type === 'line' && Math.random() < 0.3) {
+        return { cardId: card.id };
+      }
+    }
+
+    // Targeting cards (any_turn) - target the leading player
+    if (card.useTiming === 'any_turn') {
+      const leadPlayer = this._findLeadingPlayer(state, playerId);
+      if (card.id === 'chance_pie_in_sky' && leadPlayer && Math.random() < 0.3) {
+        return { cardId: card.id, targetPlayerId: leadPlayer };
+      }
+      if (card.id === 'chance_leap_of_joy' && leadPlayer && Math.random() < 0.25) {
+        return { cardId: card.id, targetPlayerId: leadPlayer };
+      }
+      if (card.id === 'chance_power_outage' && leadPlayer && Math.random() < 0.2) {
+        return { cardId: card.id, targetPlayerId: leadPlayer };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Decide whether to use a negate card during a negate window.
+   * Base strategy: use negate with 25% probability.
+   * Override in subclasses for smarter play.
+   */
+  _chooseNegate(options, state, pa, playerId) {
+    const isCounterNegate = pa?.prompt?.includes('反制');
+    // Counter-negate: lower probability (15%)
+    if (isCounterNegate && Math.random() < 0.85) return 'negate_pass';
+    // Initial negate: use with 25% probability
+    if (Math.random() < 0.75) return 'negate_pass';
+    // Pick a random negate card from available options
+    const negateOptions = options.filter(o => o.value?.startsWith('negate_use:'));
+    return negateOptions.length > 0 ? rand(negateOptions).value : 'negate_pass';
+  }
+
+  /** Find the player with highest score (excluding self) */
+  _findLeadingPlayer(state, playerId) {
+    if (!state?.players) return null;
+    let best = null, bestScore = -Infinity;
+    for (const p of state.players) {
+      if (p.id === playerId || p.isBankrupt) continue;
+      const score = (p.gpa || 0) * 10 + (p.exploration || 0);
+      if (score > bestScore) { bestScore = score; best = p.id; }
+    }
+    return best;
+  }
+
   _isLineEntry(options) {
     return options && options.some(o => o.value && o.value.startsWith('enter_'));
   }
@@ -167,6 +276,27 @@ class RandomStrategy extends BaseStrategy {
 
 class GreedyGpaStrategy extends BaseStrategy {
   constructor() { super('greedy_gpa'); }
+
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    // Always use plan slot expansion
+    if (card.id === 'destiny_professional_intent') return { cardId: card.id };
+    // Hospital escape
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
+    // GPA-focused: eagerly use GPA protection
+    if (card.id === 'destiny_ancestor_exam' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
+    // Use event cancellation more aggressively
+    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
+    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
+    // Line shortcut if in line
+    if (card.id === 'destiny_alternative_path' && isMyTurn && me.position?.type === 'line' && Math.random() < 0.4) return { cardId: card.id };
+    // Food line shield
+    if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
+    // Target leading player with disruptive cards
+    const lead = this._findLeadingPlayer(state, playerId);
+    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.4) return { cardId: card.id, targetPlayerId: lead };
+    if (lead && card.id === 'chance_power_outage' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
+    return null;
+  }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
@@ -209,6 +339,23 @@ class GreedyGpaStrategy extends BaseStrategy {
 class GreedyMoneyStrategy extends BaseStrategy {
   constructor() { super('greedy_money'); }
 
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    if (card.id === 'destiny_professional_intent') return { cardId: card.id };
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
+    // Money-focused: eagerly use money protection cards
+    if (card.id === 'destiny_negative_balance' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
+    if (card.id === 'destiny_test_waters' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
+    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
+    // Use line shortcut to save time (time = money)
+    if (card.id === 'destiny_alternative_path' && isMyTurn && me.position?.type === 'line' && Math.random() < 0.5) return { cardId: card.id };
+    const lead = this._findLeadingPlayer(state, playerId);
+    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.35) return { cardId: card.id, targetPlayerId: lead };
+    if (lead && card.id === 'chance_leap_of_joy' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
+    return null;
+  }
+
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
@@ -247,6 +394,22 @@ class GreedyMoneyStrategy extends BaseStrategy {
 class GreedyExploreStrategy extends BaseStrategy {
   constructor() { super('greedy_explore'); }
 
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    if (card.id === 'destiny_professional_intent') return { cardId: card.id };
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
+    // Explore-focused: protect exploration
+    if (card.id === 'destiny_campus_legend' && isMyTurn && Math.random() < 0.6) return { cardId: card.id };
+    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    // Explore players want to visit more lines - use familiar route to re-enter
+    if (card.id === 'destiny_familiar_route' && isMyTurn && Math.random() < 0.5) return { cardId: card.id };
+    if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    const lead = this._findLeadingPlayer(state, playerId);
+    if (lead && card.id === 'chance_power_outage' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
+    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
+    return null;
+  }
+
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
     if (options.length === 1) return options[0].value;
@@ -284,6 +447,33 @@ class GreedyExploreStrategy extends BaseStrategy {
 
 class PlanFocusedStrategy extends BaseStrategy {
   constructor() { super('plan_focused'); }
+
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    if (card.id === 'destiny_professional_intent') return { cardId: card.id };
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
+    // Plan-focused: use cross-college swap if it benefits plan completion
+    if (card.id === 'destiny_cross_college_exit' && (me.minorPlans || []).length > 0 && Math.random() < 0.4) {
+      return { cardId: card.id };
+    }
+    // Use all protection cards moderately
+    if (card.id === 'destiny_stop_loss' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    if (card.id === 'destiny_how_to_explain' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    if (card.id === 'destiny_maimen_shield' && isMyTurn && Math.random() < 0.4) return { cardId: card.id };
+    // Line shortcut for line-focused plans
+    const planName = getMajorPlanNameFromState(me);
+    const focus = planName ? PLAN_FOCUS[planName] : null;
+    if (card.id === 'destiny_alternative_path' && isMyTurn && me.position?.type === 'line') {
+      // Lines-focused plans don't want to skip lines
+      if (focus !== 'lines' && Math.random() < 0.4) return { cardId: card.id };
+    }
+    // Familiar route is great for lines-focused plans
+    if (card.id === 'destiny_familiar_route' && isMyTurn && focus === 'lines' && Math.random() < 0.6) {
+      return { cardId: card.id };
+    }
+    const lead = this._findLeadingPlayer(state, playerId);
+    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.35) return { cardId: card.id, targetPlayerId: lead };
+    return null;
+  }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;
@@ -341,6 +531,30 @@ class PlanFocusedStrategy extends BaseStrategy {
 
 class BalancedStrategy extends BaseStrategy {
   constructor() { super('balanced'); }
+
+  _evaluateCard(card, me, state, playerId, isMyTurn) {
+    if (card.id === 'destiny_professional_intent') return { cardId: card.id };
+    if (card.id === 'destiny_urgent_deadline' && isMyTurn && me.isInHospital) return { cardId: card.id };
+    // Balanced: use protection cards for weakest resource
+    const moneyNorm = (me.money || 0) / 3000;
+    const gpaNorm = (me.gpa || 0) / 5.0;
+    const exploreNorm = (me.exploration || 0) / 30;
+    const minResource = Math.min(moneyNorm, gpaNorm, exploreNorm);
+    if (isMyTurn) {
+      if (card.id === 'destiny_negative_balance' && minResource === moneyNorm && Math.random() < 0.5) return { cardId: card.id };
+      if (card.id === 'destiny_test_waters' && minResource === moneyNorm && Math.random() < 0.5) return { cardId: card.id };
+      if (card.id === 'destiny_ancestor_exam' && minResource === gpaNorm && Math.random() < 0.5) return { cardId: card.id };
+      if (card.id === 'destiny_campus_legend' && minResource === exploreNorm && Math.random() < 0.5) return { cardId: card.id };
+      if (card.id === 'destiny_stop_loss' && Math.random() < 0.35) return { cardId: card.id };
+      if (card.id === 'destiny_how_to_explain' && Math.random() < 0.35) return { cardId: card.id };
+      if (card.id === 'destiny_maimen_shield' && Math.random() < 0.4) return { cardId: card.id };
+      if (card.id === 'destiny_alternative_path' && me.position?.type === 'line' && Math.random() < 0.3) return { cardId: card.id };
+    }
+    const lead = this._findLeadingPlayer(state, playerId);
+    if (lead && card.id === 'chance_pie_in_sky' && Math.random() < 0.3) return { cardId: card.id, targetPlayerId: lead };
+    if (lead && card.id === 'chance_leap_of_joy' && Math.random() < 0.25) return { cardId: card.id, targetPlayerId: lead };
+    return null;
+  }
 
   chooseOption(options, state, pa, playerId) {
     if (!options || options.length === 0) return null;

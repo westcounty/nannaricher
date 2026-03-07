@@ -89,7 +89,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_wuli',
     name: '物理学院',
-    winCondition: '你在计算基础胜利条件时，可以从金钱、GPA和探索值中任选两项参与计算，其中每项分数=探索值=GPA*10=金钱数/100，任意两项达到60，你获胜',
+    winCondition: '你在计算基础胜利条件时，可以从金钱、GPA和探索值中任选两项参与计算，其中每项分数=探索值=GPA*10=金钱数/100，两项相加达到90，你获胜',
     passiveAbility: '下一回合你选择前进双倍点数或后退双倍点数',
 
   },
@@ -118,7 +118,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_jisuanji',
     name: '计算机科学与技术系',
     winCondition: '当你的探索值和金钱数字中均只包含0或1时，你获胜',
-    passiveAbility: '你立即选择一项执行：增加1探索值，或增加100金钱',
+    passiveAbility: '设为主修时一次性选择：增加1探索值或增加100金钱',
 
   },
   {
@@ -195,7 +195,7 @@ export const trainingPlans: TrainingPlan[] = [
     id: 'plan_kuangyaming',
     name: '匡亚明学院',
     winCondition: '当你满足任意玩家的已固定培养计划时，你获胜',
-    passiveAbility: 'GPA增加0.1或探索值增加1',
+    passiveAbility: '设为主修时一次性选择：GPA增加0.1或探索值增加1',
 
   },
   {

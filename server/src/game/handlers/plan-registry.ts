@@ -299,12 +299,12 @@ register({
 });
 
 // ---------- 17. plan_jisuanji — 计算机科学与技术系 ----------
-// 回合开始时选择+1探索或+100金钱
+// 确认主修时一次性选择+1探索或+100金钱
 register({
   planId: 'plan_jisuanji',
-  trigger: 'on_turn_start',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'on_turn_start') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
       message: '计算机系能力：选择+1探索或+100金钱',
@@ -469,12 +469,12 @@ register({
 });
 
 // ---------- 28. plan_kuangyaming — 匡亚明学院 ----------
-// 回合开始时选择+0.1GPA或+1探索
+// 确认主修时一次性选择+0.1GPA或+1探索
 register({
   planId: 'plan_kuangyaming',
-  trigger: 'on_turn_start',
+  trigger: 'on_confirm',
   apply(ctx) {
-    if (ctx.trigger !== 'on_turn_start') return null;
+    if (ctx.trigger !== 'on_confirm') return null;
     return {
       activated: true,
       message: '匡亚明学院能力：选择GPA+0.1或探索+1',

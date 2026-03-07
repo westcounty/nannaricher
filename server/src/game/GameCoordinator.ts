@@ -23,6 +23,31 @@ import { GameLogger } from './GameLogger.js';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import type { GameServer } from '../socket/types.js';
 
+// --- Negate Card System (类无懈可击) ---
+const NEGATE_CARD_DEFS: Record<string, {
+  scope: ('cell' | 'line' | 'card')[];
+  limitDeckType?: 'chance' | 'destiny'; // only negate this deck type's cards
+  cardDeckType: 'chance' | 'destiny';   // this card's own deck type
+}> = {
+  'chance_pie_in_sky':        { scope: ['cell', 'line', 'card'], cardDeckType: 'chance' },   // 画饼充饥
+  'destiny_stop_loss':        { scope: ['cell', 'line', 'card'], cardDeckType: 'destiny' },  // 及时止损
+  'destiny_how_to_explain':   { scope: ['cell', 'line', 'card'], cardDeckType: 'destiny' },  // 如何解释
+  'chance_info_blocked':      { scope: ['card'], limitDeckType: 'chance', cardDeckType: 'chance' },  // 消息闭塞
+  'chance_false_move':        { scope: ['card'], limitDeckType: 'destiny', cardDeckType: 'chance' }, // 虚晃一枪
+};
+const NEGATE_CARD_IDS = new Set(Object.keys(NEGATE_CARD_DEFS));
+
+interface NegateWindow {
+  eventType: 'cell' | 'line' | 'card';
+  eventDeckType?: 'chance' | 'destiny';
+  eventDescription: string;
+  targetPlayerId: string;
+  executeCallback: () => void;
+  cancelCallback: () => void;
+  negateStack: { playerId: string; cardId: string; cardName: string; cardDeckType: 'chance' | 'destiny' }[];
+  remainingPlayers: string[];
+}
+
 /**
  * GameCoordinator — orchestrates game flow for a single room.
  * Owns a GameEngine instance and handles all game events
@@ -36,6 +61,7 @@ export class GameCoordinator {
   private processingAction = false;
   private pendingActionTimer: ReturnType<typeof setTimeout> | null = null;
   private onFinishedCallback: (() => void) | null = null;
+  private negateWindow: NegateWindow | null = null;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
@@ -154,6 +180,255 @@ export class GameCoordinator {
 
     this.io.to(this.roomId).emit('game:state-update', state);
     this.startPendingActionTimeout();
+  }
+
+  // --------------------------------------------------
+  // Negate Card System (类无懈可击)
+  // --------------------------------------------------
+
+  /**
+   * Find players holding negate cards eligible for the given event type.
+   * Returns players in turn order starting from currentPlayerIndex.
+   */
+  private getNegateEligiblePlayers(
+    eventType: 'cell' | 'line' | 'card',
+    eventDeckType?: 'chance' | 'destiny',
+  ): { playerId: string; cards: { id: string; name: string }[] }[] {
+    const state = this.engine.getState();
+    const currentIdx = state.currentPlayerIndex;
+    const result: { playerId: string; cards: { id: string; name: string }[] }[] = [];
+
+    for (let i = 0; i < state.players.length; i++) {
+      const idx = (currentIdx + i) % state.players.length;
+      const player = state.players[idx];
+      if (player.isBankrupt) continue;
+
+      const eligibleCards: { id: string; name: string }[] = [];
+      const seenCardIds = new Set<string>();
+
+      for (const card of player.heldCards) {
+        if (seenCardIds.has(card.id)) continue;
+        const def = NEGATE_CARD_DEFS[card.id];
+        if (!def) continue;
+        if (!def.scope.includes(eventType)) continue;
+        if (def.limitDeckType && eventDeckType && def.limitDeckType !== eventDeckType) continue;
+        eligibleCards.push({ id: card.id, name: card.name });
+        seenCardIds.add(card.id);
+      }
+
+      if (eligibleCards.length > 0) {
+        result.push({ playerId: player.id, cards: eligibleCards });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Open a negate window before executing an event.
+   * If no eligible players hold negate cards, executes immediately.
+   */
+  private openNegateWindow(
+    eventType: 'cell' | 'line' | 'card',
+    eventDeckType: 'chance' | 'destiny' | undefined,
+    eventDescription: string,
+    targetPlayerId: string,
+    executeCallback: () => void,
+    cancelCallback: () => void,
+  ): void {
+    const eligible = this.getNegateEligiblePlayers(eventType, eventDeckType);
+    if (eligible.length === 0) {
+      executeCallback();
+      return;
+    }
+
+    this.negateWindow = {
+      eventType,
+      eventDeckType,
+      eventDescription,
+      targetPlayerId,
+      executeCallback,
+      cancelCallback,
+      negateStack: [],
+      remainingPlayers: eligible.map(e => e.playerId),
+    };
+
+    this.askNextNegatePlayer();
+  }
+
+  /**
+   * Ask the next eligible player if they want to use a negate card.
+   * If no more players, resolve the negate window.
+   */
+  private askNextNegatePlayer(): void {
+    if (!this.negateWindow) return;
+    const state = this.engine.getState();
+
+    while (this.negateWindow.remainingPlayers.length > 0) {
+      const nextPlayerId = this.negateWindow.remainingPlayers.shift()!;
+      const player = state.players.find(p => p.id === nextPlayerId);
+      if (!player || player.isBankrupt) continue;
+
+      // Determine what we're checking eligibility for
+      let checkEventType: 'cell' | 'line' | 'card' = this.negateWindow.eventType;
+      let checkDeckType = this.negateWindow.eventDeckType;
+
+      if (this.negateWindow.negateStack.length > 0) {
+        // Counter-negate: we're negating a card effect (the previous negate card)
+        checkEventType = 'card';
+        checkDeckType = this.negateWindow.negateStack[this.negateWindow.negateStack.length - 1].cardDeckType;
+      }
+
+      // Find eligible negate cards for this player
+      const eligibleCards: { id: string; name: string }[] = [];
+      const seenCardIds = new Set<string>();
+      for (const card of player.heldCards) {
+        if (seenCardIds.has(card.id)) continue;
+        const def = NEGATE_CARD_DEFS[card.id];
+        if (!def) continue;
+        if (!def.scope.includes(checkEventType)) continue;
+        if (def.limitDeckType && checkDeckType && def.limitDeckType !== checkDeckType) continue;
+        eligibleCards.push({ id: card.id, name: card.name });
+        seenCardIds.add(card.id);
+      }
+      if (eligibleCards.length === 0) continue;
+
+      // Build prompt
+      const isCounterNegate = this.negateWindow.negateStack.length > 0;
+      const lastNegateName = isCounterNegate
+        ? this.negateWindow.negateStack[this.negateWindow.negateStack.length - 1].cardName
+        : '';
+      const prompt = isCounterNegate
+        ? `【${lastNegateName}】即将生效，是否使用卡牌进行反制？`
+        : `${this.negateWindow.eventDescription}，是否使用卡牌取消？`;
+
+      const options = [
+        { label: '跳过', value: 'negate_pass' },
+        ...eligibleCards.map(c => ({
+          label: `使用【${c.name}】${isCounterNegate ? '反制' : '取消'}`,
+          value: `negate_use:${c.id}`,
+        })),
+      ];
+
+      state.pendingAction = {
+        id: `negate_${Date.now()}`,
+        playerId: nextPlayerId,
+        type: 'choose_option',
+        prompt,
+        options,
+        timeoutMs: 30000,
+        callbackHandler: 'negate_response',
+      };
+
+      // Anonymous waiting notification
+      this.io.to(this.roomId).emit('game:announcement', {
+        message: '有玩家正在考虑是否使用响应卡牌',
+        type: 'info' as const,
+      });
+
+      this.broadcastState();
+      return; // Wait for player response
+    }
+
+    // No more players to ask → resolve
+    this.resolveNegateWindow();
+  }
+
+  /**
+   * Handle a player's response in the negate window.
+   */
+  private handleNegateResponse(playerId: string, choice: string): void {
+    if (!this.negateWindow) return;
+    const state = this.engine.getState();
+
+    if (choice === 'negate_pass') {
+      this.askNextNegatePlayer();
+      return;
+    }
+
+    if (choice.startsWith('negate_use:')) {
+      const cardId = choice.replace('negate_use:', '');
+      const player = state.players.find(p => p.id === playerId);
+      if (!player) {
+        this.askNextNegatePlayer();
+        return;
+      }
+
+      // Find and consume the card from hand
+      const cardIndex = player.heldCards.findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        this.askNextNegatePlayer();
+        return;
+      }
+
+      const card = player.heldCards[cardIndex];
+      player.heldCards.splice(cardIndex, 1);
+
+      const negateCardDef = NEGATE_CARD_DEFS[cardId];
+      const cardDeckType = negateCardDef?.cardDeckType || card.deckType;
+
+      // Push to negate stack
+      this.negateWindow.negateStack.push({
+        playerId,
+        cardId: card.id,
+        cardName: card.name,
+        cardDeckType,
+      });
+
+      const isCounterNegate = this.negateWindow.negateStack.length > 1;
+      this.addLog(playerId, `${player.name} 使用【${card.name}】${isCounterNegate ? '反制' : '取消效果'}！`);
+
+      this.io.to(this.roomId).emit('game:announcement', {
+        message: `${player.name} 使用了【${card.name}】${isCounterNegate ? '进行反制' : '取消了即将生效的效果'}！`,
+        type: 'warning' as const,
+      });
+
+      // Return card to discard if needed
+      if (card.returnToDeck) {
+        state.discardPiles[card.deckType].push(card);
+      }
+
+      // Check for counter-negate: reset remaining players (all except the one who just used)
+      const counterEligible = this.getNegateEligiblePlayers('card', cardDeckType);
+      this.negateWindow.remainingPlayers = counterEligible
+        .map(e => e.playerId)
+        .filter(pid => pid !== playerId);
+
+      this.askNextNegatePlayer();
+      return;
+    }
+
+    // Unknown choice → treat as pass
+    this.askNextNegatePlayer();
+  }
+
+  /**
+   * Resolve the negate window: execute or cancel based on negate stack.
+   * Even number of negates (or 0) → execute. Odd → cancel.
+   */
+  private resolveNegateWindow(): void {
+    if (!this.negateWindow) return;
+
+    const negateCount = this.negateWindow.negateStack.length;
+    const executeCallback = this.negateWindow.executeCallback;
+    const cancelCallback = this.negateWindow.cancelCallback;
+    const state = this.engine.getState();
+
+    // Clear negate window and any residual pendingAction
+    this.negateWindow = null;
+    state.pendingAction = null;
+
+    if (negateCount % 2 === 0) {
+      // Even (or 0): event executes normally
+      executeCallback();
+    } else {
+      // Odd: event cancelled
+      this.addLog(
+        state.players[state.currentPlayerIndex]?.id || '',
+        '效果已被取消',
+      );
+      cancelCallback();
+    }
   }
 
   // --------------------------------------------------
@@ -401,6 +676,7 @@ export class GameCoordinator {
 
     // --- PlanAbilities: on_turn_start check ---
     const planAbilities = this.engine.getPlanAbilities();
+    this.engine.setResourceSource('plan:on_turn_start');
     const turnAbility = this.engine.checkAbilitiesAndBroadcast(currentPlayer, state, 'on_turn_start');
     if (turnAbility?.effects?.customEffect) {
       if (turnAbility.message) this.addLog(currentPlayer.id, turnAbility.message);
@@ -591,6 +867,8 @@ export class GameCoordinator {
         minorPlans: currentPlayer.minorPlans,
       },
     });
+
+    this.engine.clearResourceSource(); // Clear plan ability source before dice phase
 
     state.pendingAction = {
       id: `roll_dice_${Date.now()}`,
@@ -2145,23 +2423,6 @@ export class GameCoordinator {
     const planAbilities = this.engine.getPlanAbilities();
     const player = this.engine.getPlayer(playerId);
 
-    // --- Card effect: cancelNextEvent (及时止损/如何解释) ---
-    if (player) {
-      const cancelIdx = player.effects.findIndex(
-        e => e.type === 'custom' && e.data?.cancelNextEvent
-      );
-      if (cancelIdx >= 0) {
-        player.effects.splice(cancelIdx, 1);
-        this.addLog(playerId, '事件取消效果生效：跳过本次格子事件');
-        this.broadcastState();
-        if (state.phase === 'playing') {
-          if (this.checkAndEmitWin()) return;
-          this.advanceTurn();
-        }
-        return;
-      }
-    }
-
     if (position.type === 'main') {
       const cell = boardData.mainBoard[position.index];
       if (!cell) return;
@@ -2179,6 +2440,7 @@ export class GameCoordinator {
 
       // --- PlanAbilities: on_cell_enter check ---
       if (player) {
+        this.engine.setResourceSource('plan:on_cell_enter');
         const cellAbility = this.engine.checkAbilitiesAndBroadcast(player, state, 'on_cell_enter', { cellId: cell.id });
         if (cellAbility?.effects) {
           const fx = cellAbility.effects;
@@ -2254,9 +2516,11 @@ export class GameCoordinator {
             return;
           }
         }
+        this.engine.clearResourceSource();
       }
 
       let handlerId: string | null = null;
+      let resourceSource = 'cell';
 
       switch (cell.type) {
         case 'corner':
@@ -2269,9 +2533,11 @@ export class GameCoordinator {
           } else if (cell.cornerType === 'waiting_room') {
             handlerId = 'corner_waiting_room';
           }
+          resourceSource = `corner:${cell.cornerType || 'unknown'}`;
           break;
         case 'event':
           handlerId = `event_${cell.id}`;
+          resourceSource = `event:${cell.name || cell.id}`;
           break;
         case 'chance': {
           // Draw one card: randomly chance or destiny
@@ -2291,45 +2557,71 @@ export class GameCoordinator {
                 playerId, card, deckType: cardType, addedToHand: false,
               });
 
-              // Execute card effect immediately
-              const handlerId = `card_${card.id}`;
-              const hasHandler = this.engine.getEventHandler().hasHandler(handlerId);
-              let cardPendingAction = hasHandler
-                ? this.engine.getEventHandler().execute(handlerId, playerId)
-                : null;
+              this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
 
-              // Fallback: apply effects array if no handler registered
-              if (!hasHandler && card.effects.length > 0) {
-                this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
-                for (const effect of card.effects) {
-                  if (effect.stat && effect.delta) {
-                    if (effect.stat === 'money') this.engine.modifyPlayerMoney(playerId, effect.delta);
-                    if (effect.stat === 'gpa') this.engine.modifyPlayerGpa(playerId, effect.delta);
-                    if (effect.stat === 'exploration') this.engine.modifyPlayerExploration(playerId, effect.delta);
+              // Open negate window before executing card effect
+              const deckLabel = cardType === 'chance' ? '机会卡' : '命运卡';
+              this.openNegateWindow(
+                'card', cardType,
+                `${deckLabel}【${card.name}】即将生效`,
+                playerId,
+                () => {
+                  // Execute card effect
+                  this.engine.setResourceSource(`card:${card.name}`);
+                  const cHandlerId = `card_${card.id}`;
+                  const hasHandler = this.engine.getEventHandler().hasHandler(cHandlerId);
+                  let cardPendingAction = hasHandler
+                    ? this.engine.getEventHandler().execute(cHandlerId, playerId)
+                    : null;
+
+                  if (!hasHandler && card.effects.length > 0) {
+                    for (const effect of card.effects) {
+                      if (effect.stat && effect.delta) {
+                        if (effect.stat === 'money') this.engine.modifyPlayerMoney(playerId, effect.delta);
+                        if (effect.stat === 'gpa') this.engine.modifyPlayerGpa(playerId, effect.delta);
+                        if (effect.stat === 'exploration') this.engine.modifyPlayerExploration(playerId, effect.delta);
+                      }
+                    }
                   }
-                }
-              } else if (!hasHandler) {
-                this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}（无效果）`);
-              }
+                  this.engine.clearResourceSource();
 
-              // Return to discard pile if needed
-              if (card.returnToDeck) {
-                state.discardPiles[cardType].push(card);
-              }
+                  if (card.returnToDeck) {
+                    state.discardPiles[cardType].push(card);
+                  }
 
-              if (cardPendingAction) {
-                state.pendingAction = cardPendingAction;
-                this.broadcastState();
-                this.io.to(this.roomId).emit('game:event-trigger', {
-                  title: cardType === 'chance' ? '机会卡' : '命运卡',
-                  description: cardPendingAction.prompt,
-                  pendingAction: cardPendingAction,
-                });
-                return; // Wait for player action
-              }
+                  if (cardPendingAction) {
+                    state.pendingAction = cardPendingAction;
+                    this.broadcastState();
+                    this.io.to(this.roomId).emit('game:event-trigger', {
+                      title: deckLabel,
+                      description: cardPendingAction.prompt,
+                      pendingAction: cardPendingAction,
+                    });
+                    return;
+                  }
+
+                  this.broadcastState();
+                  if (state.phase === 'playing') {
+                    if (this.checkAndEmitWin()) return;
+                    this.advanceTurn();
+                  }
+                },
+                () => {
+                  // Effect cancelled by negate card
+                  if (card.returnToDeck) {
+                    state.discardPiles[cardType].push(card);
+                  }
+                  this.broadcastState();
+                  if (state.phase === 'playing') {
+                    if (this.checkAndEmitWin()) return;
+                    this.advanceTurn();
+                  }
+                },
+              );
+              return;
             }
           }
-          // Card effect completed, advance turn
+          // Card draw completed (holdable or no card), advance turn
           this.broadcastState();
           if (state.phase === 'playing') {
             if (this.checkAndEmitWin()) return;
@@ -2382,52 +2674,69 @@ export class GameCoordinator {
 
       if (handlerId) {
         const cell = boardData.mainBoard[position.index];
-        this.logger.log({ turn: state.turnNumber, playerId, type: 'event', message: `Cell landing: ${cell?.name || handlerId}`, data: { position, cellName: cell?.name || handlerId } });
-        const snapshot = this.capturePlayerSnapshot(playerId);
-        const pendingAction = this.engine.getEventHandler().execute(handlerId, playerId);
-        if (pendingAction) {
-          state.pendingAction = pendingAction;
-          this.broadcastState();
+        const cellName = cell?.name || handlerId;
 
-          // Trigger event for client
-          this.io.to(this.roomId).emit('game:event-trigger', {
-            title: cell?.name || '事件触发',
-            description: pendingAction.prompt,
-            pendingAction,
-            ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
-          });
-        } else if (state.pendingAction) {
-          // Handler returned null but set pendingAction internally (e.g. drawAndProcessCard drew an interactive card)
-          this.broadcastState();
-          this.io.to(this.roomId).emit('game:event-trigger', {
-            title: cell?.name || '事件触发',
-            description: state.pendingAction.prompt,
-            pendingAction: state.pendingAction,
-            ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
-          });
-        } else {
-          // Event completed automatically — show actual effect with stat deltas
-          const effectDeltas = this.computeEffectDeltas(playerId, snapshot);
-          if (cell) {
-            const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
-            const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
-            const effectDesc = lastLog && lastLog.playerId === playerId
-              ? lastLog.message
-              : `${playerName} 触发了 ${cell.name}`;
-            this.io.to(this.roomId).emit('game:event-trigger', {
-              title: cell.name || '事件',
-              description: effectDesc,
-              playerId,
-              ...(effectDeltas ? { effects: effectDeltas } : {}),
-              ...(cell.type === 'corner' ? { severity: 'epic' as const } : {}),
-            });
-          }
-          this.broadcastState();
-          if (state.phase === 'playing') {
-            if (this.checkAndEmitWin()) return;
-            this.advanceTurn();
-          }
-        }
+        // Open negate window before executing cell event
+        this.openNegateWindow(
+          'cell', undefined,
+          `格子事件【${cellName}】即将触发`,
+          playerId,
+          () => {
+            // Execute cell event
+            this.engine.setResourceSource(resourceSource);
+            this.logger.log({ turn: state.turnNumber, playerId, type: 'event', message: `Cell landing: ${cellName}`, data: { position, cellName } });
+            const snapshot = this.capturePlayerSnapshot(playerId);
+            const pendingAction = this.engine.getEventHandler().execute(handlerId!, playerId);
+            if (pendingAction) {
+              state.pendingAction = pendingAction;
+              this.broadcastState();
+              this.io.to(this.roomId).emit('game:event-trigger', {
+                title: cellName,
+                description: pendingAction.prompt,
+                pendingAction,
+                ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
+              });
+            } else if (state.pendingAction) {
+              this.broadcastState();
+              this.io.to(this.roomId).emit('game:event-trigger', {
+                title: cellName,
+                description: state.pendingAction.prompt,
+                pendingAction: state.pendingAction,
+                ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
+              });
+            } else {
+              const effectDeltas = this.computeEffectDeltas(playerId, snapshot);
+              if (cell) {
+                const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
+                const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+                const effectDesc = lastLog && lastLog.playerId === playerId
+                  ? lastLog.message
+                  : `${playerName} 触发了 ${cell.name}`;
+                this.io.to(this.roomId).emit('game:event-trigger', {
+                  title: cell.name || '事件',
+                  description: effectDesc,
+                  playerId,
+                  ...(effectDeltas ? { effects: effectDeltas } : {}),
+                  ...(cell.type === 'corner' ? { severity: 'epic' as const } : {}),
+                });
+              }
+              this.broadcastState();
+              if (state.phase === 'playing') {
+                if (this.checkAndEmitWin()) return;
+                this.advanceTurn();
+              }
+            }
+            this.engine.clearResourceSource();
+          },
+          () => {
+            // Cell event cancelled by negate
+            this.broadcastState();
+            if (state.phase === 'playing') {
+              if (this.checkAndEmitWin()) return;
+              this.advanceTurn();
+            }
+          },
+        );
       } else {
         // No handler needed for this cell, advance turn
         if (state.phase === 'playing') {
@@ -2458,44 +2767,64 @@ export class GameCoordinator {
             }
           }
 
-          const lineSnapshot = this.capturePlayerSnapshot(playerId);
-          const pendingAction = this.engine.getEventHandler().execute(cell.handlerId, playerId);
-          if (pendingAction) {
-            state.pendingAction = pendingAction;
-            this.broadcastState();
-            this.io.to(this.roomId).emit('game:event-trigger', {
-              title: cell.name || '线路事件',
-              description: pendingAction.prompt,
-              pendingAction,
-            });
-          } else if (state.pendingAction) {
-            // Handler returned null but set pendingAction internally (e.g. drawAndProcessCard drew an interactive card)
-            this.broadcastState();
-            this.io.to(this.roomId).emit('game:event-trigger', {
-              title: cell.name || '线路事件',
-              description: state.pendingAction.prompt,
-              pendingAction: state.pendingAction,
-            });
-          } else {
-            // Line event completed automatically — show actual effect with deltas
-            const lineEffectDeltas = this.computeEffectDeltas(playerId, lineSnapshot);
-            const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
-            const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
-            const effectDesc = lastLog && lastLog.playerId === playerId
-              ? lastLog.message
-              : `${playerName} 触发了 ${cell.description || cell.name}`;
-            this.io.to(this.roomId).emit('game:event-trigger', {
-              title: cell.name || '线路事件',
-              description: effectDesc,
-              playerId,
-              ...(lineEffectDeltas ? { effects: lineEffectDeltas } : {}),
-            });
-            this.broadcastState();
-            if (state.phase === 'playing') {
-              if (this.checkAndEmitWin()) return;
-              this.advanceTurn();
-            }
-          }
+          const lineCellName = cell.name || cell.handlerId;
+          const lineHandlerId = cell.handlerId;
+
+          // Open negate window before executing line event
+          this.openNegateWindow(
+            'line', undefined,
+            `支线事件【${lineCellName}】即将触发`,
+            playerId,
+            () => {
+              // Execute line event
+              this.engine.setResourceSource(`line:${position.lineId}:${lineCellName}`);
+              const lineSnapshot = this.capturePlayerSnapshot(playerId);
+              const pendingAction = this.engine.getEventHandler().execute(lineHandlerId, playerId);
+              if (pendingAction) {
+                state.pendingAction = pendingAction;
+                this.broadcastState();
+                this.io.to(this.roomId).emit('game:event-trigger', {
+                  title: lineCellName,
+                  description: pendingAction.prompt,
+                  pendingAction,
+                });
+              } else if (state.pendingAction) {
+                this.broadcastState();
+                this.io.to(this.roomId).emit('game:event-trigger', {
+                  title: lineCellName,
+                  description: state.pendingAction.prompt,
+                  pendingAction: state.pendingAction,
+                });
+              } else {
+                const lineEffectDeltas = this.computeEffectDeltas(playerId, lineSnapshot);
+                const playerName = this.engine.getPlayer(playerId)?.name || '玩家';
+                const lastLog = state.log.length > 0 ? state.log[state.log.length - 1] : null;
+                const effectDesc = lastLog && lastLog.playerId === playerId
+                  ? lastLog.message
+                  : `${playerName} 触发了 ${cell.description || cell.name}`;
+                this.io.to(this.roomId).emit('game:event-trigger', {
+                  title: lineCellName,
+                  description: effectDesc,
+                  playerId,
+                  ...(lineEffectDeltas ? { effects: lineEffectDeltas } : {}),
+                });
+                this.broadcastState();
+                if (state.phase === 'playing') {
+                  if (this.checkAndEmitWin()) return;
+                  this.advanceTurn();
+                }
+              }
+              this.engine.clearResourceSource();
+            },
+            () => {
+              // Line event cancelled by negate
+              this.broadcastState();
+              if (state.phase === 'playing') {
+                if (this.checkAndEmitWin()) return;
+                this.advanceTurn();
+              }
+            },
+          );
         } else {
           // No handler for this line cell, advance turn
           if (state.phase === 'playing') {
@@ -2691,12 +3020,27 @@ export class GameCoordinator {
       this._processAction(playerId, actionId, choice);
     } finally {
       this.processingAction = false;
+      this.engine.clearResourceSource();
     }
   }
 
   private _processAction(playerId: string, actionId: string, choice: string): void {
     const state = this.engine.getState();
     if (!state.pendingAction) return;
+
+    // Infer resource source from pending action context
+    const paId = state.pendingAction.id || '';
+    const paPrompt = state.pendingAction.prompt || '';
+    const paCb = state.pendingAction.callbackHandler || '';
+    if (paCb.startsWith('plan_')) {
+      this.engine.setResourceSource(`plan:${paCb}`);
+    } else if (paId.startsWith('line_entry_') || choice.startsWith('enter_')) {
+      this.engine.setResourceSource('line-entry');
+    } else if (paCb.startsWith('card_')) {
+      this.engine.setResourceSource(`card-cb:${paCb}`);
+    } else if (paPrompt.includes('事件') || paPrompt.includes('格子')) {
+      this.engine.setResourceSource(`event-cb:${paPrompt.slice(0, 20)}`);
+    }
 
     this.logger.log({
       turn: state.turnNumber,
@@ -2732,6 +3076,10 @@ export class GameCoordinator {
         }
       } else if (choice === 'skip') {
         // Player chose to skip (e.g. declined line entry) — no handler to execute
+      } else if (savedPendingAction.callbackHandler === 'negate_response') {
+        // Negate card system: handle response within the negate window
+        this.handleNegateResponse(playerId, choice);
+        return; // Negate system manages its own state
       } else if (savedPendingAction.callbackHandler) {
         // Use callbackHandler: pass choice as the third parameter
         pendingAction = this.engine.getEventHandler().execute(
@@ -2993,6 +3341,11 @@ export class GameCoordinator {
     if (cardIndex === -1) return { error: '你没有这张卡牌' };
     const card = player.heldCards[cardIndex];
 
+    // Block manual use of negate cards — they can only be used reactively during negate windows
+    if (NEGATE_CARD_IDS.has(card.id)) {
+      return { error: '此卡牌只能在事件触发时作为响应使用，无法主动使用' };
+    }
+
     // Validate use timing: own_turn cards can only be used during player's own turn
     const isCurrentTurn = state.players[state.currentPlayerIndex]?.id === playerId;
     if (card.useTiming !== 'any_turn' && !isCurrentTurn) {
@@ -3015,80 +3368,98 @@ export class GameCoordinator {
       type: 'info' as const,
     });
 
-    // Check if there's a registered handler for this card
-    const handlerId = `card_${card.id}`;
-    if (this.engine.getEventHandler().hasHandler(handlerId)) {
-      // Execute card handler (may return PendingAction for further interaction)
-      const pendingAction = this.engine.getEventHandler().execute(handlerId, playerId, targetPlayerId);
+    // Open negate window before executing card effect
+    const cardDeckType = card.deckType as 'chance' | 'destiny';
+    this.openNegateWindow(
+      'card', cardDeckType,
+      `手牌【${card.name}】即将生效`,
+      playerId,
+      () => {
+        // Execute card effect
+        this.engine.setResourceSource(`card-use:${card.name}`);
+        const useHandlerId = `card_${card.id}`;
+        if (this.engine.getEventHandler().hasHandler(useHandlerId)) {
+          const pendingAction = this.engine.getEventHandler().execute(useHandlerId, playerId, targetPlayerId);
 
-      if (card.returnToDeck) {
-        state.discardPiles[card.deckType].push(card);
-      }
+          if (card.returnToDeck) {
+            state.discardPiles[card.deckType].push(card);
+          }
 
-      if (pendingAction) {
-        state.pendingAction = pendingAction;
-        this.io.to(this.roomId).emit('game:event-trigger', {
-          title: `使用手牌: ${card.name}`,
-          description: pendingAction.prompt,
-          pendingAction,
-        });
-      }
-
-      this.broadcastState();
-      if (this.checkAndEmitWin()) return {};
-      return {};
-    }
-
-    // Fallback: apply simple effects from card.effects array
-    card.effects.forEach(effect => {
-      let targetId = playerId;
-
-      if (effect.target && effect.target !== 'self') {
-        switch (effect.target) {
-          case 'choose_player':
-            if (targetPlayerId) targetId = targetPlayerId;
-            break;
-          case 'all':
-            state.players.forEach(p => {
-              if (p.id !== playerId && !p.isBankrupt) {
-                if (effect.stat === 'money' && effect.delta) this.engine.modifyPlayerMoney(p.id, effect.delta);
-                if (effect.stat === 'gpa' && effect.delta) this.engine.modifyPlayerGpa(p.id, effect.delta);
-                if (effect.stat === 'exploration' && effect.delta) this.engine.modifyPlayerExploration(p.id, effect.delta);
-              }
+          if (pendingAction) {
+            state.pendingAction = pendingAction;
+            this.io.to(this.roomId).emit('game:event-trigger', {
+              title: `使用手牌: ${card.name}`,
+              description: pendingAction.prompt,
+              pendingAction,
             });
-            return;
-          case 'richest':
-            targetId = this.engine.getPlayersByMoneyRank()[0]?.id || playerId;
-            break;
-          case 'poorest': {
-            const ranked = this.engine.getPlayersByMoneyRank();
-            targetId = ranked[ranked.length - 1]?.id || playerId;
-            break;
           }
-          case 'highest_gpa':
-            targetId = this.engine.getPlayersByGpaRank()[0]?.id || playerId;
-            break;
-          case 'lowest_gpa': {
-            const ranked = this.engine.getPlayersByGpaRank();
-            targetId = ranked[ranked.length - 1]?.id || playerId;
-            break;
-          }
+
+          this.broadcastState();
+          this.engine.clearResourceSource();
+          this.checkAndEmitWin();
+          return;
         }
-      }
 
-      if (effect.stat && effect.delta) {
-        if (effect.stat === 'money') this.engine.modifyPlayerMoney(targetId, effect.delta);
-        if (effect.stat === 'gpa') this.engine.modifyPlayerGpa(targetId, effect.delta);
-        if (effect.stat === 'exploration') this.engine.modifyPlayerExploration(targetId, effect.delta);
-      }
-    });
+        // Fallback: apply simple effects from card.effects array
+        card.effects.forEach(effect => {
+          let targetId = playerId;
 
-    if (card.returnToDeck) {
-      state.discardPiles[card.deckType].push(card);
-    }
+          if (effect.target && effect.target !== 'self') {
+            switch (effect.target) {
+              case 'choose_player':
+                if (targetPlayerId) targetId = targetPlayerId;
+                break;
+              case 'all':
+                state.players.forEach(p => {
+                  if (p.id !== playerId && !p.isBankrupt) {
+                    if (effect.stat === 'money' && effect.delta) this.engine.modifyPlayerMoney(p.id, effect.delta);
+                    if (effect.stat === 'gpa' && effect.delta) this.engine.modifyPlayerGpa(p.id, effect.delta);
+                    if (effect.stat === 'exploration' && effect.delta) this.engine.modifyPlayerExploration(p.id, effect.delta);
+                  }
+                });
+                return;
+              case 'richest':
+                targetId = this.engine.getPlayersByMoneyRank()[0]?.id || playerId;
+                break;
+              case 'poorest': {
+                const ranked = this.engine.getPlayersByMoneyRank();
+                targetId = ranked[ranked.length - 1]?.id || playerId;
+                break;
+              }
+              case 'highest_gpa':
+                targetId = this.engine.getPlayersByGpaRank()[0]?.id || playerId;
+                break;
+              case 'lowest_gpa': {
+                const ranked = this.engine.getPlayersByGpaRank();
+                targetId = ranked[ranked.length - 1]?.id || playerId;
+                break;
+              }
+            }
+          }
 
-    this.broadcastState();
-    if (this.checkAndEmitWin()) return {};
+          if (effect.stat && effect.delta) {
+            if (effect.stat === 'money') this.engine.modifyPlayerMoney(targetId, effect.delta);
+            if (effect.stat === 'gpa') this.engine.modifyPlayerGpa(targetId, effect.delta);
+            if (effect.stat === 'exploration') this.engine.modifyPlayerExploration(targetId, effect.delta);
+          }
+        });
+
+        if (card.returnToDeck) {
+          state.discardPiles[card.deckType].push(card);
+        }
+
+        this.engine.clearResourceSource();
+        this.broadcastState();
+        this.checkAndEmitWin();
+      },
+      () => {
+        // Card effect cancelled by negate — card already consumed
+        if (card.returnToDeck) {
+          state.discardPiles[card.deckType].push(card);
+        }
+        this.broadcastState();
+      },
+    );
     return {};
   }
 

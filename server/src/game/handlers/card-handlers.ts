@@ -1828,17 +1828,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 2. 及时止损 — cancel next event
-  eventHandler.registerHandler('card_destiny_stop_loss', (engine, playerId) => {
-    engine.addEffectToPlayer(playerId, {
-      id: `cancelEvent_${Date.now()}`,
-      type: 'custom',
-      turnsRemaining: 2,
-      data: { cancelNextEvent: true },
-    });
-    engine.log('及时止损：下次格子事件将被取消', playerId);
-    return null;
-  });
+  // 2. 及时止损 — now handled by negate window system (reactive, not pre-hang)
+  // Handler removed: card is used reactively during negate windows
 
   // 3. 工期紧迫 — leave hospital or ding immediately
   eventHandler.registerHandler('card_destiny_urgent_deadline', (engine, playerId) => {
@@ -2003,17 +1994,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return null;
   });
 
-  // 13. 如何解释 — cancel next event (same as stop_loss)
-  eventHandler.registerHandler('card_destiny_how_to_explain', (engine, playerId) => {
-    engine.addEffectToPlayer(playerId, {
-      id: `cancelEvent_${Date.now()}`,
-      type: 'custom',
-      turnsRemaining: 2,
-      data: { cancelNextEvent: true },
-    });
-    engine.log('如何解释：下次格子事件将被取消', playerId);
-    return null;
-  });
+  // 13. 如何解释 — now handled by negate window system (reactive, not pre-hang)
+  // Handler removed: card is used reactively during negate windows
 
   // 14. 鼓点重奏 — next roll: roll twice, pick one
   eventHandler.registerHandler('card_destiny_drum_beat_return', (engine, playerId) => {
@@ -2029,61 +2011,14 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // --- Chance Holdable (6) ---
 
-  // 1. 消息闭塞 — block next chance card globally
-  eventHandler.registerHandler('card_chance_info_blocked', (engine, playerId) => {
-    // Add to all players as a global effect - when any player draws a chance card, check
-    engine.addEffectToPlayer(playerId, {
-      id: `blockChance_${Date.now()}`,
-      type: 'custom',
-      turnsRemaining: 999,
-      data: { blockChanceCard: true, ownerId: playerId },
-    });
-    engine.log('消息闭塞：下次任意玩家的机会卡效果将被抵消', playerId);
-    return null;
-  });
+  // 1. 消息闭塞 — now handled by negate window system (reactive, only cancels chance card effects)
+  // Handler removed: card is used reactively during negate windows
 
-  // 2. 虚晃一枪 — block next destiny card globally
-  eventHandler.registerHandler('card_chance_false_move', (engine, playerId) => {
-    engine.addEffectToPlayer(playerId, {
-      id: `blockDestiny_${Date.now()}`,
-      type: 'custom',
-      turnsRemaining: 999,
-      data: { blockDestinyCard: true, ownerId: playerId },
-    });
-    engine.log('虚晃一枪：下次任意玩家的命运卡效果将被抵消', playerId);
-    return null;
-  });
+  // 2. 虚晃一枪 — now handled by negate window system (reactive, only cancels destiny card effects)
+  // Handler removed: card is used reactively during negate windows
 
-  // 3. 画饼充饥 — cancel target player's next event
-  eventHandler.registerHandler('card_chance_pie_in_sky', (engine, playerId) => {
-    const state = engine.getState();
-    const targets = state.players
-      .filter(p => p.id !== playerId && !p.isBankrupt)
-      .map(p => p.id);
-
-    if (targets.length === 0) return null;
-
-    const action = engine.createPendingAction(
-      playerId, 'choose_player', '画饼充饥：选择一名玩家取消其下次事件',
-      undefined, targets
-    );
-    action.callbackHandler = 'card_pie_in_sky_callback';
-    return action;
-  });
-
-  eventHandler.registerHandler('card_pie_in_sky_callback', (engine, playerId, targetId) => {
-    if (targetId) {
-      engine.addEffectToPlayer(targetId, {
-        id: `cancelEvent_${Date.now()}`,
-        type: 'custom',
-        turnsRemaining: 2,
-        data: { cancelNextEvent: true },
-      });
-      const target = engine.getPlayer(targetId);
-      engine.log(`画饼充饥：${target?.name || targetId} 的下次事件将被取消`, playerId);
-    }
-    return null;
-  });
+  // 3. 画饼充饥 — now handled by negate window system (reactive, cancels cell/line/card effects)
+  // Handler removed: card is used reactively during negate windows
 
   // 4. 一跃愁解 — reverse target player's next effects
   eventHandler.registerHandler('card_chance_one_jump_relief', (engine, playerId) => {

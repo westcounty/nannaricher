@@ -17,12 +17,12 @@ export const destinyCards: Card[] = [
   {
     id: 'destiny_stop_loss',
     name: '及时止损',
-    description: '单次使用，取消自己即将执行的线内格子或大格子事件',
+    description: '响应卡：当任意玩家即将触发格子事件、支线事件或卡牌效果时，可使用此卡取消该效果。可被其他响应卡反制。',
     deckType: 'destiny',
     holdable: true,
     singleUse: true,
     returnToDeck: true,
-    useTiming: 'own_turn',
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -127,12 +127,12 @@ export const destinyCards: Card[] = [
   {
     id: 'destiny_how_to_explain',
     name: '如何解释',
-    description: '单次使用，取消本次需要执行的格子事件',
+    description: '响应卡：当任意玩家即将触发格子事件、支线事件或卡牌效果时，可使用此卡取消该效果。可被其他响应卡反制。',
     deckType: 'destiny',
     holdable: true,
     singleUse: true,
     returnToDeck: true,
-    useTiming: 'own_turn',
+    useTiming: 'any_turn',
     effects: [],
   },
   {
@@ -623,7 +623,7 @@ export const chanceCards: Card[] = [
   {
     id: 'chance_info_blocked',
     name: '消息闭塞',
-    description: '单次使用，抵消一次任意玩家的机会卡效果',
+    description: '响应卡：当任意玩家即将触发机遇卡效果时，可使用此卡取消该效果。可被其他响应卡反制。',
     deckType: 'chance',
     holdable: true,
     singleUse: true,
@@ -634,7 +634,7 @@ export const chanceCards: Card[] = [
   {
     id: 'chance_false_move',
     name: '虚晃一枪',
-    description: '单次使用，抵消一次任意玩家的命运卡效果',
+    description: '响应卡：当任意玩家即将触发命运卡效果时，可使用此卡取消该效果。可被其他响应卡反制。',
     deckType: 'chance',
     holdable: true,
     singleUse: true,
@@ -645,7 +645,7 @@ export const chanceCards: Card[] = [
   {
     id: 'chance_pie_in_sky',
     name: '画饼充饥',
-    description: '单次使用，对除自己外任意一名玩家使用，取消其即将执行的线内格子或大格子事件',
+    description: '响应卡：当任意玩家即将触发格子事件、支线事件或卡牌效果时，可使用此卡取消该效果。可被其他响应卡反制。',
     deckType: 'chance',
     holdable: true,
     singleUse: true,

@@ -46,6 +46,8 @@ export class GameEngine implements IGameEngine {
   private lineEntrySnapshots: Map<string, { money: number; gpa: number; exploration: number; turn: number }> = new Map();
   /** Guard flag to prevent infinite recursion in gridLink sync */
   private gridLinkSyncing = false;
+  /** Current resource change source context (set before executing cards/events/etc) */
+  private _resourceSource: string = 'unknown';
   private diceResultCallback: ((playerId: string, values: number[], total: number) => void) | null = null;
   private resourceChangeCallback: ((data: {
     playerId: string;
@@ -53,6 +55,7 @@ export class GameEngine implements IGameEngine {
     stat: 'money' | 'gpa' | 'exploration';
     delta: number;
     current: number;
+    source: string;
   }) => void) | null = null;
   private planAbilityCallback: ((data: {
     playerId: string; planId: string; planName: string;
@@ -281,6 +284,7 @@ export class GameEngine implements IGameEngine {
         stat: 'money',
         delta,
         current: player.money,
+        source: this._resourceSource,
       });
     }
 
@@ -355,6 +359,7 @@ export class GameEngine implements IGameEngine {
         stat: 'gpa',
         delta: actualDelta,
         current: player.gpa,
+        source: this._resourceSource,
       });
     }
 
@@ -408,6 +413,7 @@ export class GameEngine implements IGameEngine {
         stat: 'exploration',
         delta,
         current: player.exploration,
+        source: this._resourceSource,
       });
     }
 
@@ -756,19 +762,7 @@ export class GameEngine implements IGameEngine {
     const player = this.getPlayer(playerId);
     if (!player || player.isBankrupt) return null;
 
-    // 消息闭塞/虚晃一枪：检查是否有其他玩家的阻挡效果
-    const blockEffectKey = deckType === 'chance' ? 'blockChanceCard' : 'blockDestinyCard';
-    for (const p of this.state.players) {
-      if (p.id === playerId) continue;
-      const blockIdx = p.effects.findIndex(
-        e => e.type === 'custom' && e.data?.[blockEffectKey]
-      );
-      if (blockIdx >= 0) {
-        p.effects.splice(blockIdx, 1);
-        this.log(`${p.name} 的${deckType === 'chance' ? '消息闭塞' : '虚晃一枪'}生效：阻止抽卡`, playerId);
-        return null;
-      }
-    }
+    // NOTE: 消息闭塞/虚晃一枪 now handled by the negate window system in GameCoordinator
 
     let deck = this.state.cardDecks[deckType];
     let discardPile = this.state.discardPiles[deckType];
@@ -1488,6 +1482,15 @@ export class GameEngine implements IGameEngine {
 
   setResourceChangeCallback(cb: typeof this.resourceChangeCallback): void {
     this.resourceChangeCallback = cb;
+  }
+
+  /** Set the current source context for resource changes (e.g. 'card:麦门护盾', 'event:期末考试') */
+  setResourceSource(source: string): void {
+    this._resourceSource = source;
+  }
+
+  clearResourceSource(): void {
+    this._resourceSource = 'unknown';
   }
 
   setPlanAbilityCallback(cb: typeof this.planAbilityCallback): void {

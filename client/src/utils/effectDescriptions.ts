@@ -10,7 +10,6 @@ const EFFECT_TYPE_NAMES: Record<string, string> = {
 };
 
 const CUSTOM_DATA_NAMES: [string, string][] = [
-  ['cancelNextEvent', '取消下次事件'],
   ['foodShield', '食堂线负面屏蔽'],
   ['doubleDiceChoice', '投骰两次选一'],
   ['negateExpense', '抵消下次金钱扣除'],
@@ -18,8 +17,6 @@ const CUSTOM_DATA_NAMES: [string, string][] = [
   ['blockMoneyLoss', '抵消下次金钱损失'],
   ['blockExplorationLoss', '抵消下次探索损失'],
   ['reenterLine', '离开支线后可重入'],
-  ['blockChanceCard', '抵消下次机遇卡效果'],
-  ['blockDestinyCard', '抵消下次命运卡效果'],
   ['reverseEffects', '下次事件增减反转'],
   ['mendingPlan', '阻止胜利（补救计划）'],
   ['foodLineOptional', '食堂线可选进入'],
