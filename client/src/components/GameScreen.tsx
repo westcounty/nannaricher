@@ -76,6 +76,7 @@ export function GameScreen() {
   const diceResult = useGameStore((s) => s.diceResult);
   const drawnCard = useGameStore((s) => s.drawnCard);
   const socketActions = useGameStore((s) => s.socketActions);
+  const readyPlayerIds = useGameStore((s) => s.readyPlayerIds);
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
   // confirmPlan removed — plan selection is now server-driven via pendingAction
@@ -620,6 +621,8 @@ export function GameScreen() {
           onReturnToLobby={() => {
             useGameStore.getState().resetToLobby();
           }}
+          readyPlayerIds={readyPlayerIds}
+          isHost={gameState.players[0]?.id === playerId}
         />
       )}
 

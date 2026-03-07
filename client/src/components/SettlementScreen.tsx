@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { getRoundName } from '@nannaricher/shared';
 import type { GameState, Player } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
+import { useSocket } from '../context/SocketContext';
 import '../styles/settlement.css';
 
 interface SettlementScreenProps {
@@ -13,6 +14,8 @@ interface SettlementScreenProps {
   gameState: GameState;
   playerId: string | null;
   onReturnToLobby: () => void;
+  readyPlayerIds: string[];
+  isHost: boolean;
 }
 
 /** Compute a composite score for ranking (winner excluded from sorting — always first). */
@@ -30,8 +33,29 @@ function rankPlayers(players: Player[], winnerId: string): Player[] {
   return sorted;
 }
 
-export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby }: SettlementScreenProps) {
+export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost }: SettlementScreenProps) {
+  const { socket } = useSocket();
   const [visible, setVisible] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+
+  const handleReadyToggle = () => {
+    if (!socket) return;
+    if (isReady) {
+      socket.emit('game:ready-cancel');
+      setIsReady(false);
+    } else {
+      socket.emit('game:ready-up');
+      setIsReady(true);
+    }
+  };
+
+  const handleRestartWithReady = () => {
+    if (!socket) return;
+    socket.emit('game:restart-with-ready');
+  };
+
+  const readyCount = readyPlayerIds.length;
+  const nonHostPlayers = gameState.players.filter(p => p.id !== gameState.players[0]?.id);
 
   const ranked = rankPlayers(gameState.players, winner.playerId);
 
@@ -141,6 +165,43 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby 
         {/* Game stats footer */}
         <div className="settlement-footer">
           {getRoundName(gameState.roundNumber)} · 共 {gameState.turnNumber} 回合
+        </div>
+
+        {/* Ready-up section for new game */}
+        <div className="settlement-ready">
+          <div className="settlement-ready__title">新一局</div>
+          <div className="settlement-ready__players">
+            {nonHostPlayers.map(player => {
+              const playerReady = readyPlayerIds.includes(player.id);
+              return (
+                <div key={player.id} className={`settlement-ready__player ${playerReady ? 'settlement-ready__player--ready' : ''}`}>
+                  <span className="settlement-color-dot" style={{ backgroundColor: player.color }} />
+                  <span className="settlement-ready__player-name">{player.name}</span>
+                  <span className={`settlement-ready__status ${playerReady ? 'settlement-ready__status--ready' : ''}`}>
+                    {playerReady ? '已准备' : '未准备'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="settlement-ready__actions">
+            {isHost ? (
+              <button
+                className="settlement-btn settlement-btn--restart"
+                onClick={handleRestartWithReady}
+                disabled={readyCount === 0}
+              >
+                重开游戏 ({readyCount}人准备)
+              </button>
+            ) : (
+              <button
+                className={`settlement-btn ${isReady ? 'settlement-btn--ready-cancel' : 'settlement-btn--ready'}`}
+                onClick={handleReadyToggle}
+              >
+                {isReady ? '取消准备' : '准备新一局'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Action buttons */}
