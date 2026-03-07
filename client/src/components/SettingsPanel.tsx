@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
 import { AudioControl } from './AudioControl';
+import { AdminResourceModal } from './AdminResourceModal';
 import '../styles/settings-panel.css';
 
 const FONT_SIZE_KEY = 'nannaricher_font_size';
@@ -20,7 +21,10 @@ export function SettingsPanel() {
   const gameState = useGameStore((s) => s.gameState);
   const playerCount = gameState?.players.length ?? 0;
   const isHost = gameState?.players?.[0]?.id === playerId;
-  const [confirmAction, setConfirmAction] = useState<'leave' | 'dissolve' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'leave' | 'dissolve' | 'force-next' | 'restart' | null>(null);
+  const [showResourceModal, setShowResourceModal] = useState(false);
+
+  const isPlaying = gameState?.phase !== 'waiting' && gameState?.phase !== 'finished';
 
   // Font size
   const [fontSize, setFontSize] = useState(() => {
@@ -126,6 +130,36 @@ export function SettingsPanel() {
             <AudioControl />
           </div>
 
+          {/* Admin section - host only, during game */}
+          {isHost && isPlaying && (
+            <>
+              <div className="settings-panel__divider" />
+              <div className="settings-panel__group">
+                <span className="settings-panel__admin-title">超级管理员</span>
+                <div className="settings-panel__admin-actions">
+                  <button
+                    className="settings-panel__btn settings-panel__btn--admin"
+                    onClick={() => setConfirmAction('force-next')}
+                  >
+                    强制下一回合
+                  </button>
+                  <button
+                    className="settings-panel__btn settings-panel__btn--admin"
+                    onClick={() => { setShowResourceModal(true); setIsOpen(false); }}
+                  >
+                    修改玩家资源
+                  </button>
+                  <button
+                    className="settings-panel__btn settings-panel__btn--restart"
+                    onClick={() => setConfirmAction('restart')}
+                  >
+                    重开游戏
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Divider */}
           <div className="settings-panel__divider" />
 
@@ -153,7 +187,11 @@ export function SettingsPanel() {
                 <p className="settings-panel__confirm-text">
                   {confirmAction === 'leave'
                     ? '确定退出游戏？游戏中将由系统接管。'
-                    : '确定解散房间？所有玩家将被强制退出。'}
+                    : confirmAction === 'dissolve'
+                    ? '确定解散房间？所有玩家将被强制退出。'
+                    : confirmAction === 'force-next'
+                    ? '确定强制跳过当前回合？'
+                    : '确定重开游戏？将以当前所有玩家重新开始一局。'}
                 </p>
                 <div className="settings-panel__confirm-buttons">
                   <button
@@ -162,8 +200,18 @@ export function SettingsPanel() {
                       if (!socket) return;
                       if (confirmAction === 'leave') {
                         socket.emit('room:leave');
-                      } else {
+                      } else if (confirmAction === 'dissolve') {
                         socket.emit('room:dissolve');
+                      } else if (confirmAction === 'force-next') {
+                        socket.emit('admin:force-next-turn');
+                        setConfirmAction(null);
+                        setIsOpen(false);
+                        return;
+                      } else if (confirmAction === 'restart') {
+                        socket.emit('game:restart');
+                        setConfirmAction(null);
+                        setIsOpen(false);
+                        return;
                       }
                       sessionStorage.removeItem('nannaricher_roomId');
                       sessionStorage.removeItem('nannaricher_playerId');
@@ -187,6 +235,13 @@ export function SettingsPanel() {
             )}
           </div>
         </div>
+      )}
+
+      {showResourceModal && gameState && (
+        <AdminResourceModal
+          players={gameState.players}
+          onClose={() => setShowResourceModal(false)}
+        />
       )}
     </div>
   );

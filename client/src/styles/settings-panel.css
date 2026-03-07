@@ -170,6 +170,39 @@
   background: rgba(100, 100, 100, 0.4);
 }
 
+/* Admin section */
+.settings-panel__admin-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.settings-panel__admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-panel__btn--admin {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.settings-panel__btn--admin:hover {
+  background: rgba(245, 158, 11, 0.3);
+}
+
+.settings-panel__btn--restart {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.settings-panel__btn--restart:hover {
+  background: rgba(34, 197, 94, 0.3);
+}
+
 /* Reduced motion global rule */
 .reduced-motion *,
 .reduced-motion *::before,
