@@ -111,7 +111,6 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
         { label: '起点', value: 'main_0' },
         { label: '校医院', value: 'main_7' },
         { label: '鼎', value: 'main_14' },
-        { label: '候车厅', value: 'main_21' },
         { label: '浦口线入口', value: 'main_4' },
         { label: '学在南哪入口', value: 'main_6' },
         { label: '赚在南哪入口', value: 'main_8' },
