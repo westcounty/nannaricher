@@ -164,6 +164,8 @@ export class RoomManager {
   // --------------------------------------------------
 
   setCoordinator(roomId: string, coordinator: GameCoordinator): void {
+    const old = this.coordinators.get(roomId);
+    if (old) old.dispose();
     this.coordinators.set(roomId, coordinator);
   }
 

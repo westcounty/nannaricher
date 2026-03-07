@@ -326,7 +326,11 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().setDiceResult(null);
       store.getState().setDrawnCard(null);
       store.getState().setAnnouncement(null);
+      store.getState().setVoteResult(null);
+      store.getState().setEventDice(null);
       store.getState().setReadyPlayerIds([]);
+      // Clear stale notifications from previous game
+      store.setState({ notifications: [] });
     };
 
     const handleReadyState = (data: { readyPlayerIds: string[] }) => {

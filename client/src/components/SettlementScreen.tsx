@@ -36,16 +36,16 @@ function rankPlayers(players: Player[], winnerId: string): Player[] {
 export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost }: SettlementScreenProps) {
   const { socket } = useSocket();
   const [visible, setVisible] = useState(true);
-  const [isReady, setIsReady] = useState(false);
+
+  // Derive ready state from server-synced readyPlayerIds (survives page refresh)
+  const isReady = playerId ? readyPlayerIds.includes(playerId) : false;
 
   const handleReadyToggle = () => {
     if (!socket) return;
     if (isReady) {
       socket.emit('game:ready-cancel');
-      setIsReady(false);
     } else {
       socket.emit('game:ready-up');
-      setIsReady(true);
     }
   };
 

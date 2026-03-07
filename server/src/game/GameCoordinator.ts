@@ -136,6 +136,24 @@ export class GameCoordinator {
     return this.engine;
   }
 
+  /** Clean up timers and callbacks before this coordinator is replaced. */
+  dispose(): void {
+    this.clearPendingActionTimeout();
+    this.negateWindow = null;
+    this.onFinishedCallback = null;
+    this.processingAction = false;
+  }
+
+  /** Force-skip the current turn: clear all pending state and advance. */
+  forceSkipTurn(): void {
+    this.clearPendingActionTimeout();
+    this.negateWindow = null;
+    this.processingAction = false;
+    const state = this.engine.getState();
+    state.pendingAction = null;
+    this.advanceTurn();
+  }
+
   // --------------------------------------------------
   // Dice helper
   // --------------------------------------------------
