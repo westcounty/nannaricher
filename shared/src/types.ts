@@ -168,6 +168,12 @@ export interface ClientToServerEvents {
   'room:reconnect': (data: { roomId: string; playerId: string }) => void;
   'room:leave': () => void;
   'room:dissolve': () => void;
+  'admin:force-next-turn': () => void;
+  'admin:modify-resources': (data: { changes: { playerId: string; money: number; gpa: number; exploration: number }[] }) => void;
+  'game:restart': () => void;
+  'game:ready-up': () => void;
+  'game:ready-cancel': () => void;
+  'game:restart-with-ready': () => void;
 }
 
 export interface ServerToClientEvents {
@@ -219,6 +225,8 @@ export interface ServerToClientEvents {
   }) => void;
   'game:card-use-error': (data: { message: string }) => void;
   'room:dissolved': (data: { message: string }) => void;
+  'game:ready-state': (data: { readyPlayerIds: string[] }) => void;
+  'game:restarting': () => void;
 }
 
 // === Player History Tracking ===
