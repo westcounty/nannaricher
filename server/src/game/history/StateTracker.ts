@@ -3,6 +3,8 @@ import { Player, Position, Card, PlayerHistory, CardDrawRecord, LineExitRecord, 
 
 export class StateTracker {
   private playerHistories: Map<string, PlayerHistory> = new Map();
+  /** 上一次检查时同位的玩家对（用于天文学院去重：只在从"不同位"→"同位"时记录） */
+  private previouslyColocatedPairs: Set<string> = new Set();
 
   /**
    * 初始化玩家历史
@@ -91,7 +93,7 @@ export class StateTracker {
   }
 
   /**
-   * 记录与其他玩家在同一格停留
+   * 记录与其他玩家在同一格停留（去重：同一回合只记录一次）
    */
   recordSharedCell(playerId: string, otherPlayerId: string, turn: number): void {
     const history = this.playerHistories.get(playerId);
@@ -99,7 +101,11 @@ export class StateTracker {
       if (!history.sharedCellsWith[otherPlayerId]) {
         history.sharedCellsWith[otherPlayerId] = [];
       }
-      history.sharedCellsWith[otherPlayerId].push(turn);
+      const arr = history.sharedCellsWith[otherPlayerId];
+      // 同一回合不重复记录
+      if (arr.length === 0 || arr[arr.length - 1] !== turn) {
+        arr.push(turn);
+      }
     }
   }
 
@@ -223,17 +229,34 @@ export class StateTracker {
   }
 
   /**
-   * 检查玩家是否在同一格
+   * 获取所有玩家历史（用于大气学院跨玩家比较）
+   */
+  getAllPlayerHistories(): Map<string, PlayerHistory> {
+    return this.playerHistories;
+  }
+
+  /**
+   * 检查玩家是否在同一格（边沿检测：只在从不同位→同位时记录新的相遇事件）
    */
   checkAndUpdateSharedCells(players: Player[], turn: number): void {
+    const currentlyColocated = new Set<string>();
+
     for (let i = 0; i < players.length; i++) {
       for (let j = i + 1; j < players.length; j++) {
         if (this.isSamePosition(players[i].position, players[j].position)) {
-          this.recordSharedCell(players[i].id, players[j].id, turn);
-          this.recordSharedCell(players[j].id, players[i].id, turn);
+          const pairKey = `${players[i].id}:${players[j].id}`;
+          currentlyColocated.add(pairKey);
+
+          // 只有从"不在同一格"变为"在同一格"才记录（新的独立相遇事件）
+          if (!this.previouslyColocatedPairs.has(pairKey)) {
+            this.recordSharedCell(players[i].id, players[j].id, turn);
+            this.recordSharedCell(players[j].id, players[i].id, turn);
+          }
         }
       }
     }
+
+    this.previouslyColocatedPairs = currentlyColocated;
   }
 
   /**

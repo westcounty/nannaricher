@@ -870,15 +870,22 @@ describe('WinConditionChecker', () => {
   // Plan 24: plan_daqi — 大气科学学院
   // =========================================================================
 
-  describe('plan_daqi (Atmospheric Sciences) — never uniquely richest for 18 rounds', () => {
-    it('should win when not uniquely richest with enough history', () => {
+  describe('plan_daqi (Atmospheric Sciences) — never uniquely richest for 15 rounds', () => {
+    it('should win when not uniquely richest with enough history and allPlayerHistories', () => {
       const player = createMockPlayer({ majorPlan: 'plan_daqi', money: 1000, gpa: 2.0, exploration: 5 });
       const other = createMockPlayer({ id: 'player2', money: 2000 });
       const state = createMockGameState([player, other]);
       const history = createMockHistory({
-        moneyHistory: Array(18).fill(1000),
+        moneyHistory: Array(15).fill(1000),
       });
-      const result = checker.checkWinConditions(player, state, history);
+      const otherHistory = createMockHistory({
+        moneyHistory: Array(15).fill(2000),
+      });
+      const allHistories = new Map<string, any>([
+        [player.id, history],
+        [other.id, otherHistory],
+      ]);
+      const result = checker.checkWinConditions(player, state, history, allHistories);
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_daqi');
     });
@@ -888,9 +895,45 @@ describe('WinConditionChecker', () => {
       const other = createMockPlayer({ id: 'player2', money: 2000 });
       const state = createMockGameState([player, other]);
       const history = createMockHistory({
-        moneyHistory: Array(17).fill(1000),
+        moneyHistory: Array(14).fill(1000),
+      });
+      const otherHistory = createMockHistory({
+        moneyHistory: Array(14).fill(2000),
+      });
+      const allHistories = new Map<string, any>([
+        [player.id, history],
+        [other.id, otherHistory],
+      ]);
+      const result = checker.checkWinConditions(player, state, history, allHistories);
+      expect(result.won).toBe(false);
+    });
+
+    it('should NOT win without allPlayerHistories', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_daqi', money: 1000, gpa: 2.0, exploration: 5 });
+      const other = createMockPlayer({ id: 'player2', money: 2000 });
+      const state = createMockGameState([player, other]);
+      const history = createMockHistory({
+        moneyHistory: Array(15).fill(1000),
       });
       const result = checker.checkWinConditions(player, state, history);
+      expect(result.won).toBe(false);
+    });
+
+    it('should NOT win when uniquely richest in any of the 15 rounds', () => {
+      const player = createMockPlayer({ majorPlan: 'plan_daqi', money: 3000, gpa: 2.0, exploration: 5 });
+      const other = createMockPlayer({ id: 'player2', money: 1000 });
+      const state = createMockGameState([player, other]);
+      const myMoney = Array(15).fill(1000);
+      myMoney[7] = 3000; // 在第8回合是唯一最多
+      const history = createMockHistory({ moneyHistory: myMoney });
+      const otherHistory = createMockHistory({
+        moneyHistory: Array(15).fill(2000),
+      });
+      const allHistories = new Map<string, any>([
+        [player.id, history],
+        [other.id, otherHistory],
+      ]);
+      const result = checker.checkWinConditions(player, state, history, allHistories);
       expect(result.won).toBe(false);
     });
   });
@@ -1085,21 +1128,21 @@ describe('WinConditionChecker', () => {
   // Plan 32: plan_yishu — 艺术学院
   // =========================================================================
 
-  describe('plan_yishu (Art) — experience all pukou line events (12+)', () => {
-    it('should win with 12 pukou events', () => {
+  describe('plan_yishu (Art) — experience 9+ pukou line events', () => {
+    it('should win with 9 pukou events', () => {
       const player = createMockPlayer({ majorPlan: 'plan_yishu', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        lineEventsTriggered: { pukou: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+        lineEventsTriggered: { pukou: [0, 1, 2, 3, 4, 5, 6, 7, 8] },
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_yishu');
     });
 
-    it('should NOT win with 11 pukou events', () => {
+    it('should NOT win with 8 pukou events', () => {
       const player = createMockPlayer({ majorPlan: 'plan_yishu', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        lineEventsTriggered: { pukou: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+        lineEventsTriggered: { pukou: [0, 1, 2, 3, 4, 5, 6, 7] },
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(false);
@@ -1110,21 +1153,21 @@ describe('WinConditionChecker', () => {
   // Plan 33: plan_suzhou — 苏州校区
   // =========================================================================
 
-  describe('plan_suzhou (Suzhou Campus) — experience all suzhou line events (10+)', () => {
-    it('should win with 10 suzhou events', () => {
+  describe('plan_suzhou (Suzhou Campus) — experience 8+ suzhou line events', () => {
+    it('should win with 8 suzhou events', () => {
       const player = createMockPlayer({ majorPlan: 'plan_suzhou', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        lineEventsTriggered: { suzhou: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+        lineEventsTriggered: { suzhou: [0, 1, 2, 3, 4, 5, 6, 7] },
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(true);
       expect(result.planId).toBe('plan_suzhou');
     });
 
-    it('should NOT win with 9 suzhou events', () => {
+    it('should NOT win with 7 suzhou events', () => {
       const player = createMockPlayer({ majorPlan: 'plan_suzhou', gpa: 2.0, exploration: 5 });
       const history = createMockHistory({
-        lineEventsTriggered: { suzhou: [0, 1, 2, 3, 4, 5, 6, 7, 8] },
+        lineEventsTriggered: { suzhou: [0, 1, 2, 3, 4, 5, 6] },
       });
       const result = checker.checkWinConditions(player, createMockGameState([player]), history);
       expect(result.won).toBe(false);

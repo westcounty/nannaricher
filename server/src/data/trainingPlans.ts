@@ -166,7 +166,7 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_daqi',
     name: '大气科学学院',
-    winCondition: '如果在18个回合内，你的金钱数额始终不为唯一最多，你获胜',
+    winCondition: '如果连续15个回合内，你的金钱数额始终不为唯一最多，你获胜',
     passiveAbility: '你可以立即抽取三张机会卡或命运卡，并至多选择其中一张执行',
 
   },
@@ -222,14 +222,14 @@ export const trainingPlans: TrainingPlan[] = [
   {
     id: 'plan_yishu',
     name: '艺术学院',
-    winCondition: '当你经历过浦口线每个事件后，你获胜',
+    winCondition: '当你经历过浦口线至少9个不同事件后，你获胜',
     passiveAbility: '你在浦口线终点处可以执行双倍经验卡效果',
 
   },
   {
     id: 'plan_suzhou',
     name: '苏州校区',
-    winCondition: '当你经历过苏州校区的每个事件后，你获胜',
+    winCondition: '当你经历过苏州校区至少8个不同事件后，你获胜',
     passiveAbility: '你每次进入苏州校区线不需要缴纳入场费，在其它三校区起点处可以选择失去300金钱移动到苏州校区线起点',
 
   },

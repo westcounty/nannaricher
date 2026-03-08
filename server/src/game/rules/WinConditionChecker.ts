@@ -11,7 +11,7 @@ export class WinConditionChecker {
   /**
    * 检查玩家的所有已确认培养计划是否达成胜利条件
    */
-  checkWinConditions(player: Player, state: GameState, history: PlayerHistory): WinResult {
+  checkWinConditions(player: Player, state: GameState, history: PlayerHistory, allPlayerHistories?: Map<string, PlayerHistory>): WinResult {
     const disabled = player.disabledWinConditions ?? [];
 
     // 先检查基础胜利条件（如果未被禁用）
@@ -23,7 +23,7 @@ export class WinConditionChecker {
     // 检查所有已加入列表的计划（主修+辅修均可触发胜利）
     for (const planId of getPlayerPlanIds(player)) {
       if (disabled.includes(planId)) continue;
-      const result = this.checkPlanWinCondition(player, planId, state, history);
+      const result = this.checkPlanWinCondition(player, planId, state, history, allPlayerHistories);
       if (result.won) {
         const plan = player.trainingPlans.find(p => p.id === planId);
         const direction = planId === player.majorPlan ? '主修' : '辅修';
@@ -54,12 +54,14 @@ export class WinConditionChecker {
 
   /**
    * 检查特定培养计划的胜利条件
+   * @param allPlayerHistories 所有玩家的历史记录（大气学院需要跨玩家比较）
    */
   private checkPlanWinCondition(
     player: Player,
     planId: string,
     state: GameState,
-    history: PlayerHistory
+    history: PlayerHistory,
+    allPlayerHistories?: Map<string, PlayerHistory>,
   ): WinResult {
     switch (planId) {
       // 商学院：金钱达到5555
@@ -174,19 +176,19 @@ export class WinConditionChecker {
         }
         break;
 
-      // 艺术学院：经历浦口线每个事件
+      // 艺术学院：经历浦口线至少9个不同事件
       case 'plan_yishu':
         const pukouEvents = history.lineEventsTriggered['pukou'] || [];
-        if (pukouEvents.length >= 12) {
-          return { won: true, condition: '艺术学院：经历浦口线所有事件', planId };
+        if (pukouEvents.length >= 9) {
+          return { won: true, condition: `艺术学院：经历浦口线${pukouEvents.length}个不同事件(≥9)`, planId };
         }
         break;
 
-      // 苏州校区：经历苏州线每个事件
+      // 苏州校区：经历苏州线至少8个不同事件
       case 'plan_suzhou':
         const suzhouEvents = history.lineEventsTriggered['suzhou'] || [];
-        if (suzhouEvents.length >= 10) {
-          return { won: true, condition: '苏州校区：经历苏州线所有事件', planId };
+        if (suzhouEvents.length >= 8) {
+          return { won: true, condition: `苏州校区：经历苏州线${suzhouEvents.length}个不同事件(≥8)`, planId };
         }
         break;
 
@@ -313,10 +315,10 @@ export class WinConditionChecker {
         break;
       }
 
-      // 大气科学学院：连续18回合金钱从未是所有玩家中唯一最多
+      // 大气科学学院：连续15回合金钱从未是所有玩家中唯一最多
       case 'plan_daqi':
-        if (this.checkNeverRichest(player, state, history, 18)) {
-          return { won: true, condition: '大气科学学院：连续18回合金钱从未唯一最多', planId };
+        if (this.checkNeverRichest(player, state, history, 15, allPlayerHistories)) {
+          return { won: true, condition: '大气科学学院：连续15回合金钱从未唯一最多', planId };
         }
         break;
 
@@ -391,6 +393,7 @@ export class WinConditionChecker {
   private checkAllPlayersSharedCellTwice(player: Player, state: GameState, history: PlayerHistory): boolean {
     const otherPlayerIds = state.players.filter(p => p.id !== player.id && !p.isBankrupt).map(p => p.id);
     if (otherPlayerIds.length === 0) return false;
+    // 每条记录已是独立相遇事件（StateTracker 中已做边沿检测去重）
     return otherPlayerIds.every(id => (history.sharedCellsWith[id]?.length ?? 0) >= 2);
   }
 
@@ -420,36 +423,46 @@ export class WinConditionChecker {
 
   /**
    * 大气科学学院：连续N回合金钱从未唯一最多
-   * 检查 moneyHistory 最近 N 个回合中，该玩家金钱从未是唯一最高
+   * 逐回合比较所有玩家的 moneyHistory，检查最近 N 个回合中该玩家金钱从未是唯一最高
    */
-  private checkNeverRichest(player: Player, state: GameState, history: PlayerHistory, rounds: number): boolean {
+  private checkNeverRichest(
+    player: Player,
+    state: GameState,
+    history: PlayerHistory,
+    rounds: number,
+    allPlayerHistories?: Map<string, PlayerHistory>,
+  ): boolean {
     const myMoneyHistory = history.moneyHistory;
     if (myMoneyHistory.length < rounds) return false;
 
-    // 从 moneyHistory 获取最近 rounds 个回合的数据
-    const recentMoney = myMoneyHistory.slice(-rounds);
+    // 需要所有玩家的历史记录来做逐回合比较
+    if (!allPlayerHistories) return false;
 
-    // 检查每个回合是否从未是唯一最高
-    // 注意: 需要其他玩家同期的金钱记录来做比较
-    // 当前实现使用每回合快照：如果 moneyHistory 按回合顺序记录，
-    // 这里简化为检查当前状态下连续 rounds 回合不是唯一最多
-    // 完整实现需要逐回合比较所有玩家
-    for (let i = 0; i < rounds; i++) {
-      const turnMoney = recentMoney[i];
-      // 获取该回合其他玩家的最高金钱
-      // 简化实现：如果当前该玩家是唯一最高，则不满足条件
-      const othersMax = Math.max(...state.players.filter(p => p.id !== player.id).map(p => p.money));
-      if (i === rounds - 1 && turnMoney > othersMax) {
-        return false;
+    const otherPlayers = state.players.filter(p => p.id !== player.id && !p.isBankrupt);
+    if (otherPlayers.length === 0) return false;
+
+    // 逐回合检查最近 N 个回合
+    const startIdx = myMoneyHistory.length - rounds;
+    for (let i = startIdx; i < myMoneyHistory.length; i++) {
+      const myMoney = myMoneyHistory[i];
+      let isUniquelyRichest = true;
+
+      for (const other of otherPlayers) {
+        const otherHistory = allPlayerHistories.get(other.id);
+        if (!otherHistory || otherHistory.moneyHistory.length <= i) {
+          // 如果其他玩家没有足够的历史记录，无法判断，视为不满足
+          isUniquelyRichest = false;
+          break;
+        }
+        if (otherHistory.moneyHistory[i] >= myMoney) {
+          isUniquelyRichest = false;
+          break;
+        }
       }
-    }
 
-    // 完整实现：逐回合检查历史记录
-    // 当前简化为：当前金钱不是唯一最多 + 有足够的回合历史
-    const currentMax = Math.max(...state.players.map(p => p.money));
-    const playersAtMax = state.players.filter(p => p.money === currentMax);
-    if (playersAtMax.length === 1 && playersAtMax[0].id === player.id) {
-      return false;
+      if (isUniquelyRichest) {
+        return false; // 在这个回合是唯一最多的，条件不满足
+      }
     }
 
     return true;

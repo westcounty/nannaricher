@@ -1176,13 +1176,14 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_tianwen': { // 天文与空间科学学院：和每位其他玩家同格停留次数均>=2
+      case 'plan_tianwen': { // 天文与空间科学学院：和每位其他玩家独立相遇次数均>=2
         if (history) {
           const otherIds = state.players.filter(p => p.id !== player.id && !p.isBankrupt).map(p => p.id);
-          const allSharedTwice = otherIds.length > 0 && otherIds.every(pid =>
+          // 每条记录已是独立相遇事件（StateTracker 中已做边沿检测去重）
+          const allMetTwice = otherIds.length > 0 && otherIds.every(pid =>
             (history.sharedCellsWith[pid]?.length ?? 0) >= 2
           );
-          if (allSharedTwice) return '与每位其他玩家同格停留≥2次';
+          if (allMetTwice) return '与每位其他玩家独立相遇≥2次';
         }
         break;
       }
@@ -1240,18 +1241,33 @@ export class GameCoordinator {
         if (allVisited) return '进入过赚钱、学习、探索和食堂线';
         break;
       }
-      case 'plan_daqi': {    // 大气科学学院：18回合内金钱始终不为唯一最多
-        if (history && state.turnNumber >= 18) {
-          const moneyHist = history.moneyHistory;
-          if (moneyHist.length >= 18) {
+      case 'plan_daqi': {    // 大气科学学院：连续15回合金钱始终不为唯一最多
+        if (history && history.moneyHistory.length >= 15) {
+          const tracker = this.engine.getStateTracker();
+          const otherPlayers = state.players.filter(p => p.id !== player.id && !p.isBankrupt);
+          if (otherPlayers.length > 0) {
+            const startIdx = history.moneyHistory.length - 15;
             let neverRichest = true;
-            // 简化检查：当前金钱不是唯一最高
-            const maxMoney = Math.max(...state.players.filter(p => !p.isBankrupt).map(p => p.money));
-            const playersWithMax = state.players.filter(p => !p.isBankrupt && p.money === maxMoney);
-            if (player.money === maxMoney && playersWithMax.length === 1) {
-              neverRichest = false;
+            for (let i = startIdx; i < history.moneyHistory.length; i++) {
+              const myMoney = history.moneyHistory[i];
+              let isUniquelyRichest = true;
+              for (const other of otherPlayers) {
+                const otherHist = tracker.getPlayerHistory(other.id);
+                if (!otherHist || otherHist.moneyHistory.length <= i) {
+                  isUniquelyRichest = false;
+                  break;
+                }
+                if (otherHist.moneyHistory[i] >= myMoney) {
+                  isUniquelyRichest = false;
+                  break;
+                }
+              }
+              if (isUniquelyRichest) {
+                neverRichest = false;
+                break;
+              }
             }
-            if (neverRichest) return '18回合内金钱始终不为唯一最多';
+            if (neverRichest) return '连续15回合金钱始终不为唯一最多';
           }
         }
         break;
@@ -1302,16 +1318,14 @@ export class GameCoordinator {
         }
         break;
       }
-      case 'plan_yishu': {   // 艺术学院：经历过浦口线每个事件
+      case 'plan_yishu': {   // 艺术学院：经历过浦口线至少9个不同事件
         const pukouEvents = player.lineEventsTriggered['pukou'] || [];
-        // 浦口线有12个事件格(index 0-11)
-        if (pukouEvents.length >= 12) return '经历过浦口线每个事件';
+        if (pukouEvents.length >= 9) return `经历过浦口线${pukouEvents.length}个不同事件(≥9)`;
         break;
       }
-      case 'plan_suzhou': {  // 苏州校区：经历过苏州校区的每个事件
+      case 'plan_suzhou': {  // 苏州校区：经历过苏州线至少8个不同事件
         const suzhouEvents = player.lineEventsTriggered['suzhou'] || [];
-        // 苏州线有10个事件格(index 0-9)
-        if (suzhouEvents.length >= 10) return '经历过苏州线每个事件';
+        if (suzhouEvents.length >= 8) return `经历过苏州线${suzhouEvents.length}个不同事件(≥8)`;
         break;
       }
       default:
