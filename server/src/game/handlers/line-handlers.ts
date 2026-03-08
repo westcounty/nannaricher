@@ -797,12 +797,12 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('xianlin_conference', (engine, playerId) => {
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 1) {
-      engine.modifyPlayerMoney(playerId, 100);
       engine.modifyPlayerExploration(playerId, 2);
-      engine.log(`会议中心投出 ${dice}（奇数），老师请客，金钱 +100，探索值 +2`, playerId);
+      engine.log(`会议中心投出 ${dice}（奇数），老师请客，探索值 +2`, playerId);
     } else {
       engine.modifyPlayerMoney(playerId, -200);
-      engine.log(`会议中心投出 ${dice}（偶数），订酒店，金钱 -200`, playerId);
+      engine.modifyPlayerGpa(playerId, 0.4);
+      engine.log(`会议中心投出 ${dice}（偶数），订酒店，金钱 -200，GPA +0.4`, playerId);
     }
     return null;
   });
@@ -816,7 +816,8 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
 
   eventHandler.registerHandler('xianlin_yifu_lost', (engine, playerId) => {
     engine.modifyPlayerGpa(playerId, -0.1);
-    engine.log('逸夫楼迷路迟到，GPA -0.1', playerId);
+    engine.modifyPlayerExploration(playerId, 2);
+    engine.log('逸夫楼迷路迟到，GPA -0.1，探索值 +2', playerId);
     return null;
   });
 
@@ -825,8 +826,8 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
     switch (dice) {
       case 1:
         engine.modifyPlayerMoney(playerId, -100);
-        engine.modifyPlayerExploration(playerId, 2);
-        engine.log('宿舍分配：一组团，金钱 -100，探索值 +2', playerId);
+        engine.modifyPlayerExploration(playerId, 3);
+        engine.log('宿舍分配：一组团，金钱 -100，探索值 +3', playerId);
         break;
       case 2:
         engine.modifyPlayerGpa(playerId, 0.2);
@@ -843,7 +844,9 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
       case 5:
       case 6:
         engine.modifyPlayerMoney(playerId, -300);
-        engine.log('宿舍分配：专硕无宿舍，金钱 -300', playerId);
+        engine.modifyPlayerExploration(playerId, 1);
+        engine.modifyPlayerGpa(playerId, 0.1);
+        engine.log('宿舍分配：专硕无宿舍，金钱 -300，探索值 +1，GPA +0.1', playerId);
         engine.drawAndProcessCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
         break;
     }
@@ -879,7 +882,8 @@ export function registerLineHandlers(eventHandler: EventHandler): void {
   eventHandler.registerHandler('xianlin_tour', (engine, playerId) => {
     const dice = engine.rollDiceAndBroadcast(playerId, 1)[0];
     if (dice % 2 === 0) {
-      engine.log(`带高中同学游览仙林投出 ${dice}（偶数），被评价为恢弘`, playerId);
+      engine.modifyPlayerGpa(playerId, 0.2);
+      engine.log(`带高中同学游览仙林投出 ${dice}（偶数），被评价为恢弘，GPA +0.2`, playerId);
       engine.drawAndProcessCard(playerId, Math.random() > 0.5 ? 'chance' : 'destiny');
     } else {
       engine.modifyPlayerExploration(playerId, 2);
