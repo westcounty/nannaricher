@@ -104,14 +104,14 @@ export const FORCED_LINES = ['pukou', 'food'];
 // Line Configurations (for rendering & game logic)
 // ============================================
 export const LINE_CONFIGS: LineConfig[] = [
-  { id: 'pukou', name: '浦口线', entryIndex: 4, cellCount: 12, forceEntry: true, entryFee: 0, direction: 'up', color: 0x607D8B },
-  { id: 'study', name: '学在南哪', entryIndex: 1, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'up', color: 0x3F51B5 },
-  { id: 'money', name: '赚在南哪', entryIndex: 8, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'right', color: 0xFF9800 },
-  { id: 'suzhou', name: '苏州线', entryIndex: 11, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'right', color: 0x2196F3 },
-  { id: 'explore', name: '乐在南哪', entryIndex: 15, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'down', color: 0xE91E63 },
-  { id: 'xianlin', name: '仙林线', entryIndex: 18, cellCount: 7, forceEntry: false, entryFee: 200, direction: 'down', color: 0x4CAF50 },
-  { id: 'gulou', name: '鼓楼线', entryIndex: 22, cellCount: 9, forceEntry: false, entryFee: 200, direction: 'left', color: 0x795548 },
-  { id: 'food', name: '食堂线', entryIndex: 25, cellCount: 9, forceEntry: true, entryFee: 0, direction: 'left', color: 0xFF5722 },
+  { id: 'pukou', name: '浦口线', entryIndex: 4, cellCount: 13, forceEntry: true, entryFee: 0, direction: 'up', color: 0x607D8B },
+  { id: 'study', name: '学在南哪', entryIndex: 1, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'up', color: 0x3F51B5 },
+  { id: 'money', name: '赚在南哪', entryIndex: 8, cellCount: 11, forceEntry: false, entryFee: 200, direction: 'right', color: 0xFF9800 },
+  { id: 'suzhou', name: '苏州线', entryIndex: 11, cellCount: 11, forceEntry: false, entryFee: 200, direction: 'right', color: 0x2196F3 },
+  { id: 'explore', name: '乐在南哪', entryIndex: 15, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'down', color: 0xE91E63 },
+  { id: 'xianlin', name: '仙林线', entryIndex: 18, cellCount: 8, forceEntry: false, entryFee: 200, direction: 'down', color: 0x4CAF50 },
+  { id: 'gulou', name: '鼓楼线', entryIndex: 22, cellCount: 10, forceEntry: false, entryFee: 200, direction: 'left', color: 0x795548 },
+  { id: 'food', name: '食堂线', entryIndex: 25, cellCount: 10, forceEntry: true, entryFee: 0, direction: 'left', color: 0xFF5722 },
 ];
 
 // ============================================

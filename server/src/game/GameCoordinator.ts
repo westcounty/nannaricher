@@ -63,6 +63,7 @@ export class GameCoordinator {
   private onFinishedCallback: (() => void) | null = null;
   private negateWindow: NegateWindow | null = null;
   private planResolutionQueue: { playerId: string; response: string }[] | null = null;
+  private _wonEmitted = false;
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
@@ -209,11 +210,38 @@ export class GameCoordinator {
       maskedState.pendingAction!.responses = maskedResponses;
       this.io.to(this.roomId).emit('game:state-update', maskedState);
       this.startPendingActionTimeout();
+      // Auto-emit game:player-won when phase transitions to finished
+      if (state.phase === 'finished' && state.winner && !this._wonEmitted) {
+        this._wonEmitted = true;
+        const winner = state.players.find(p => p.id === state.winner);
+        this.io.to(this.roomId).emit('game:player-won', {
+          playerId: state.winner,
+          playerName: winner?.name || 'Unknown',
+          condition: '胜利条件达成',
+        });
+        this.saveGameSummary();
+        this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
+        this.onFinishedCallback?.();
+      }
       return;
     }
 
     this.io.to(this.roomId).emit('game:state-update', state);
     this.startPendingActionTimeout();
+
+    // Auto-emit game:player-won when phase transitions to finished
+    if (state.phase === 'finished' && state.winner && !this._wonEmitted) {
+      this._wonEmitted = true;
+      const winner = state.players.find(p => p.id === state.winner);
+      this.io.to(this.roomId).emit('game:player-won', {
+        playerId: state.winner,
+        playerName: winner?.name || 'Unknown',
+        condition: '胜利条件达成',
+      });
+      this.saveGameSummary();
+      this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
+      this.onFinishedCallback?.();
+    }
   }
 
   // --------------------------------------------------
@@ -2549,8 +2577,9 @@ export class GameCoordinator {
         const options = cards.map((c, i) => ({
           label: `${c.deckType === 'chance' ? '机会' : '命运'}卡: ${c.card.name}`,
           value: `daqi_pick_${i}`,
+          description: c.card.description || '',
         }));
-        options.push({ label: '不执行任何卡', value: 'daqi_skip' });
+        options.push({ label: '不执行任何卡', value: 'daqi_skip', description: '' });
 
         const action = this.engine.createPendingAction(
           playerId, 'choose_option',
@@ -3754,11 +3783,14 @@ export class GameCoordinator {
 
         // Broadcast vote result for balance analysis
         if (cardId) {
-          const winnerOption = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+          const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+          const winnerOption = sorted[0]?.[0] || '';
+          const isTie = sorted.length > 1 && sorted[0][1] === sorted[1][1];
           this.io.to(this.roomId).emit('game:vote-result', {
             cardId,
             results: groups,
             winnerOption,
+            isTie,
             turn: state.turnNumber,
             round: state.roundNumber,
           });

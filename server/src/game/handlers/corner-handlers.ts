@@ -29,7 +29,7 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
       '选择出院方式：投骰子到3或支付250医药费',
       [
         { label: '投骰子 (目标: 3)', value: 'corner_hospital_roll' },
-        { label: `支付医药费 (${HOSPITAL_FEE})`, value: 'corner_hospital_pay' },
+        { label: `支付医药费 (${HOSPITAL_FEE})`, value: 'corner_hospital_pay', effectPreview: { money: -HOSPITAL_FEE } },
       ]
     );
   });
@@ -93,7 +93,7 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
       'choose_option',
       `是否支付 ${WAITING_ROOM_FEE} 金钱移动到任意格子？`,
       [
-        { label: `支付 ${WAITING_ROOM_FEE} 移动`, value: 'corner_waiting_room_pay' },
+        { label: `支付 ${WAITING_ROOM_FEE} 移动`, value: 'corner_waiting_room_pay', effectPreview: { money: -WAITING_ROOM_FEE } },
         { label: '不支付，停留', value: 'corner_waiting_room_stay' },
       ]
     );
@@ -103,23 +103,34 @@ export function registerCornerHandlers(eventHandler: EventHandler): void {
     engine.modifyPlayerMoney(playerId, -WAITING_ROOM_FEE);
 
     // Return a pending action for choosing destination with callbackHandler
+    const destinations = [
+      { label: '起点', index: 0 },
+      { label: '校医院', index: 7 },
+      { label: '鼎', index: 14 },
+      { label: '浦口线入口', index: 4 },
+      { label: '学在南哪入口', index: 6 },
+      { label: '赚在南哪入口', index: 8 },
+      { label: '苏州线入口', index: 11 },
+      { label: '乐在南哪入口', index: 15 },
+      { label: '仙林线入口', index: 18 },
+      { label: '鼓楼线入口', index: 22 },
+      { label: '食堂线入口', index: 25 },
+    ];
+
+    const options = destinations.map(d => {
+      const cell = MAIN_BOARD_CELLS.find(c => c.index === d.index);
+      return {
+        label: d.label,
+        value: `main_${d.index}`,
+        description: cell?.description || '',
+      };
+    });
+
     const action = engine.createPendingAction(
       playerId,
       'choose_option',
       '选择移动目的地：',
-      [
-        { label: '起点', value: 'main_0' },
-        { label: '校医院', value: 'main_7' },
-        { label: '鼎', value: 'main_14' },
-        { label: '浦口线入口', value: 'main_4' },
-        { label: '学在南哪入口', value: 'main_6' },
-        { label: '赚在南哪入口', value: 'main_8' },
-        { label: '苏州线入口', value: 'main_11' },
-        { label: '乐在南哪入口', value: 'main_15' },
-        { label: '仙林线入口', value: 'main_18' },
-        { label: '鼓楼线入口', value: 'main_22' },
-        { label: '食堂线入口', value: 'main_25' },
-      ]
+      options
     );
     if (action) action.callbackHandler = 'corner_waiting_room_move';
     return action;

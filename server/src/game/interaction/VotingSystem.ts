@@ -279,6 +279,7 @@ export class VotingSystem {
         } else {
           player.exploration -= 1;
           player.gpa = Math.max(0, player.gpa - 0.1);
+          player.gpa = parseFloat(player.gpa.toFixed(1));
         }
       }
     }
@@ -296,6 +297,7 @@ export class VotingSystem {
       if (libraryPlayers.includes(player.id)) {
         if (isOdd) {
           player.gpa += 0.2;
+          player.gpa = parseFloat(player.gpa.toFixed(1));
           player.money -= 100;
         }
       } else if (playgroundPlayers.includes(player.id)) {
@@ -317,6 +319,7 @@ export class VotingSystem {
       // 没人告白：全员GPA+0.1
       for (const player of state.players) {
         player.gpa += 0.1;
+        player.gpa = parseFloat(player.gpa.toFixed(1));
       }
     } else if (confessCount % 2 === 1) {
       // 奇数人告白：告白者探索-2
@@ -345,6 +348,7 @@ export class VotingSystem {
     if (isTie) {
       for (const player of state.players) {
         player.gpa += 0.1;
+        player.gpa = parseFloat(player.gpa.toFixed(1));
       }
     }
   }

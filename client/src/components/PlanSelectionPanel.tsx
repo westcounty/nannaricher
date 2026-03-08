@@ -127,6 +127,7 @@ export function PlanSelectionPanel({ action }: Props) {
           </div>
         ) : (
           <>
+          <div style={{ overflowY: 'auto', maxHeight: '60vh' }}>
             {allPlans.filter(p => !p.isNew).length > 0 && (
               <div className="plan-selection__section">
                 <h4>当前计划</h4>
@@ -172,6 +173,11 @@ export function PlanSelectionPanel({ action }: Props) {
                   <div className="plan-selection__plan-info">
                     <span className="plan-selection__name">{plan.name}</span>
                     <span className="plan-selection__desc">{plan.winCondition}</span>
+                    {plan.passiveAbility && (
+                      <div style={{ fontSize: '12px', color: '#adb5bd', marginTop: '4px' }}>
+                        ⚡ 被动: {plan.passiveAbility}
+                      </div>
+                    )}
                   </div>
                   {majorId === plan.id && <span className="plan-selection__major-badge">{'\u2605'}主修</span>}
                   {selectedPlanIds.includes(plan.id) && majorId !== plan.id && (
@@ -185,6 +191,7 @@ export function PlanSelectionPanel({ action }: Props) {
                 </div>
               ))}
             </div>
+          </div>
 
             <div className="plan-selection__summary">
               已选 {selectedPlanIds.length}/{myData.planSlotLimit}

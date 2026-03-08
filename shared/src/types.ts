@@ -229,6 +229,7 @@ export interface ServerToClientEvents {
     cardId: string;
     results: Record<string, string[]>;
     winnerOption: string;
+    isTie?: boolean;
     turn: number;
     round: number;
   }) => void;

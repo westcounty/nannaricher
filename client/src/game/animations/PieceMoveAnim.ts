@@ -12,12 +12,12 @@ export async function animatePieceMove(
   tweenEngine: TweenEngine,
   effectLayer: Container,
 ): Promise<void> {
-  const baseStep = 300;
+  const baseStep = 350;
   // Progressive acceleration: longer paths move faster per step
   const stepDuration = AnimationConfig.scaleDuration(
     path.length <= 4 ? baseStep :
-    path.length <= 8 ? baseStep * 0.6 :
-    baseStep * 0.35
+    path.length <= 8 ? baseStep * 0.7 :
+    baseStep * 0.5
   );
 
   // Initial squash anticipation for the first jump

@@ -24,7 +24,7 @@ export function SettingsPanel() {
   const [confirmAction, setConfirmAction] = useState<'leave' | 'dissolve' | 'force-next' | 'restart' | null>(null);
   const [showResourceModal, setShowResourceModal] = useState(false);
 
-  const isPlaying = gameState?.phase !== 'waiting' && gameState?.phase !== 'finished';
+  const isPlaying = gameState?.phase !== 'waiting';
 
   // Font size
   const [fontSize, setFontSize] = useState(() => {

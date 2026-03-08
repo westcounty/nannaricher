@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { getPlayerPlanIds } from '@nannaricher/shared';
@@ -13,6 +14,7 @@ export function TrainingPlanView({
   turnNumber: _turnNumber,
   isCurrentPlayer: _isCurrentPlayer
 }: TrainingPlanViewProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const gameState = useGameStore((s) => s.gameState);
   const playerPlanIds = getPlayerPlanIds(player);
   const hasPlan = player.majorPlan != null;
@@ -62,11 +64,21 @@ export function TrainingPlanView({
 
   return (
     <div className="training-plans">
-      <div className="training-plans-header">
-        <h3>培养计划</h3>
+      <div
+        className="training-plans-header"
+        onClick={() => setCollapsed((c) => !c)}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+      >
+        <h3>
+          <span style={{ display: 'inline-block', width: '16px', fontSize: '12px' }}>
+            {collapsed ? '\u25B6' : '\u25BC'}
+          </span>
+          培养计划
+        </h3>
         <span className="plans-count">{playerPlanIds.length}/{player.planSlotLimit}</span>
       </div>
 
+      {!collapsed && <>
       {/* 大一buff展示 */}
       {isFreshman && (
         <div className="freshman-buffs" style={{
@@ -194,6 +206,7 @@ export function TrainingPlanView({
           })}
         </div>
       )}
+      </>}
     </div>
   );
 }

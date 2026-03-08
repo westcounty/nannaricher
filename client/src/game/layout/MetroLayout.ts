@@ -282,7 +282,9 @@ function getOrBuildBezier(lineId: string) {
  */
 export function getLineStationPosition(lineId: string, cellIndex: number): Point {
   const data = getOrBuildBezier(lineId);
-  if (!data || cellIndex < 0 || cellIndex >= data.positions.length) return { x: 0, y: 0 };
+  if (!data) return { x: 0, y: 0 };
+  if (cellIndex < 0) return data.positions[0];
+  if (cellIndex >= data.positions.length) return data.positions[data.positions.length - 1];
   return data.positions[cellIndex];
 }
 

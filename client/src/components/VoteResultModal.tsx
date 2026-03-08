@@ -58,7 +58,7 @@ export function VoteResultModal() {
           }}>
             <span style={{ fontSize: '13px', fontWeight: option === voteResult.winnerOption ? 600 : 400 }}>
               {option}
-              {option === voteResult.winnerOption && ' (多数)'}
+              {option === voteResult.winnerOption && (voteResult.isTie ? ' (平局)' : ' (多数)')}
             </span>
             <span style={{ fontSize: '12px', color: '#aaa' }}>
               {(playerIds as string[]).map(getPlayerName).join(', ')}

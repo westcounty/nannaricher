@@ -1105,7 +1105,7 @@ export class GameEngine implements IGameEngine {
     this.log(`回合 ${this.state.turnNumber} 开始`, currentPlayer.id);
 
     // DelayedEffectManager: check delayed gratification at end of turn advance
-    const delayed = this.delayedEffects.getDelayedGratification(currentPlayer.id);
+    const delayed = this.delayedEffects.getDelayedGratification(currentPlayer.id, this.state.turnNumber);
     if (delayed && !currentPlayer.isBankrupt) {
       const savedMoney = (delayed.data.savedMoney as number) || 0;
       this.modifyPlayerMoney(currentPlayer.id, savedMoney + 500);

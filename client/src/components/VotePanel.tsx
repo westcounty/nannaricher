@@ -120,6 +120,28 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
               >
                 <div className="vote-panel__option-content">
                   <span className="vote-panel__option-label">{option.label}</span>
+                  {option.description && (
+                    <span className="vote-panel__option-desc" style={{ fontSize: '12px', color: '#aaa', display: 'block', marginTop: '2px' }}>{option.description}</span>
+                  )}
+                  {option.effectPreview && (
+                    <div className="vote-panel__option-effects" style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '12px' }}>
+                      {option.effectPreview.money !== undefined && (
+                        <span style={{ color: typeof option.effectPreview.money === 'number' ? (option.effectPreview.money > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                          💰{typeof option.effectPreview.money === 'number' ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}` : option.effectPreview.money}
+                        </span>
+                      )}
+                      {option.effectPreview.gpa !== undefined && (
+                        <span style={{ color: typeof option.effectPreview.gpa === 'number' ? (option.effectPreview.gpa > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                          📚{typeof option.effectPreview.gpa === 'number' ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}` : option.effectPreview.gpa}
+                        </span>
+                      )}
+                      {option.effectPreview.exploration !== undefined && (
+                        <span style={{ color: typeof option.effectPreview.exploration === 'number' ? (option.effectPreview.exploration > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                          🗺️{typeof option.effectPreview.exploration === 'number' ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}` : option.effectPreview.exploration}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {isSelected && <span className="vote-panel__option-count">✓</span>}
                 </div>
               </button>
@@ -129,7 +151,7 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
 
         {/* Tally summary */}
         <div className="vote-panel__tally-summary">
-          已投票: {totalVotes} / {players.length}
+          已投票: {totalVotes} / {pendingAction.targetPlayerIds?.length || players.length}
         </div>
 
         {/* Player vote avatars */}

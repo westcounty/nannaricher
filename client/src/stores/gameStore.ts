@@ -72,7 +72,7 @@ interface GameStore {
   drawnCard: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null;
   announcement: AnnouncementData | null;
   winner: WinnerInfo | null;
-  voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null;
+  voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string; isTie?: boolean } | null;
   eventDice: { values: number[]; total: number } | null;
   isLoading: boolean;
   error: string | null;
@@ -100,7 +100,7 @@ interface GameStore {
   setDrawnCard: (data: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null) => void;
   setAnnouncement: (data: AnnouncementData | null) => void;
   setWinner: (data: WinnerInfo | null) => void;
-  setVoteResult: (data: { cardId: string; results: Record<string, string[]>; winnerOption: string } | null) => void;
+  setVoteResult: (data: { cardId: string; results: Record<string, string[]>; winnerOption: string; isTie?: boolean } | null) => void;
   setEventDice: (data: { values: number[]; total: number } | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;

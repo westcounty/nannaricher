@@ -201,6 +201,15 @@ export function GameScreen() {
     }
   };
 
+  // Auto-dismiss tooltip after 2s on touch devices to prevent accidental trigger on mobile
+  useEffect(() => {
+    if (!hoveredCell) return;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+    const timer = setTimeout(() => setHoveredCell(null), 2000);
+    return () => clearTimeout(timer);
+  }, [hoveredCell]);
+
   // Mobile panel toggle
   const handlePanelToggle = (panelId: PanelId) => {
     playSound('tab_switch');

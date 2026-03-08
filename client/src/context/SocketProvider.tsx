@@ -10,6 +10,7 @@ import { playSound } from '../audio/AudioManager';
 
 let _lastEventKey = '';
 let _lastEventTime = 0;
+let _lastDiceTime = 0;
 
 /**
  * Compare previous and new game state and play appropriate sounds.
@@ -150,6 +151,16 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       prevStateRef.current = state;
       store.getState().setGameState(state);
 
+      // Fallback: detect winner from state update if game:player-won was missed
+      if (state.phase === 'finished' && state.winner && !store.getState().winner) {
+        const winner = state.players.find((p: any) => p.id === state.winner);
+        store.getState().setWinner({
+          playerId: state.winner,
+          playerName: winner?.name || 'Unknown',
+          condition: '',
+        });
+      }
+
       // Show parallel plan selection when state update includes it
       const newPa = state.pendingAction;
       if (newPa && newPa.type === ('parallel_plan_selection' as any)
@@ -216,6 +227,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       if (isMovementDice) {
         // Normal movement dice — show DiceRoller overlay
         store.getState().setDiceResult(data);
+        _lastDiceTime = Date.now();
         playSound('dice_land');
       } else {
         // Event dice (card effects, vote results, etc.) — show EventDiceOverlay
@@ -238,7 +250,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       if (pa) {
         const eventKey = `${pa.playerId}:${pa.type}:${pa.prompt}`;
         const now = Date.now();
-        if (eventKey === _lastEventKey && now - _lastEventTime < 500) return;
+        if (eventKey === _lastEventKey && now - _lastEventTime < 1000) return;
         _lastEventKey = eventKey;
         _lastEventTime = now;
       }
@@ -300,15 +312,24 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      store.getState().setCurrentEvent({
-        title: data.title,
-        description: data.description,
-        pendingAction: data.pendingAction,
-        playerId: data.playerId || data.pendingAction?.playerId,
-        effects: data.effects,
-        severity: effectiveSeverity,
-      });
-      playSound('event_trigger');
+      const showEvent = () => {
+        store.getState().setCurrentEvent({
+          title: data.title,
+          description: data.description,
+          pendingAction: data.pendingAction,
+          playerId: data.playerId || data.pendingAction?.playerId,
+          effects: data.effects,
+          severity: effectiveSeverity,
+        });
+        playSound('event_trigger');
+      };
+
+      const elapsed = Date.now() - _lastDiceTime;
+      if (elapsed < 800 && _lastDiceTime > 0) {
+        setTimeout(showEvent, 800 - elapsed);
+      } else {
+        showEvent();
+      }
     };
 
     const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {

@@ -26,6 +26,7 @@ export class DelayedEffectManager {
     const triggered: DelayedEffect[] = [];
     for (const e of this.effects) {
       if (e.resolved || e.playerId !== playerId) continue;
+      if (e.type === 'delayed_gratification') continue; // handled separately
       if (e.triggerCondition === 'next_turn' && currentTurn >= e.triggerTurn) {
         triggered.push(e);
         e.resolved = true;
@@ -74,9 +75,11 @@ export class DelayedEffectManager {
     return false;
   }
 
-  getDelayedGratification(playerId: string): DelayedEffect | undefined {
+  getDelayedGratification(playerId: string, currentTurn: number): DelayedEffect | undefined {
     return this.effects.find(e =>
-      !e.resolved && e.playerId === playerId && e.type === 'delayed_gratification');
+      !e.resolved && e.playerId === playerId
+      && e.type === 'delayed_gratification'
+      && currentTurn >= e.triggerTurn);
   }
 
   resolve(effectId: string): void {

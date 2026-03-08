@@ -79,7 +79,7 @@ export function EventModal({
   useEffect(() => {
     if ((isReadOnly || isInfoOnly) && !isClosing) {
       // Info-only events for the acting player get slightly longer to read
-      const delay = isInfoOnly && !isReadOnly ? 4000 : 5000;
+      const delay = isInfoOnly && !isReadOnly ? 4000 : 3000;
       const timer = setTimeout(() => {
         setIsClosing(true);
         timerRefs.current.push(setTimeout(() => {

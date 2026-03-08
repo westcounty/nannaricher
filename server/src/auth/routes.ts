@@ -59,6 +59,7 @@ router.get('/history', authenticateToken, (req: Request, res: Response) => {
     is_winner: Boolean(r.is_winner),
     training_plans: JSON.parse(r.training_plans || '[]'),
     lines_visited: JSON.parse(r.lines_visited || '[]'),
+    played_at: r.played_at ? r.played_at.replace(' ', 'T') + 'Z' : r.played_at,
   }));
 
   res.json({ results: parsed, total: total.count });

@@ -26,8 +26,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '是否在各平台关注了手手？',
       [
-        { label: '是（金钱 +100）', value: 'card_mutual_help_yes' },
-        { label: '否（探索值 -2，金钱 -200）', value: 'card_mutual_help_no' },
+        { label: '是（金钱 +100）', value: 'card_mutual_help_yes', effectPreview: { money: 100 } },
+        { label: '否（探索值 -2，金钱 -200）', value: 'card_mutual_help_no', effectPreview: { exploration: -2, money: -200 } },
       ]
     );
   });
@@ -70,9 +70,9 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
         'choose_option',
         `投出 ${dice1}+${dice2}=7！选择奖励：`,
         [
-          { label: '探索值 +7', value: 'card_seven_year_itch_exploration' },
-          { label: 'GPA +0.7', value: 'card_seven_year_itch_gpa' },
-          { label: '金钱 +700', value: 'card_seven_year_itch_money' },
+          { label: '探索值 +7', value: 'card_seven_year_itch_exploration', effectPreview: { exploration: 7 } },
+          { label: 'GPA +0.7', value: 'card_seven_year_itch_gpa', effectPreview: { gpa: 0.7 } },
+          { label: '金钱 +700', value: 'card_seven_year_itch_money', effectPreview: { money: 700 } },
         ]
       );
     } else {
@@ -101,7 +101,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 四校联动 — 所有玩家选择校区，投骰子决定奖励
   eventHandler.registerHandler('card_destiny_four_schools', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_four_schools_${Date.now()}`,
       playerId: 'all',
@@ -280,7 +280,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '是否执行延迟满足？（下回合金钱变为0，之后恢复并获得500）',
       [
-        { label: '执行延迟满足', value: 'card_delayed_gratification_yes' },
+        { label: '执行延迟满足', value: 'card_delayed_gratification_yes', effectPreview: { money: 500 } },
         { label: '不执行', value: 'skip' },
       ]
     );
@@ -595,8 +595,8 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '选择一项执行',
       [
-        { label: '获得50金钱', value: 'card_questionnaire_50' },
-        { label: '暂停一回合获得200金钱', value: 'card_questionnaire_200' },
+        { label: '获得50金钱', value: 'card_questionnaire_50', effectPreview: { money: 50 } },
+        { label: '暂停一回合获得200金钱', value: 'card_questionnaire_200', effectPreview: { money: 200 } },
       ]
     );
   });
@@ -747,7 +747,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
       'choose_option',
       '听离南常：选择一个效果执行',
       [
-        { label: '记得常回来看看（探索值+2）', value: 'card_listen_leave_explore' },
+        { label: '记得常回来看看（探索值+2）', value: 'card_listen_leave_explore', effectPreview: { exploration: 2 } },
         { label: '在南哪倒也正常（下次后退）', value: 'card_listen_leave_reverse' },
       ]
     );
@@ -1036,7 +1036,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 翻转课堂 — 选择两位玩家，各投骰子，大者GPA+0.2，小者GPA-0.1
   eventHandler.registerHandler('card_chance_flipped_classroom', (engine, playerId) => {
-    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     if (others.length < 2) return null;
 
     const options = others.map(p => ({ label: p.name, value: p.id }));
@@ -1086,7 +1086,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 团学面试 — 选择两位玩家，各投骰子，大者探索+2，小者探索-1
   eventHandler.registerHandler('card_chance_student_union_interview', (engine, playerId) => {
-    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     if (others.length < 2) return null;
 
     const options = others.map(p => ({ label: p.name, value: p.id }));
@@ -1136,7 +1136,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 集赞抽奖 — 选择两位玩家，各投骰子，大者金钱+200，小者金钱-100
   eventHandler.registerHandler('card_chance_like_collection', (engine, playerId) => {
-    const others = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const others = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     if (others.length < 2) return null;
 
     const options = others.map(p => ({ label: p.name, value: p.id }));
@@ -1424,7 +1424,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 网格管理 — 选择两位玩家，下回合内他们的增减同步
   eventHandler.registerHandler('card_chance_grid_management', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     if (players.length < 2) {
       engine.log('网格管理：玩家不足，无法执行', playerId);
       return null;
@@ -1476,7 +1476,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 泳馆常客 — 全体投票+骰子
   eventHandler.registerHandler('card_chance_swimming_pool_regular', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_swimming_pool_${Date.now()}`,
       playerId: 'all',
@@ -1494,7 +1494,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 相逢是缘 — 全体投票+骰子
   eventHandler.registerHandler('card_chance_meeting_is_fate', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_meeting_fate_${Date.now()}`,
       playerId: 'all',
@@ -1512,7 +1512,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 初雪留痕 — 全体投票
   eventHandler.registerHandler('card_chance_first_snow', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_first_snow_${Date.now()}`,
       playerId: 'all',
@@ -1530,7 +1530,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 怪奇物谈 — 全体投票+骰子
   eventHandler.registerHandler('card_chance_strange_tales', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_strange_tales_${Date.now()}`,
       playerId: 'all',
@@ -1566,7 +1566,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 寻根时刻 — 全体投票+骰子
   eventHandler.registerHandler('card_chance_root_finding_moment', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_root_finding_${Date.now()}`,
       playerId: 'all',
@@ -1584,7 +1584,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 休憩时刻 — 全体投票
   eventHandler.registerHandler('card_chance_rest_moment', (engine, playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_rest_moment_${Date.now()}`,
       playerId: 'all',
@@ -1602,7 +1602,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 光影变幻 — 多数票决定效果
   eventHandler.registerHandler('card_chance_light_shadow', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_light_shadow_${Date.now()}`,
       playerId: 'all',
@@ -1620,7 +1620,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 课程建群 — 多数票决定效果
   eventHandler.registerHandler('card_chance_course_group', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_course_group_${Date.now()}`,
       playerId: 'all',
@@ -1638,7 +1638,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 换乘时刻 — 投票+骰子决定效果
   eventHandler.registerHandler('card_chance_transfer_moment', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_transfer_moment_${Date.now()}`,
       playerId: 'all',
@@ -1656,7 +1656,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 妙语连珠 — 投票+骰子决定效果
   eventHandler.registerHandler('card_chance_wit_words', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_wit_words_${Date.now()}`,
       playerId: 'all',
@@ -1674,7 +1674,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 校运动会 — 投票+骰子决定效果
   eventHandler.registerHandler('card_chance_school_sports_meet', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_school_sports_${Date.now()}`,
       playerId: 'all',
@@ -1692,7 +1692,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 出行方式 — 投票+惩罚选择
   eventHandler.registerHandler('card_chance_travel_method', (engine, _playerId) => {
-    const players = engine.getAllPlayers().filter(p => !p.isBankrupt);
+    const players = engine.getAllPlayers().filter(p => !p.isBankrupt && !p.isDisconnected);
     return {
       id: `vote_travel_method_${Date.now()}`,
       playerId: 'all',
@@ -1751,11 +1751,11 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
             const penaltyOptions = side === 'shared'
               ? [
-                  { label: '金钱 -100', value: 'money_loss' },
+                  { label: '金钱 -100', value: 'money_loss', effectPreview: { money: -100 } },
                   { label: '暂停一回合', value: 'skip_turn' },
                 ]
               : [
-                  { label: '探索值 -1', value: 'exp_loss' },
+                  { label: '探索值 -1', value: 'exp_loss', effectPreview: { exploration: -1 } },
                   { label: '暂停一回合', value: 'skip_turn' },
                 ];
 
