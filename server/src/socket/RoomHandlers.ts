@@ -263,6 +263,7 @@ export function registerRoomHandlers(
       return;
     }
 
+    const wasDisconnected = player.isDisconnected;
     player.socketId = socket.id;
     player.isDisconnected = false;
     socket.join(data.roomId);
@@ -274,7 +275,7 @@ export function registerRoomHandlers(
       const state = coordinator.getState();
 
       // Only log reconnection if the player was actually marked as disconnected
-      if (player.isDisconnected) {
+      if (wasDisconnected) {
         state.log.push({
           turn: state.turnNumber,
           playerId: data.playerId,
@@ -300,5 +301,13 @@ export function registerRoomHandlers(
 
       coordinator.broadcastState();
     }
+
+    // Emit joined event so client store gets roomId/playerId
+    socket.emit('room:joined', {
+      playerId: data.playerId,
+      roomId: data.roomId,
+      reconnected: true,
+    });
+    console.log(`${player.name} reconnected to room ${data.roomId}`);
   });
 }

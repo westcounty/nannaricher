@@ -40,6 +40,7 @@ import type { BoardCell, BoardLine, Player } from '@nannaricher/shared';
 import { getRoundName, LINE_CONFIGS } from '@nannaricher/shared';
 // getPlayerPlanIds import removed — plan selection now server-driven
 import { boardData } from '../data/board';
+import { useSocket } from '../context/SocketContext';
 import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
@@ -89,6 +90,7 @@ export function GameScreen() {
   const rollDice = socketActions?.rollDice ?? (() => {});
   const { messages: chatMessages, sendMessage: sendChatMessage } = useChat();
   const layout = useLayout();
+  const { isConnected, reconnect } = useSocket();
   const canvasRef = useRef<GameCanvasHandle>(null);
 
   // Mobile/tablet panel state
@@ -262,6 +264,38 @@ export function GameScreen() {
         isMyTurn={isMyTurn}
         currentPlayerName={currentPlayer?.name}
       />
+
+      {/* Connection lost banner */}
+      {!isConnected && (
+        <div style={{
+          background: 'rgba(220, 50, 50, 0.9)',
+          color: '#fff',
+          padding: '8px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          fontSize: '14px',
+          zIndex: 1200,
+        }}>
+          <span>连接已断开，操作已被托管</span>
+          <button
+            onClick={reconnect}
+            style={{
+              background: '#fff',
+              color: '#c00',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            重新连接
+          </button>
+        </div>
+      )}
 
       {/* ============ DESKTOP LAYOUT ============ */}
       {layout === 'desktop' && (

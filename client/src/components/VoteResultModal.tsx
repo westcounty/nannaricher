@@ -57,7 +57,7 @@ export function VoteResultModal() {
               : '1px solid rgba(255, 255, 255, 0.1)',
           }}>
             <span style={{ fontSize: '13px', fontWeight: option === voteResult.winnerOption ? 600 : 400 }}>
-              {option}
+              {voteResult.optionLabels?.[option] || option}
               {option === voteResult.winnerOption && (voteResult.isTie ? ' (平局)' : ' (多数)')}
             </span>
             <span style={{ fontSize: '12px', color: '#aaa' }}>

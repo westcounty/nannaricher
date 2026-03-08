@@ -33,6 +33,7 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
     isLocalPlayer && 'compact-player--local',
     player.isBankrupt && 'compact-player--bankrupt',
     player.isInHospital && 'compact-player--hospital',
+    player.isDisconnected && 'compact-player--disconnected',
   ].filter(Boolean).join(' ');
 
   const initial = player.name.charAt(0);
@@ -88,6 +89,7 @@ export function CompactPlayerCard({ player, isCurrentTurn = false, isLocalPlayer
       <div className="compact-player__row2">
         {player.isBankrupt && <span className="compact-player__badge compact-player__badge--bankrupt">破产</span>}
         {player.isInHospital && <span className="compact-player__badge compact-player__badge--hospital">医院</span>}
+        {player.isDisconnected && <span className="compact-player__badge compact-player__badge--disconnected">离线</span>}
         {player.isAtDing && <span className="compact-player__badge compact-player__badge--ding">鼎</span>}
         {player.effects.length > 0 && (
           <div className="compact-player__effects" title={player.effects.map(e => describeEffect(e)).join('\n')}>

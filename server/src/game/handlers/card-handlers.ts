@@ -278,7 +278,7 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     return engine.createPendingAction(
       playerId,
       'choose_option',
-      '是否执行延迟满足？（下回合金钱变为0，之后恢复并获得500）',
+      '是否执行延迟满足？（金钱立即变为0，下回合恢复并额外获得500）',
       [
         { label: '执行延迟满足', value: 'card_delayed_gratification_yes', effectPreview: { money: 500 } },
         { label: '不执行', value: 'skip' },
@@ -295,13 +295,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
     engine.getDelayedEffects().add({
       playerId,
       type: 'delayed_gratification',
-      triggerTurn: state.turnNumber + 2,
+      triggerTurn: state.turnNumber + 1,
       triggerCondition: 'next_turn',
       data: { savedMoney },
     });
-    // Set money to 0 for next turn
+    // Set money to 0 immediately
     engine.modifyPlayerMoney(playerId, -savedMoney);
-    engine.log(`延迟满足：金钱暂时归零(保存${savedMoney})，下回合后恢复+500`, playerId);
+    engine.log(`延迟满足：金钱立即归零(保存${savedMoney})，下回合恢复+500`, playerId);
     return null;
   });
 

@@ -230,6 +230,7 @@ export interface ServerToClientEvents {
     results: Record<string, string[]>;
     winnerOption: string;
     isTie?: boolean;
+    optionLabels?: Record<string, string>;
     turn: number;
     round: number;
   }) => void;

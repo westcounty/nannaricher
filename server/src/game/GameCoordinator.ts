@@ -1,5 +1,6 @@
 // server/src/game/GameCoordinator.ts — Orchestration layer bridging Socket events and GameEngine
 import { Server } from 'socket.io';
+import { VOTING_CARDS } from './interaction/VotingSystem.js';
 import {
   GameState,
   Player,
@@ -3786,11 +3787,20 @@ export class GameCoordinator {
           const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
           const winnerOption = sorted[0]?.[0] || '';
           const isTie = sorted.length > 1 && sorted[0][1] === sorted[1][1];
+          // Build optionId → Chinese label mapping
+          const votingCard = VOTING_CARDS[cardId];
+          const optionLabels: Record<string, string> = {};
+          if (votingCard) {
+            for (const opt of votingCard.options) {
+              optionLabels[opt.id] = opt.label;
+            }
+          }
           this.io.to(this.roomId).emit('game:vote-result', {
             cardId,
             results: groups,
             winnerOption,
             isTie,
+            optionLabels,
             turn: state.turnNumber,
             round: state.roundNumber,
           });

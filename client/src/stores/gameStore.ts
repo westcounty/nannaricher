@@ -72,7 +72,7 @@ interface GameStore {
   drawnCard: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null;
   announcement: AnnouncementData | null;
   winner: WinnerInfo | null;
-  voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string; isTie?: boolean } | null;
+  voteResult: { cardId: string; results: Record<string, string[]>; winnerOption: string; isTie?: boolean; optionLabels?: Record<string, string> } | null;
   eventDice: { values: number[]; total: number } | null;
   isLoading: boolean;
   error: string | null;

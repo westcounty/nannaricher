@@ -492,7 +492,7 @@ export const destinyCards: Card[] = [
   {
     id: 'destiny_delayed_gratification',
     name: '延迟满足',
-    description: '你可以选择是否执行：下一回合开始时，你的金钱数减少至0，如果没有破产，下一回合后你恢复原有数值并额外获得500金钱',
+    description: '你可以选择是否执行：金钱立即变为0，下回合开始时恢复原有金钱并额外获得500元',
     deckType: 'destiny',
     holdable: false,
     singleUse: true,
