@@ -1823,8 +1823,12 @@ export class GameCoordinator {
 
     for (const player of eligiblePlayers) {
       const drawnPlans = this.drawPlansForPlayer(player);
-      // drawPlansForPlayer already adds to trainingPlans, but for parallel selection
-      // we need to keep them there for UI display AND track drawn IDs
+      // Add drawn plans to player's trainingPlans for UI display
+      for (const plan of drawnPlans) {
+        if (!player.trainingPlans.find(p => p.id === plan.id)) {
+          player.trainingPlans.push(plan);
+        }
+      }
       this.redrawDrawnPlanIds.set(player.id, drawnPlans.map(p => p.id));
 
       const confirmedIds = [
@@ -2644,6 +2648,8 @@ export class GameCoordinator {
 
     this.planResolutionQueue = queue;
     state.pendingAction = null;
+    // Broadcast immediately so clients can dismiss the plan selection panel
+    this.broadcastState();
     this.resolveNextPlayerPlan();
   }
 

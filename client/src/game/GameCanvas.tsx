@@ -16,7 +16,25 @@ import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { showFloatingText } from './animations/FloatingText';
 import { playSound } from '../audio/AudioManager';
-import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from './layout/MetroLayout';
+import {
+  METRO_BOARD_WIDTH,
+  METRO_BOARD_HEIGHT,
+  getMainStationPosition,
+  getLineStationPosition,
+} from './layout/MetroLayout';
+
+/**
+ * Convert a game Position to mainContainer-local world coordinates.
+ * This computes the TARGET position from game state (not the piece's current visual position).
+ */
+function positionToWorldCoords(position: Position): { x: number; y: number } {
+  if (position.type === 'main') {
+    const p = getMainStationPosition(position.index);
+    return { x: p.x + METRO_BOARD_WIDTH / 2, y: p.y + METRO_BOARD_HEIGHT / 2 };
+  }
+  const p = getLineStationPosition(position.lineId, position.index);
+  return { x: p.x + METRO_BOARD_WIDTH / 2, y: p.y + METRO_BOARD_HEIGHT / 2 };
+}
 
 interface GameCanvasProps {
   gameState: GameState;
@@ -153,25 +171,27 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       stage.updateState(gameState, currentPlayerId);
       playerLayer.update(gameState, currentPlayerId);
 
-      // Initial focus on local player after a short delay (let positions settle)
+      // Deferred init: wait for CSS layout to settle, then resize + focus.
+      // Use a single RAF to avoid the second RAF overriding the first's animation.
       requestAnimationFrame(() => {
-        if (localPlayerId && playerLayerRef.current && viewportRef.current) {
-          const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
-          if (pos) {
-            viewportRef.current.focusOnSelf(pos.x, pos.y);
-            initialFocusDoneRef.current = true;
-          }
-        }
-      });
-
-      // Deferred resize: wait for next frame so CSS layout fully settles after
-      // canvas element insertion.
-      requestAnimationFrame(() => {
+        // Step 1: Check if resize is needed (CSS layout may have shifted)
         const settledRect = container.getBoundingClientRect();
         if (settledRect.width > 0 && settledRect.height > 0 &&
             (Math.abs(settledRect.width - w) > 1 || Math.abs(settledRect.height - h) > 1)) {
           app.renderer.resize(settledRect.width, settledRect.height);
           stage.resize(settledRect.width, settledRect.height);
+          viewportRef.current?.updateBaseTransform();
+        }
+
+        // Step 2: Focus on local player (after resize is done)
+        // Use positionToWorldCoords for accurate target position from game state.
+        if (localPlayerId && viewportRef.current) {
+          const localPlayer = gameState.players.find(p => p.id === localPlayerId);
+          if (localPlayer) {
+            const worldPos = positionToWorldCoords(localPlayer.position);
+            viewportRef.current.focusOnSelf(worldPos.x, worldPos.y);
+            initialFocusDoneRef.current = true;
+          }
         }
       });
 
@@ -225,7 +245,7 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
         const prevPlayer = prevPlayers.find(p => p.id === player.id);
         if (!prevPlayer) continue;
 
-        const pos = playerLayerRef.current.getPlayerPosition(player.id);
+        const pos = playerLayerRef.current.getPlayerPositionCenterRelative(player.id);
         if (!pos) continue;
 
         // Money change
@@ -263,19 +283,38 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       }
     }
 
-    // Auto-focus on local player when it becomes their turn
-    if (prevStateRef.current &&
-        prevStateRef.current.currentPlayerIndex !== gameState.currentPlayerIndex &&
-        playerLayerRef.current && viewportRef.current && localPlayerId) {
+    // Auto-focus logic: use positionToWorldCoords (from gameState) instead of
+    // getPlayerPosition (piece visual position) so we focus on the DESTINATION,
+    // not where the piece currently is before animation.
+    if (prevStateRef.current && viewportRef.current) {
+      const prevState = prevStateRef.current;
+      const turnChanged = prevState.currentPlayerIndex !== gameState.currentPlayerIndex;
       const newCurrentPlayer = gameState.players[gameState.currentPlayerIndex];
-      if (newCurrentPlayer && newCurrentPlayer.id === localPlayerId) {
-        // It's now my turn — focusOnSelf with zoom reset
-        const pos = playerLayerRef.current.getPlayerPosition(localPlayerId);
-        if (pos) viewportRef.current.focusOnSelf(pos.x, pos.y);
-      } else if (newCurrentPlayer) {
-        // Someone else's turn — just pan to them without changing zoom
-        const pos = playerLayerRef.current.getPlayerPosition(newCurrentPlayer.id);
-        if (pos) viewportRef.current.focusOnPlayer(pos.x, pos.y);
+
+      if (turnChanged && newCurrentPlayer) {
+        const worldPos = positionToWorldCoords(newCurrentPlayer.position);
+        if (localPlayerId && newCurrentPlayer.id === localPlayerId) {
+          // It's now my turn — focusOnSelf with zoom reset
+          viewportRef.current.focusOnSelf(worldPos.x, worldPos.y);
+        } else {
+          // Someone else's turn — just pan to them without changing zoom
+          viewportRef.current.focusOnPlayer(worldPos.x, worldPos.y);
+        }
+      } else if (!turnChanged && newCurrentPlayer) {
+        // Same turn — check if the current player's position changed (they moved)
+        const prevPlayer = prevState.players.find(p => p.id === newCurrentPlayer.id);
+        if (prevPlayer) {
+          const posChanged =
+            prevPlayer.position.type !== newCurrentPlayer.position.type ||
+            prevPlayer.position.index !== newCurrentPlayer.position.index ||
+            (prevPlayer.position.type === 'line' && newCurrentPlayer.position.type === 'line' &&
+              prevPlayer.position.lineId !== newCurrentPlayer.position.lineId);
+          if (posChanged) {
+            // Follow the current player's piece to their new destination
+            const worldPos = positionToWorldCoords(newCurrentPlayer.position);
+            viewportRef.current.focusOnPlayer(worldPos.x, worldPos.y);
+          }
+        }
       }
     }
 
@@ -300,6 +339,8 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       if (rect.width <= 0 || rect.height <= 0) return;
       app.renderer.resize(rect.width, rect.height);
       stageRef.current?.resize(rect.width, rect.height);
+      // Update viewport base transform after resize changes mainContainer
+      viewportRef.current?.updateBaseTransform();
     };
 
     // Use ResizeObserver with debounce to detect container size changes

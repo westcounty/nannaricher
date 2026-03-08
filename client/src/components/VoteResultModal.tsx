@@ -31,6 +31,7 @@ export function VoteResultModal() {
       borderRadius: '12px',
       padding: '20px 24px',
       zIndex: 1100,
+      pointerEvents: 'none' as const,
       minWidth: '280px',
       maxWidth: '400px',
       color: '#fff',

@@ -36,6 +36,7 @@ export async function animatePieceMove(
     );
   }
 
+  console.log(`[PieceMoveAnim] path=${path.length} steps, stepDuration=${stepDuration}, piece at (${piece.x.toFixed(0)}, ${piece.y.toFixed(0)})`);
   for (let i = 0; i < path.length; i++) {
     const target = path[i];
     if (stepDuration <= 0) {

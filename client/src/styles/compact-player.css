@@ -1,9 +1,9 @@
-/* CompactPlayerCard - horizontal compact player display */
+/* CompactPlayerCard - two-row compact player display */
 
 .compact-player {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 10px;
   background: var(--color-bg-elevated);
   border-radius: 8px;
@@ -29,6 +29,13 @@
 
 .compact-player--hospital {
   border-left-color: #42A5F5;
+}
+
+/* Row 1: avatar + name + stats */
+.compact-player__row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .compact-player__avatar {
@@ -69,19 +76,9 @@
   text-overflow: ellipsis;
 }
 
-.compact-player__status-text {
-  font-size: 0.65rem;
-  color: var(--color-text-muted);
-}
-
-.compact-player__status-text--turn {
-  color: var(--color-accent);
-  font-weight: 500;
-}
-
 .compact-player__stats {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   font-size: 0.7rem;
   color: var(--color-text-secondary);
@@ -105,6 +102,15 @@
 
 .compact-player__stat-value--low {
   color: var(--color-danger);
+}
+
+/* Row 2: position + badges + plans */
+.compact-player__row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 36px; /* align with text after avatar */
+  flex-wrap: wrap;
 }
 
 .compact-player__badge {
@@ -131,7 +137,7 @@
 }
 
 .compact-player__effects {
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .compact-player__effect-count {
@@ -142,28 +148,6 @@
   color: #6495ed;
   white-space: nowrap;
   cursor: help;
-}
-
-/* Pulse animation for current turn */
-.compact-player--current-turn .compact-player__avatar {
-  animation: avatar-pulse 2s ease-in-out infinite;
-}
-
-@keyframes avatar-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.1);
-  }
-}
-
-.compact-player__plans {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 8px 4px;
-  border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 .compact-player__plan-tag {
@@ -178,4 +162,18 @@
 .compact-player__plan-tag--major {
   color: rgba(201, 162, 39, 0.85);
   background: rgba(201, 162, 39, 0.1);
+}
+
+/* Pulse animation for current turn */
+.compact-player--current-turn .compact-player__avatar {
+  animation: avatar-pulse 2s ease-in-out infinite;
+}
+
+@keyframes avatar-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.1);
+  }
 }

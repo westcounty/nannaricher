@@ -299,6 +299,33 @@ export class ViewportController {
     return this.scale;
   }
 
+  /**
+   * Update cached base transform after external resize changes the container.
+   * Preserves the current world-space focus point so the view doesn't jump.
+   */
+  updateBaseTransform(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasCenterX = rect.width / 2;
+    const canvasCenterY = rect.height / 2;
+
+    // Calculate the world point currently at screen center (using OLD base values)
+    const oldEffectiveScale = this.baseContainerScale * this.scale;
+    const worldFocusX = (canvasCenterX - this.panX - this.baseContainerX * this.scale) / oldEffectiveScale;
+    const worldFocusY = (canvasCenterY - this.panY - this.baseContainerY * this.scale) / oldEffectiveScale;
+
+    // Read new base values from the resized container
+    this.baseContainerX = this.container.x;
+    this.baseContainerY = this.container.y;
+    this.baseContainerScale = this.container.scale.x;
+
+    // Recalculate pan so the same world point stays at screen center
+    const newEffectiveScale = this.baseContainerScale * this.scale;
+    this.panX = canvasCenterX - this.baseContainerX * this.scale - worldFocusX * newEffectiveScale;
+    this.panY = canvasCenterY - this.baseContainerY * this.scale - worldFocusY * newEffectiveScale;
+
+    this.applyTransform();
+  }
+
   // ============================================
   // Event Handlers
   // ============================================
@@ -469,11 +496,16 @@ export class ViewportController {
 
   /** Apply current scale and pan offset to the PixiJS container. */
   private applyTransform(): void {
-    // Soft pan limits: prevent dragging the board entirely out of view
-    const maxPanX = (METRO_BOARD_WIDTH * this.baseContainerScale * this.scale) / 2;
-    const maxPanY = (METRO_BOARD_HEIGHT * this.baseContainerScale * this.scale) / 2;
-    this.panX = clamp(this.panX, -maxPanX, maxPanX);
-    this.panY = clamp(this.panY, -maxPanY, maxPanY);
+    // Soft pan limits: allow centering on any board position while preventing
+    // the board from being dragged completely off-screen.
+    // Use the full rendered board extent (not half) so edge positions can be centered.
+    const boardScreenW = METRO_BOARD_WIDTH * this.baseContainerScale * this.scale;
+    const boardScreenH = METRO_BOARD_HEIGHT * this.baseContainerScale * this.scale;
+    const rect = this.canvas.getBoundingClientRect();
+    const marginX = Math.max(rect.width * 0.8, boardScreenW);
+    const marginY = Math.max(rect.height * 0.8, boardScreenH);
+    this.panX = clamp(this.panX, -marginX, marginX);
+    this.panY = clamp(this.panY, -marginY, marginY);
 
     const effectiveScale = this.baseContainerScale * this.scale;
     this.container.scale.set(effectiveScale);

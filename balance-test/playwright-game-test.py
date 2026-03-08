@@ -1,14 +1,18 @@
 """
 Playwright E2E Test: Complete game simulation for 菜根人生 (Nannaricher)
-Simulates 2 players through a complete game until victory.
+Simulates 3 players through a complete game until victory.
 Takes screenshots at key milestones to verify UI quality.
 
 Updated for:
+- 3-player game support (configurable via NUM_PLAYERS)
 - New training plan system (no setup_plans, direct playing)
 - Parallel plan selection UI (.plan-selection-overlay)
 - EventModal uses .option-card (not .option-button)
 - Settlement screen with ready-up and restart buttons
 - Vote panel interactions
+- Chain action panel interactions
+- Card draw modal auto-dismiss
+- Stuck detection with screenshots
 """
 
 import time
@@ -17,7 +21,8 @@ from playwright.sync_api import sync_playwright, Page
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5173")
 SCREENSHOT_DIR = "balance-test/screenshots"
-MAX_GAME_SECONDS = 600  # 10 min max
+MAX_GAME_SECONDS = 2700  # 45 min max (server action timeouts can add up with more players)
+NUM_PLAYERS = int(os.environ.get("NUM_PLAYERS", "3"))  # 3-player game by default
 
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
@@ -66,6 +71,39 @@ def dismiss_overlays(page: Page) -> bool:
     except:
         pass
 
+    # Card draw modal — click to dismiss if revealed
+    try:
+        card_hint = page.locator(".card-draw-hint")
+        if card_hint.count() > 0 and card_hint.first.is_visible():
+            card_hint.first.click(force=True)
+            page.wait_for_timeout(400)
+            dismissed = True
+            print("    [Overlay] Dismissed card draw modal")
+    except:
+        pass
+
+    # Card draw overlay still showing (flipping phase) — wait
+    try:
+        card_overlay = page.locator(".card-draw-overlay")
+        if card_overlay.count() > 0 and card_overlay.first.is_visible():
+            page.wait_for_timeout(1500)
+            dismissed = True
+    except:
+        pass
+
+    # Epic event modal — read-only (other player's event) — wait for auto-dismiss
+    try:
+        epic = page.locator(".epic-overlay")
+        if epic.count() > 0 and epic.first.is_visible():
+            # Check if it's read-only (has readonly badge)
+            readonly_badge = epic.locator(".epic-card__readonly")
+            if readonly_badge.count() > 0 and readonly_badge.first.is_visible():
+                page.wait_for_timeout(2000)
+                dismissed = True
+                print("    [Overlay] Waiting for epic event read-only auto-dismiss")
+    except:
+        pass
+
     return dismissed
 
 
@@ -103,8 +141,8 @@ def get_visible_text(page: Page, selector: str) -> str:
 
 def bypass_auth(page: Page, player_name: str):
     """Inject mock auth tokens into localStorage to bypass login screen."""
-    page.goto(BASE_URL)
-    page.wait_for_load_state("networkidle")
+    page.goto(BASE_URL, timeout=60000)
+    page.wait_for_load_state("networkidle", timeout=60000)
     import json, base64, time as _time
     user_id = f"test-{int(_time.time() * 1000)}"
     mock_user = json.dumps({"userId": user_id, "username": player_name, "nickname": player_name})
@@ -224,86 +262,170 @@ def handle_plan_selection(page: Page, player_name: str) -> bool:
 
 
 def handle_action(page: Page, player_name: str) -> str:
-    """Try to handle one pending action. Returns action type or ''."""
+    """Try to handle one pending action. Returns action type or ''.
+
+    IMPORTANT: Game actions (dice, choices) must NOT use force=True so that
+    the test accurately reflects whether a real user could interact.
+    Only overlay/modal dismissal clicks may use force=True since those
+    target the topmost layer which may have animation timing issues.
+    """
 
     # Always try dismissing overlays first
     dismiss_overlays(page)
 
-    # 0. Parallel plan selection panel (highest priority)
+    # 0. Parallel plan selection panel (highest priority — it IS the topmost overlay)
     if handle_plan_selection(page, player_name):
         return "plan_selection"
 
+    # 0.5. Epic event modal (corner events: 起点/校医院/鼎/候车厅)
+    #    Uses .epic-option buttons instead of .option-card
+    epic = page.locator(".epic-overlay")
+    if epic.count() > 0 and epic.first.is_visible():
+        # Check for interactive options (not read-only)
+        epic_opts = epic.locator(".epic-option:not(.epic-option--selected)")
+        if epic_opts.count() > 0:
+            try:
+                epic_opts.first.click(timeout=3000, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "epic_option"
+            except:
+                pass
+        # Epic event without options — click confirm
+        epic_confirm = epic.locator(".epic-card__confirm")
+        if epic_confirm.count() > 0 and epic_confirm.first.is_visible():
+            try:
+                epic_confirm.first.click(timeout=3000, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "epic_confirm"
+            except:
+                pass
+
     # 1. Event modal with options (using .option-card selector)
+    #    Modal IS the topmost element, so clicking its children is valid.
     event = page.locator(".event-modal.has-options")
     if event.count() > 0 and event.first.is_visible():
         # Click first option card
         opts = event.locator(".option-card:not(.selected)")
         if opts.count() > 0:
-            opts.first.click(force=True)
-            page.wait_for_timeout(800)
+            opts.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
             return "event_option_card"
         # If no unselected cards, try confirm
         cfm = event.locator(".confirm-button")
         if cfm.count() > 0 and cfm.first.is_visible():
-            cfm.first.click(force=True)
-            page.wait_for_timeout(800)
+            cfm.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
             return "event_confirm"
 
     # 2. Event modal with tabbed options
     tabbed = page.locator(".options-tabbed")
     if tabbed.count() > 0 and tabbed.first.is_visible():
-        # Click first available tab content option
-        tab_opts = tabbed.locator(".option-card:not(.selected)")
+        tab_opts = tabbed.locator(".option-card:not(.selected):not([disabled])")
         if tab_opts.count() > 0:
-            tab_opts.first.click(force=True)
-            page.wait_for_timeout(800)
+            tab_opts.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
+            return "event_tabbed_option"
+        tab_btns = tabbed.locator(".option-button:not(.disabled):not([disabled])")
+        if tab_btns.count() > 0:
+            tab_btns.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
             return "event_tabbed_option"
 
-    # 3. Event modal without options — click confirm or overlay
+    # 3. Event modal without options — click confirm or overlay to dismiss
     event_ro = page.locator(".event-modal:not(.has-options):not(.read-only)")
     if event_ro.count() > 0 and event_ro.first.is_visible():
         cfm = event_ro.locator(".confirm-button")
         if cfm.count() > 0 and cfm.first.is_visible():
-            cfm.first.click(force=True)
-            page.wait_for_timeout(800)
+            cfm.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
             return "event_confirm"
-        overlay = page.locator(".event-modal-overlay:not(.read-only)")
+        # Click overlay edge to dismiss (force ok — clicking the overlay itself)
+        overlay = page.locator(".event-modal-overlay")
         if overlay.count() > 0:
             overlay.first.click(force=True, position={"x": 10, "y": 10})
-            page.wait_for_timeout(800)
+            page.wait_for_timeout(400)
             return "event_overlay_dismiss"
 
-    # 4. Vote panel (multi-vote)
+    # 4. Vote panel (multi-vote) — panel IS topmost
     vote = page.locator(".vote-panel__overlay")
     if vote.count() > 0 and vote.first.is_visible():
         opts = vote.locator(".vote-panel__option-btn:not(.vote-panel__option-btn--selected):not(.vote-panel__option-btn--dimmed):not([disabled])")
         if opts.count() > 0:
-            opts.first.click(force=True)
-            page.wait_for_timeout(800)
+            opts.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
             return "vote"
 
-    # 5. Dice button
-    dice_btn = page.locator(".action-bar__dice-btn")
-    if dice_btn.count() > 0 and dice_btn.first.is_visible():
-        txt = get_visible_text(page, ".action-bar__dice-btn")
-        if ("掷骰子" in txt or "投骰" in txt) and "等待" not in txt and "中..." not in txt:
-            dice_btn.first.click(force=True)
-            page.wait_for_timeout(2000)
-            return "roll_dice"
+    # 4.5. Chain action panel — panel IS topmost
+    chain = page.locator(".chain-action__overlay")
+    if chain.count() > 0 and chain.first.is_visible():
+        chain_btns = chain.locator(".chain-action__action-btn")
+        if chain_btns.count() > 0:
+            chain_btns.first.click(timeout=3000, no_wait_after=True)
+            page.wait_for_timeout(400)
+            return "chain_action"
 
-    # 6. Fallback: any .option-card visible (newer selector)
+    # 4.6. Choice dialog — dialog IS topmost
+    #    Clicks use no_wait_after=True because socket updates may remove the
+    #    element before Playwright's post-click navigation check completes.
+    choice = page.locator(".choice-dialog-overlay")
+    if choice.count() > 0 and choice.first.is_visible():
+        multi = choice.locator(".choice-dialog.multi-select")
+        if multi.count() > 0 and multi.first.is_visible():
+            unchecked = multi.locator(".option-button:not(.disabled):not(.selected)")
+            if unchecked.count() > 0:
+                unchecked.first.click(timeout=3000, no_wait_after=True)
+                page.wait_for_timeout(200)
+            confirm_btn = multi.locator(".confirm-button:not([disabled])")
+            if confirm_btn.count() > 0 and confirm_btn.first.is_visible():
+                confirm_btn.first.click(timeout=3000, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "multi_select_confirm"
+        else:
+            opts = choice.locator(".option-button:not(.disabled):not([disabled])")
+            if opts.count() > 0:
+                try:
+                    opts.first.click(timeout=3000, no_wait_after=True)
+                    page.wait_for_timeout(400)
+                    return "choice_dialog"
+                except:
+                    # Click intercepted by overlay (e.g. VoteResultModal) — retry next cycle
+                    pass
+
+    # 5. Dice button — NO force! If a modal covers it, the click should fail
+    #    just like it would for a real user.
+    for dice_sel in [".action-bar__dice-btn", ".mobile-bottom-nav__dice-btn"]:
+        dice_btn = page.locator(dice_sel)
+        if dice_btn.count() > 0 and dice_btn.first.is_visible():
+            is_disabled = dice_btn.first.is_disabled()
+            txt = get_visible_text(page, dice_sel)
+            if not is_disabled and ("掷骰子" in txt or "投骰" in txt) and "等待" not in txt and "中..." not in txt:
+                try:
+                    dice_btn.first.click(timeout=3000)
+                    page.wait_for_timeout(1500)
+                    return "roll_dice"
+                except:
+                    # Click failed — likely covered by an overlay
+                    pass
+
+    # 6. Fallback: any .option-card visible — no force
     any_card = page.locator(".option-card:visible")
     if any_card.count() > 0:
-        any_card.first.click(force=True)
-        page.wait_for_timeout(800)
-        return "generic_option_card"
+        try:
+            any_card.first.click(timeout=3000)
+            page.wait_for_timeout(400)
+            return "generic_option_card"
+        except:
+            pass
 
-    # 7. Legacy fallback: any .option-button (older components)
+    # 7. Legacy fallback: any .option-button — no force
     any_opt = page.locator(".option-button:visible")
     if any_opt.count() > 0:
-        any_opt.first.click(force=True)
-        page.wait_for_timeout(800)
-        return "generic_option"
+        try:
+            any_opt.first.click(timeout=3000)
+            page.wait_for_timeout(400)
+            return "generic_option"
+        except:
+            pass
 
     return ""
 
@@ -338,88 +460,110 @@ def handle_settlement(page: Page, player_name: str):
 
 def main():
     print("=" * 60)
-    print("  Nannaricher Playwright E2E Game Test")
+    print(f"  Nannaricher Playwright E2E Game Test ({NUM_PLAYERS} players)")
     print("=" * 60)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        ctx1 = browser.new_context(viewport={"width": 1280, "height": 900})
-        ctx2 = browser.new_context(viewport={"width": 1280, "height": 900})
-        page1 = ctx1.new_page()
-        page2 = ctx2.new_page()
-        page1.set_default_timeout(30000)
-        page2.set_default_timeout(30000)
 
-        names = ["Player1", "Player2"]
+        # Create contexts and pages for all players
+        contexts = []
+        pages = []
+        names = [f"Player{i+1}" for i in range(NUM_PLAYERS)]
+
+        for i in range(NUM_PLAYERS):
+            ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+            pg = ctx.new_page()
+            pg.set_default_timeout(60000)
+            contexts.append(ctx)
+            pages.append(pg)
 
         try:
             # Create & join room
-            print("\n[1] Creating room...")
-            code = create_room(page1, names[0])
+            print(f"\n[1] Creating room (host: {names[0]})...")
+            code = create_room(pages[0], names[0])
 
-            print("[2] Joining room...")
-            join_room(page2, code, names[1])
-            page1.wait_for_timeout(1500)
-            shot(page1, "both-ready")
+            print(f"[2] {NUM_PLAYERS - 1} players joining...")
+            for i in range(1, NUM_PLAYERS):
+                join_room(pages[i], code, names[i])
+                pages[0].wait_for_timeout(1000)
+            shot(pages[0], "all-ready")
 
             # Start game
             print("[3] Starting game...")
-            start_game(page1)
+            start_game(pages[0])
 
-            # Dismiss tutorials
-            page1.wait_for_timeout(2000)
-            dismiss_all_overlays(page1)
-            dismiss_all_overlays(page2)
+            # Dismiss tutorials on all pages
+            pages[0].wait_for_timeout(2000)
+            for i, pg in enumerate(pages):
+                dismiss_all_overlays(pg)
 
-            shot(page1, "game-start-p1")
-            shot(page2, "game-start-p2")
+            for i, pg in enumerate(pages):
+                shot(pg, f"game-start-p{i+1}")
 
             # Game loop
             print("[4] Playing game...")
             start_time = time.time()
             actions = 0
-            last_shot_action = -10
+            last_action_time = time.time()
+            STUCK_THRESHOLD = 90  # seconds with no action = stuck
 
             while time.time() - start_time < MAX_GAME_SECONDS:
-                # Check game over
-                for i, pg in enumerate([page1, page2]):
+                # Check game over on all pages
+                game_over = False
+                for i, pg in enumerate(pages):
                     if is_game_over(pg):
                         print(f"\n  GAME OVER detected on {names[i]}'s screen!")
-                        shot(page1, "game-over-p1")
-                        shot(page2, "game-over-p2")
+                        for j, pg2 in enumerate(pages):
+                            shot(pg2, f"game-over-p{j+1}")
                         print(f"  Total actions: {actions}")
                         print(f"  Duration: {time.time() - start_time:.0f}s")
-                        handle_settlement(page1, names[0])
-                        return
+                        handle_settlement(pages[0], names[0])
+                        game_over = True
+                        break
+                if game_over:
+                    return
 
-                # Try actions on BOTH players
+                # Try actions on ALL players
                 acted = False
-                for i, pg in enumerate([page1, page2]):
+                for i, pg in enumerate(pages):
                     action = handle_action(pg, names[i])
                     if action:
                         actions += 1
                         acted = True
-                        if actions % 5 == 0:
-                            elapsed = time.time() - start_time
-                            print(f"  [Action #{actions}] {names[i]}: {action} ({elapsed:.0f}s)")
-                        if actions - last_shot_action >= 15:
-                            last_shot_action = actions
-                            shot(pg, f"action-{actions:03d}")
+                        last_action_time = time.time()
+                        elapsed = time.time() - start_time
+                        print(f"  [Action #{actions}] {names[i]}: {action} ({elapsed:.0f}s)")
+                        shot(pg, f"action-{actions:03d}-{action}")
 
                 if not acted:
-                    page1.wait_for_timeout(500)
+                    pages[0].wait_for_timeout(500)
+                    idle_secs = time.time() - last_action_time
+                    # Stuck detection: screenshot every 90s of idle
+                    if idle_secs > STUCK_THRESHOLD and int(idle_secs) % STUCK_THRESHOLD < 1:
+                        elapsed = time.time() - start_time
+                        print(f"\n  [STUCK?] No actions for {idle_secs:.0f}s (total elapsed: {elapsed:.0f}s)")
+                        print(f"  Dumping screenshots to diagnose...")
+                        for i, pg in enumerate(pages):
+                            shot(pg, f"stuck-p{i+1}-{int(elapsed)}s")
+                        # After 3 stuck cycles (270s), consider it a real stuck
+                        if idle_secs > STUCK_THRESHOLD * 3:
+                            print(f"\n  [FATAL] Game appears stuck after {idle_secs:.0f}s idle. Aborting.")
+                            for i, pg in enumerate(pages):
+                                shot(pg, f"fatal-stuck-p{i+1}")
+                            raise Exception(f"Game stuck: no action possible for {idle_secs:.0f}s")
 
             print(f"\n  TIMEOUT after {MAX_GAME_SECONDS}s, {actions} actions taken")
-            shot(page1, "timeout-p1")
-            shot(page2, "timeout-p2")
+            for i, pg in enumerate(pages):
+                shot(pg, f"timeout-p{i+1}")
 
         except Exception as e:
             print(f"\n  ERROR: {e}")
-            try:
-                shot(page1, "error-p1")
-                shot(page2, "error-p2")
-            except:
-                pass
+            for i, pg in enumerate(pages):
+                try:
+                    shot(pg, f"error-p{i+1}")
+                except:
+                    pass
             raise
         finally:
             browser.close()

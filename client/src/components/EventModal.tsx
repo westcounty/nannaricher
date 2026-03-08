@@ -52,9 +52,10 @@ export function EventModal({
     ? gameState.players.find(p => p.id === actingPlayerId)?.name
     : undefined;
 
-  // Determine if this is read-only (event is for another player)
+  // Determine if this is read-only (event is for another player, or info-only with no action)
   const isReadOnly = pendingAction
     ? pendingAction.playerId !== playerId && pendingAction.playerId !== 'all'
+    : actingPlayerId ? actingPlayerId !== playerId
     : false;
 
   useEffect(() => {
@@ -71,18 +72,23 @@ export function EventModal({
     };
   }, []);
 
-  // Auto-dismiss read-only events after 4 seconds
+  // Info-only event: no pending action means nothing to interact with — auto-dismiss
+  const isInfoOnly = !pendingAction;
+
+  // Auto-dismiss read-only or info-only events
   useEffect(() => {
-    if (isReadOnly && !isClosing) {
+    if ((isReadOnly || isInfoOnly) && !isClosing) {
+      // Info-only events for the acting player get slightly longer to read
+      const delay = isInfoOnly && !isReadOnly ? 4000 : 5000;
       const timer = setTimeout(() => {
         setIsClosing(true);
         timerRefs.current.push(setTimeout(() => {
           clearEvent();
         }, 150));
-      }, 5000);
+      }, delay);
       timerRefs.current.push(timer);
     }
-  }, [isReadOnly, isClosing, clearEvent]);
+  }, [isReadOnly, isInfoOnly, isClosing, clearEvent]);
 
   const handleOptionSelect = useCallback((value: string) => {
     if (isClosing) return;
@@ -114,14 +120,13 @@ export function EventModal({
   }, [onConfirm, clearEvent]);
 
   const handleClose = useCallback(() => {
-    if (onClose) {
-      setIsClosing(true);
-      timerRefs.current.push(setTimeout(() => {
-        onClose();
-        clearEvent();
-      }, 150));
-    }
-  }, [onClose, clearEvent]);
+    if (isClosing) return;
+    setIsClosing(true);
+    timerRefs.current.push(setTimeout(() => {
+      onClose?.();
+      clearEvent();
+    }, 150));
+  }, [isClosing, onClose, clearEvent]);
 
   const formatEffect = (value: number | undefined, label: string, icon: string) => {
     if (value === undefined || value === 0) return null;
@@ -189,7 +194,7 @@ export function EventModal({
     <div
       className={`event-modal-overlay ${isClosing ? 'closing' : ''} ${isReadOnly ? 'read-only' : ''}`}
       style={{ opacity: isClosing ? 0 : opacity, pointerEvents: 'auto' }}
-      onClick={isReadOnly ? undefined : (hasOptions ? undefined : handleClose)}
+      onClick={hasOptions ? undefined : handleClose}
       onPointerDown={e => e.stopPropagation()}
     >
       <div

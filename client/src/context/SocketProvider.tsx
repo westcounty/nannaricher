@@ -161,6 +161,12 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
           pendingAction: newPa,
         });
       }
+      // Clear plan selection panel when pendingAction is no longer parallel_plan_selection
+      const currentEvent = store.getState().currentEvent;
+      if (currentEvent?.pendingAction?.type === ('parallel_plan_selection' as any)
+          && (!newPa || newPa.type !== ('parallel_plan_selection' as any))) {
+        store.getState().setCurrentEvent(null);
+      }
     };
 
     const handleRoomCreated = ({ roomId, playerId }: { roomId: string; playerId: string }) => {
@@ -269,12 +275,15 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Other players' non-epic events -> downgrade to toast with effect summary
+      // Other players' events -> downgrade to toast with effect summary
+      // For events without pendingAction (info-only like 鼎), always downgrade for others
       const localPlayerId = store.getState().playerId;
-      const isOtherPlayerEvent = data.pendingAction
-        && data.pendingAction.playerId !== localPlayerId
-        && data.pendingAction.playerId !== 'all';
-      if (isOtherPlayerEvent && effectiveSeverity !== 'epic') {
+      const isOtherPlayerEvent = data.playerId
+        ? data.playerId !== localPlayerId
+        : data.pendingAction
+          ? data.pendingAction.playerId !== localPlayerId && data.pendingAction.playerId !== 'all'
+          : false;
+      if (isOtherPlayerEvent && (!data.pendingAction || effectiveSeverity !== 'epic')) {
         // Build compact effect summary
         const effectParts: string[] = [];
         if (data.effects) {

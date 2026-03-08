@@ -70,7 +70,7 @@ export function Lobby() {
         isHost: prev.playerId === gameState.players[0]?.id,
       }));
     }
-  }, [gameState?.players]);
+  }, [gameState?.players, state.mode]);
 
   useEffect(() => {
     if (!socket) return;
@@ -99,25 +99,27 @@ export function Lobby() {
   };
 
   const handleRoomCreated = (roomId: string, playerId: string, playerName: string) => {
-    setState({
+    setState((prev) => ({
+      ...prev,
       mode: 'waiting',
       roomId,
       playerId,
       playerName,
       isHost: true,
-      players: [],
-    });
+      // Don't reset players — game:state-update may have already delivered them
+    }));
   };
 
   const handleRoomJoined = (roomId: string, playerId: string, playerName: string) => {
-    setState({
+    setState((prev) => ({
+      ...prev,
       mode: 'waiting',
       roomId,
       playerId,
       playerName,
       isHost: false,
-      players: [],
-    });
+      // Don't reset players — game:state-update may have already delivered them
+    }));
   };
 
   const handleGameStart = () => {

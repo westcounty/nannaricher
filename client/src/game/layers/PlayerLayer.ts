@@ -37,11 +37,11 @@ interface PlayerPiece {
 function getStackOffset(stackIndex: number, stackTotal: number): { x: number; y: number } {
   if (stackTotal <= 1) return { x: 0, y: 0 };
   if (stackTotal === 2) {
-    const dx = stackIndex === 0 ? -10 : 10;
+    const dx = stackIndex === 0 ? -14 : 14;
     return { x: dx, y: 0 };
   }
   // 3+ players: circular arrangement
-  const radius = stackTotal <= 4 ? 24 : 28;
+  const radius = stackTotal <= 4 ? 30 : 36;
   const angle = (2 * Math.PI * stackIndex) / stackTotal - Math.PI / 2;
   return {
     x: Math.cos(angle) * radius,
@@ -60,6 +60,7 @@ function positionKey(pos: Position): string {
 export class PlayerLayer implements RenderLayer {
   private layerContainer: Container | null = null;
   private playerPieces: Map<string, PlayerPiece> = new Map();
+  private animatingPieces: Set<string> = new Set(); // pieces currently in move animation
   private tweenEngine: TweenEngine | null = null;
   private effectLayer: Container | null = null;
   private ticker: Ticker | null = null;
@@ -102,6 +103,7 @@ export class PlayerLayer implements RenderLayer {
     // Step 1: Build cell occupancy map to know how many players are at each cell
     const cellOccupancy = new Map<string, string[]>(); // posKey -> [playerId, ...]
     state.players.forEach((player) => {
+      if (player.isBankrupt) return; // bankrupt players don't occupy cells
       const key = positionKey(player.position);
       if (!cellOccupancy.has(key)) cellOccupancy.set(key, []);
       cellOccupancy.get(key)!.push(player.id);
@@ -111,6 +113,14 @@ export class PlayerLayer implements RenderLayer {
     state.players.forEach((player, idx) => {
       seenPlayerIds.add(player.id);
       const isCurrent = player.id === currentPlayerId;
+
+      // Hide bankrupt players — remove their piece from the board
+      if (player.isBankrupt) {
+        if (this.playerPieces.has(player.id)) {
+          this.removePiece(player.id);
+        }
+        return; // skip creating/updating piece for bankrupt players
+      }
 
       // Compute stack index/total for this player's current cell
       const key = positionKey(player.position);
@@ -126,43 +136,80 @@ export class PlayerLayer implements RenderLayer {
         const highlightChanged = existing.lastIsCurrent !== isCurrent;
 
         if (posChanged) {
+          const oldPosition = { ...existing.lastPosition } as Position;
+          const targetCenter = this.calculatePosition(player);
+          const offset = getStackOffset(stackIndex, stackTotal);
+          const targetX = targetCenter.x + offset.x;
+          const targetY = targetCenter.y + offset.y + (targetCenter.inLine ? 8 : 0);
+
+          // Update tracked state immediately (prevents re-triggering on next update)
+          existing.lastPosition = { ...player.position } as Position;
+          existing.lastIsCurrent = isCurrent;
+
+          // Cancel any in-flight animation on this piece
+          if (this.tweenEngine) {
+            this.tweenEngine.cancelTarget(existing.container as unknown as Record<string, unknown>);
+            this.tweenEngine.cancelTarget(existing.container.scale as unknown as Record<string, unknown>);
+          }
+          this.animatingPieces.delete(player.id);
+
+          // Attempt animated path move
           if (this.tweenEngine && this.effectLayer) {
-            // Build step-by-step movement path
-            const path = this.buildMovePath(existing.lastPosition, player.position);
-            const offset = getStackOffset(stackIndex, stackTotal);
+            const rawPath = this.buildMovePath(oldPosition, player.position);
+            if (rawPath.length > 0) {
+              // Add stack offset to the final waypoint only
+              const animPath = rawPath.map((p, i) =>
+                i === rawPath.length - 1
+                  ? { x: p.x + offset.x, y: p.y + offset.y + (targetCenter.inLine ? 8 : 0) }
+                  : { x: p.x, y: p.y }
+              );
 
-            // Animate along path, then settle at stack offset position
-            const tweenEngine = this.tweenEngine;
-            const effectLayer = this.effectLayer;
-            const animatedContainer = existing.container;
-            animatePieceMove(animatedContainer, path, tweenEngine, effectLayer).then(() => {
-              // Guard: check piece still exists and wasn't replaced during animation
-              const current = this.playerPieces.get(player.id);
-              if (!current || current.container !== animatedContainer) return;
-              const finalCenter = this.calculatePosition(player);
-              current.container.x = finalCenter.x + offset.x;
-              current.container.y = finalCenter.y + offset.y;
+              const pieceRef = existing;
+              const playerId = player.id;
+              const pos = player.position;
+              this.animatingPieces.add(playerId);
 
-              // Play landing celebration on special stations
-              this.tryPlayLandingEffect(player.position, finalCenter, effectLayer, tweenEngine);
-            });
-            existing.lastPosition = { ...player.position } as Position;
+              animatePieceMove(existing.container, animPath, this.tweenEngine, this.effectLayer)
+                .finally(() => {
+                  this.animatingPieces.delete(playerId);
+                  // Guarantee final position if this piece wasn't replaced
+                  const current = this.playerPieces.get(playerId);
+                  if (current === pieceRef) {
+                    pieceRef.container.x = targetX;
+                    pieceRef.container.y = targetY;
+                  }
+                });
+
+              // Play landing effect after animation (at destination)
+              this.tryPlayLandingEffect(pos, targetCenter, this.effectLayer, this.tweenEngine);
+            } else {
+              // Empty path fallback — snap
+              existing.container.x = targetX;
+              existing.container.y = targetY;
+            }
           } else {
-            // Fallback: instant reposition
-            this.removePiece(player.id);
-            this.createPiece(player, idx, isCurrent, stackIndex, stackTotal);
+            // No animation deps — instant snap
+            existing.container.x = targetX;
+            existing.container.y = targetY;
           }
         } else if (highlightChanged) {
+          // Cancel animation before rebuild
+          if (this.tweenEngine) {
+            this.tweenEngine.cancelTarget(existing.container as unknown as Record<string, unknown>);
+            this.tweenEngine.cancelTarget(existing.container.scale as unknown as Record<string, unknown>);
+          }
+          this.animatingPieces.delete(player.id);
           // Highlight change only — rebuild piece visuals
           this.removePiece(player.id);
           this.createPiece(player, idx, isCurrent, stackIndex, stackTotal);
         } else {
-          // No position or highlight change, but stack layout may have changed
-          // (another player joined/left this cell). Update offset.
-          const center = this.calculatePosition(player);
-          const offset = getStackOffset(stackIndex, stackTotal);
-          existing.container.x = center.x + offset.x;
-          existing.container.y = center.y + offset.y;
+          // No position or highlight change — update stack offset unless animating
+          if (!this.animatingPieces.has(player.id)) {
+            const center = this.calculatePosition(player);
+            const offset = getStackOffset(stackIndex, stackTotal);
+            existing.container.x = center.x + offset.x;
+            existing.container.y = center.y + offset.y;
+          }
         }
       } else {
         // New player — create piece
@@ -179,9 +226,23 @@ export class PlayerLayer implements RenderLayer {
   }
 
   /**
-   * Get the current screen position of a player's piece.
+   * Get the position of a player's piece in mainContainer-local coordinates.
+   * (Adds the board-center offset so callers like ViewportController get correct world coords.)
    */
   getPlayerPosition(playerId: string): { x: number; y: number } | null {
+    const piece = this.playerPieces.get(playerId);
+    if (!piece) return null;
+    return {
+      x: piece.container.x + METRO_BOARD_WIDTH / 2,
+      y: piece.container.y + METRO_BOARD_HEIGHT / 2,
+    };
+  }
+
+  /**
+   * Get the position of a player's piece in center-relative coordinates.
+   * (For use with worldEffectLayer which is already offset to board center.)
+   */
+  getPlayerPositionCenterRelative(playerId: string): { x: number; y: number } | null {
     const piece = this.playerPieces.get(playerId);
     if (!piece) return null;
     return { x: piece.container.x, y: piece.container.y };
@@ -319,11 +380,8 @@ export class PlayerLayer implements RenderLayer {
     group.x = posX + offset.x;
     group.y = posY + offset.y;
 
-    // Shrink pieces on branch lines to avoid obscuring station names
-    const pieceRadius = inLine ? 11 : 16;
-    const shadowRx = inLine ? 13 : 18;
-    const shadowRy = inLine ? 6 : 8;
-    const shadowOffY = inLine ? 14 : 20;
+    const pieceRadius = inLine ? 14 : 20;
+    const shadowOffY = inLine ? 16 : 24;
     if (inLine) {
       group.y += 8; // shift down to avoid overlapping station label
     }
@@ -331,29 +389,31 @@ export class PlayerLayer implements RenderLayer {
     // Piece graphic
     const piece = new Graphics();
 
-    // Shadow
-    piece.ellipse(0, shadowOffY, shadowRx, shadowRy);
-    piece.fill({ color: 0x333333, alpha: 0.2 });
+    // Drop shadow
+    piece.ellipse(0, shadowOffY, pieceRadius + 3, pieceRadius * 0.35);
+    piece.fill({ color: 0x000000, alpha: 0.3 });
 
-    // Body
+    // Main body
     piece.circle(0, 0, pieceRadius);
     piece.fill({ color });
 
-    // Highlight
-    const hlOff = inLine ? 3 : 5;
-    piece.circle(-hlOff, -hlOff, hlOff);
-    piece.fill({ color: 0xffffff, alpha: 0.4 });
+    // Single white stroke border (clean contrast against any background)
+    piece.circle(0, 0, pieceRadius);
+    piece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
 
-    // Current player ring
+    // Inner lighter circle for depth
+    piece.circle(0, -2, pieceRadius * 0.6);
+    piece.fill({ color: 0xffffff, alpha: 0.18 });
+
+    // Specular highlight
+    const hlOff = inLine ? 4 : 5;
+    piece.circle(-hlOff, -hlOff, hlOff * 0.7);
+    piece.fill({ color: 0xffffff, alpha: 0.45 });
+
+    // Current player golden ring
     if (isCurrent) {
-      piece.circle(0, 0, pieceRadius + 4);
-      piece.stroke({ width: inLine ? 2 : 3, color: 0xC9A227 });
-    }
-
-    // In-line indicator
-    if (inLine) {
-      piece.circle(0, 0, pieceRadius + 2);
-      piece.stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
+      piece.circle(0, 0, pieceRadius + 5);
+      piece.stroke({ width: 3, color: 0xFFD700 });
     }
 
     group.addChild(piece);
@@ -362,28 +422,45 @@ export class PlayerLayer implements RenderLayer {
     let pulseGlow: Graphics | undefined;
     if (isCurrent) {
       pulseGlow = new Graphics();
-      // Outer soft glow
-      pulseGlow.circle(0, 0, pieceRadius + 16);
-      pulseGlow.fill({ color: 0xC9A227, alpha: 0.1 });
-      // Inner bright ring
-      pulseGlow.circle(0, 0, pieceRadius + 10);
-      pulseGlow.stroke({ width: inLine ? 3 : 4, color: 0xC9A227, alpha: 0.9 });
-      pulseGlow.alpha = 0.4;
+      // Large outer glow
+      pulseGlow.circle(0, 0, pieceRadius + 22);
+      pulseGlow.fill({ color: 0xFFD700, alpha: 0.12 });
+      // Bright inner ring
+      pulseGlow.circle(0, 0, pieceRadius + 14);
+      pulseGlow.stroke({ width: 4, color: 0xFFD700, alpha: 0.9 });
+      pulseGlow.alpha = 0.5;
       // Insert behind the piece for glow effect
       group.addChildAt(pulseGlow, 0);
     }
 
-    // Name label (white for dark background)
+    // Name label with dark background pill for readability
+    const maxChars = inLine ? 4 : 6;
+    const labelText = player.name.length > maxChars ? player.name.slice(0, maxChars - 1) + '…' : player.name;
     const nameText = new Text({
-      text: player.name.slice(0, 2),
+      text: labelText,
       style: new TextStyle({
-        fontSize: 12,
+        fontSize: 13,
         fill: 0xffffff,
         fontWeight: 'bold',
+        letterSpacing: 0.5,
       }),
     });
     nameText.anchor.set(0.5);
-    nameText.y = -26;
+
+    // Background pill behind name
+    const labelY = -(pieceRadius + 14);
+    const pillPadX = 6;
+    const pillPadY = 2;
+    const pillW = nameText.width + pillPadX * 2;
+    const pillH = nameText.height + pillPadY * 2;
+    const labelBg = new Graphics();
+    labelBg.roundRect(-pillW / 2, labelY - pillH / 2, pillW, pillH, 6);
+    labelBg.fill({ color: 0x000000, alpha: 0.7 });
+    labelBg.roundRect(-pillW / 2, labelY - pillH / 2, pillW, pillH, 6);
+    labelBg.stroke({ width: 1, color, alpha: 0.8 });
+    group.addChild(labelBg);
+
+    nameText.y = labelY;
     group.addChild(nameText);
 
     this.layerContainer.addChild(group);
