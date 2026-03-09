@@ -10,7 +10,7 @@ import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3.0;
-const DEFAULT_ZOOM = 2.2;
+const DEFAULT_ZOOM = 2.8;
 const ZOOM_STEP = 0.1;
 const PAN_ANIMATE_DURATION = 400; // ms
 const DOUBLE_CLICK_THRESHOLD = 300; // ms
