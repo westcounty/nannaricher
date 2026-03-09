@@ -87,7 +87,7 @@ export async function animatePieceMove(
   if (path.length > 0) {
     playSound('piece_land');
     // Pause at destination so the player can see where the piece landed
-    await new Promise(resolve => setTimeout(resolve, AnimationConfig.scaleDuration(400)));
+    await new Promise(resolve => setTimeout(resolve, AnimationConfig.scaleDuration(1000)));
   }
 }
 
