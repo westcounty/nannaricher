@@ -214,8 +214,15 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleCardDrawn = (data: { card: any; deckType: string; playerId?: string; addedToHand?: boolean }) => {
-      playSound('card_draw');
-      store.getState().setDrawnCard(data);
+      const show = () => {
+        playSound('card_draw');
+        store.getState().setDrawnCard(data);
+      };
+      if (AnimationGate.isAnimating) {
+        AnimationGate.waitForIdle().then(show);
+      } else {
+        show();
+      }
     };
 
     const handleDiceResult = (data: { playerId: string; values: number[]; total: number; isEventDice?: boolean }) => {
