@@ -15,6 +15,7 @@ import { PlayerLayer } from './layers/PlayerLayer';
 import { TweenEngine } from './animations/TweenEngine';
 import { ViewportController } from './interaction/ViewportController';
 import { showFloatingText } from './animations/FloatingText';
+import { AnimationGate } from './AnimationGate';
 import { playSound } from '../audio/AudioManager';
 import {
   METRO_BOARD_WIDTH,
@@ -238,49 +239,50 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
 
   // Push state updates to the stage, with floating text for stat changes
   useEffect(() => {
-    // Detect stat changes and show floating text
+    // Collect stat changes to show as floating text
+    const statChanges: Array<{ playerId: string; stat: string; delta: number; text: string; color: string; yOffset: number }> = [];
     if (prevStateRef.current && worldEffectLayerRef.current && playerLayerRef.current) {
       const prevPlayers = prevStateRef.current.players;
       for (const player of gameState.players) {
         const prevPlayer = prevPlayers.find(p => p.id === player.id);
         if (!prevPlayer) continue;
 
-        const pos = playerLayerRef.current.getPlayerPositionCenterRelative(player.id);
-        if (!pos) continue;
-
-        // Money change
         if (player.money !== prevPlayer.money) {
           const delta = player.money - prevPlayer.money;
-          const text = delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`;
-          const color = delta > 0 ? '#4ade80' : '#ef4444';
-          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 30, text, color, tweenRef.current ?? undefined);
-          if (player.id === currentPlayerId) {
-            playSound(delta > 0 ? 'coin_gain' : 'coin_loss');
-          }
+          statChanges.push({ playerId: player.id, stat: 'money', delta, text: delta > 0 ? `+$${delta}` : `-$${Math.abs(delta)}`, color: delta > 0 ? '#4ade80' : '#ef4444', yOffset: -30 });
         }
-
-        // GPA change
         if (player.gpa !== prevPlayer.gpa) {
           const delta = player.gpa - prevPlayer.gpa;
-          const text = `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`;
-          const color = '#60a5fa';
-          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 50, text, color, tweenRef.current ?? undefined);
-          if (player.id === currentPlayerId) {
-            playSound(delta > 0 ? 'gpa_up' : 'gpa_down');
-          }
+          statChanges.push({ playerId: player.id, stat: 'gpa', delta, text: `GPA ${delta > 0 ? '+' : ''}${delta.toFixed(1)}`, color: '#60a5fa', yOffset: -50 });
         }
-
-        // Exploration change
         if (player.exploration !== prevPlayer.exploration) {
           const delta = player.exploration - prevPlayer.exploration;
-          const text = `探索 ${delta > 0 ? '+' : ''}${delta}`;
-          const color = '#fbbf24';
-          showFloatingText(worldEffectLayerRef.current!, pos.x, pos.y - 70, text, color, tweenRef.current ?? undefined);
-          if (player.id === currentPlayerId) {
-            playSound('explore_up');
-          }
+          statChanges.push({ playerId: player.id, stat: 'exploration', delta, text: `探索 ${delta > 0 ? '+' : ''}${delta}`, color: '#fbbf24', yOffset: -70 });
         }
       }
+    }
+
+    // Show floating text: if animations are running, wait for them to finish
+    if (statChanges.length > 0) {
+      const showStats = () => {
+        const effectLayer = worldEffectLayerRef.current;
+        const pLayer = playerLayerRef.current;
+        if (!effectLayer || !pLayer) return;
+        for (const sc of statChanges) {
+          const pos = pLayer.getPlayerPositionCenterRelative(sc.playerId);
+          if (!pos) continue;
+          showFloatingText(effectLayer, pos.x, pos.y + sc.yOffset, sc.text, sc.color, tweenRef.current ?? undefined);
+          if (sc.playerId === currentPlayerId) {
+            if (sc.stat === 'money') playSound(sc.delta > 0 ? 'coin_gain' : 'coin_loss');
+            else if (sc.stat === 'gpa') playSound(sc.delta > 0 ? 'gpa_up' : 'gpa_down');
+            else if (sc.stat === 'exploration') playSound('explore_up');
+          }
+        }
+      };
+      // Defer: yield a frame for PlayerLayer to start animations, then wait
+      requestAnimationFrame(() => {
+        AnimationGate.waitForIdle().then(showStats);
+      });
     }
 
     // Auto-focus logic: use positionToWorldCoords (from gameState) instead of

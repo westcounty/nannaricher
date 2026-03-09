@@ -339,23 +339,35 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
-      // Send to notification feed (stacked, independent timers)
-      store.getState().addNotification(data.message, data.type);
-      // Play sound based on announcement type
-      if (data.type === 'success') playSound('event_positive');
-      else if (data.type === 'warning') playSound('event_negative');
+      // Wait for piece animations to finish before showing announcement
+      const show = () => {
+        store.getState().addNotification(data.message, data.type);
+        if (data.type === 'success') playSound('event_positive');
+        else if (data.type === 'warning') playSound('event_negative');
+      };
+      if (AnimationGate.isAnimating) {
+        AnimationGate.waitForIdle().then(show);
+      } else {
+        show();
+      }
     };
 
     const handlePlayerWon = (data: { playerId: string; playerName: string; condition: string }) => {
-      store.getState().setWinner(data);
-      playSound('victory');
-      // Fanfare follows after a brief delay
-      setTimeout(() => playSound('victory_fanfare'), 300);
-      // Clear session — game is over
-      sessionStorage.removeItem('nannaricher_roomId');
-      sessionStorage.removeItem('nannaricher_playerId');
-      localStorage.removeItem('nannaricher_roomId');
-      localStorage.removeItem('nannaricher_playerId');
+      const show = () => {
+        store.getState().setWinner(data);
+        playSound('victory');
+        setTimeout(() => playSound('victory_fanfare'), 300);
+        sessionStorage.removeItem('nannaricher_roomId');
+        sessionStorage.removeItem('nannaricher_playerId');
+        localStorage.removeItem('nannaricher_roomId');
+        localStorage.removeItem('nannaricher_playerId');
+      };
+      // Wait for piece animations to finish before showing victory screen
+      if (AnimationGate.isAnimating) {
+        AnimationGate.waitForIdle().then(show);
+      } else {
+        show();
+      }
     };
 
     const handleVoteResult = (data: { cardId: string; results: Record<string, string[]>; winnerOption: string }) => {
