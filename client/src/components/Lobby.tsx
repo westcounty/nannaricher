@@ -48,29 +48,42 @@ export function Lobby() {
     players: [],
   });
 
-  // Sync with context when we get room info
+  // Sync with context when we get room info (including reconnection)
   useEffect(() => {
     if (contextRoomId && contextPlayerId && state.mode !== 'waiting') {
+      // Recover playerName from gameState players list during reconnection
+      const currentPlayer = gameState?.players?.find((p) => p.id === contextPlayerId);
+      const recoveredName = currentPlayer?.name || getDisplayName();
       setState((prev) => ({
         ...prev,
         mode: 'waiting',
         roomId: contextRoomId,
         playerId: contextPlayerId,
+        playerName: recoveredName,
       }));
     }
-  }, [contextRoomId, contextPlayerId, state.mode]);
+  }, [contextRoomId, contextPlayerId, state.mode, gameState?.players, getDisplayName]);
 
   // Update players list from game state
   useEffect(() => {
     if (gameState?.players) {
-      setState((prev) => ({
-        ...prev,
-        players: gameState.players,
-        // First player in the list is the host
-        isHost: prev.playerId === gameState.players[0]?.id,
-      }));
+      setState((prev) => {
+        // Recover playerName if it was missing (e.g. reconnection race condition)
+        let playerName = prev.playerName;
+        if (!playerName && prev.playerId) {
+          const me = gameState.players.find((p) => p.id === prev.playerId);
+          playerName = me?.name || getDisplayName();
+        }
+        return {
+          ...prev,
+          players: gameState.players,
+          playerName,
+          // First player in the list is the host
+          isHost: prev.playerId === gameState.players[0]?.id,
+        };
+      });
     }
-  }, [gameState?.players, state.mode]);
+  }, [gameState?.players, state.mode, getDisplayName]);
 
   useEffect(() => {
     if (!socket) return;

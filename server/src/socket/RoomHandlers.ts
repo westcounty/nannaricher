@@ -342,6 +342,7 @@ export function registerRoomHandlers(
     socket.emit('room:joined', {
       playerId: data.playerId,
       roomId: data.roomId,
+      playerName: player.name,
       reconnected: true,
     });
     console.log(`${player.name} reconnected to room ${data.roomId}`);

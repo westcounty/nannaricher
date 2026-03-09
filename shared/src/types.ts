@@ -208,7 +208,7 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   'room:created': (data: { roomId: string; playerId: string }) => void;
-  'room:joined': (data: { playerId: string; roomId: string; reconnected?: boolean }) => void;
+  'room:joined': (data: { playerId: string; roomId: string; playerName?: string; reconnected?: boolean }) => void;
   'room:player-joined': (data: { playerName: string }) => void;
   'room:error': (data: { message: string }) => void;
   'game:state-update': (state: GameState) => void;
