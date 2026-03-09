@@ -20,6 +20,7 @@ const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x0
 import type { TweenEngine } from '../animations/TweenEngine';
 import { animatePieceMove } from '../animations/PieceMoveAnim';
 import { playLandingEffect } from '../animations/LandingEffects';
+import { AnimationGate } from '../AnimationGate';
 import { MAIN_BOARD_CELLS, CORNER_INDICES } from '@nannaricher/shared';
 
 // Internal representation of a rendered player piece
@@ -168,10 +169,12 @@ export class PlayerLayer implements RenderLayer {
               const playerId = player.id;
               const pos = player.position;
               this.animatingPieces.add(playerId);
+              AnimationGate.start();
 
               animatePieceMove(existing.container, animPath, this.tweenEngine, this.effectLayer)
                 .finally(() => {
                   this.animatingPieces.delete(playerId);
+                  AnimationGate.end();
                   // Guarantee final position if this piece wasn't replaced
                   const current = this.playerPieces.get(playerId);
                   if (current === pieceRef) {

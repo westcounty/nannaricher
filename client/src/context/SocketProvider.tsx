@@ -7,10 +7,10 @@ import { useSocket } from './SocketContext';
 import { useGameStore } from '../stores/gameStore';
 import type { GameState, PendingAction } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
+import { AnimationGate } from '../game/AnimationGate';
 
 let _lastEventKey = '';
 let _lastEventTime = 0;
-let _lastDiceTime = 0;
 
 /**
  * Compare previous and new game state and play appropriate sounds.
@@ -227,7 +227,6 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       if (isMovementDice) {
         // Normal movement dice — show DiceRoller overlay
         store.getState().setDiceResult(data);
-        _lastDiceTime = Date.now();
         playSound('dice_land');
       } else {
         // Event dice (card effects, vote results, etc.) — show EventDiceOverlay
@@ -277,13 +276,25 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return isMinor ? 'minor' as const : 'normal' as const;
       })();
 
+      // Helper: wait for piece animations to finish before showing any UI.
+      // Uses requestAnimationFrame to let PlayerLayer.update() start animations
+      // from the React useEffect triggered by the same state-update batch.
+      const afterAnimations = async (): Promise<void> => {
+        // Yield two frames so the React effect that calls PlayerLayer.update()
+        // has a chance to run and register animations with AnimationGate.
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        await AnimationGate.waitForIdle();
+      };
+
       // Minor non-interactive events -> notification toast instead of modal
       if (effectiveSeverity === 'minor' && !data.pendingAction) {
-        store.getState().addNotification(
-          `${data.title}: ${data.description}`,
-          'info',
-        );
-        playSound('event_trigger');
+        afterAnimations().then(() => {
+          store.getState().addNotification(
+            `${data.title}: ${data.description}`,
+            'info',
+          );
+          playSound('event_trigger');
+        });
         return;
       }
 
@@ -304,15 +315,17 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
           if (data.effects.exploration) effectParts.push(`\uD83D\uDDFA\uFE0F${data.effects.exploration > 0 ? '+' : ''}${data.effects.exploration}`);
         }
         const suffix = effectParts.length > 0 ? ` (${effectParts.join(' ')})` : '';
-        store.getState().addNotification(
-          `${data.title}: ${data.description}${suffix}`,
-          'info',
-        );
-        playSound('event_trigger');
+        afterAnimations().then(() => {
+          store.getState().addNotification(
+            `${data.title}: ${data.description}${suffix}`,
+            'info',
+          );
+          playSound('event_trigger');
+        });
         return;
       }
 
-      const showEvent = () => {
+      afterAnimations().then(() => {
         store.getState().setCurrentEvent({
           title: data.title,
           description: data.description,
@@ -322,14 +335,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
           severity: effectiveSeverity,
         });
         playSound('event_trigger');
-      };
-
-      const elapsed = Date.now() - _lastDiceTime;
-      if (elapsed < 800 && _lastDiceTime > 0) {
-        setTimeout(showEvent, 800 - elapsed);
-      } else {
-        showEvent();
-      }
+      });
     };
 
     const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
