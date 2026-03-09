@@ -66,6 +66,7 @@ export class GameCoordinator {
   private negateWindow: NegateWindow | null = null;
   private planResolutionQueue: { playerId: string; response: string }[] | null = null;
   private _wonEmitted = false;
+  private _winCondition = '';
   private botManager: BotManager = new BotManager();
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
@@ -237,7 +238,7 @@ export class GameCoordinator {
         this.io.to(this.roomId).emit('game:player-won', {
           playerId: state.winner,
           playerName: winner?.name || 'Unknown',
-          condition: '胜利条件达成',
+          condition: this._winCondition || '胜利条件达成',
         });
         this.saveGameSummary();
         this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
@@ -258,7 +259,7 @@ export class GameCoordinator {
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: state.winner,
         playerName: winner?.name || 'Unknown',
-        condition: '胜利条件达成',
+        condition: this._winCondition || '胜利条件达成',
       });
       this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
@@ -1869,10 +1870,12 @@ export class GameCoordinator {
       this.logger.log({ turn: state.turnNumber, playerId: finalWinnerId, type: 'phase_change', message: `Game won: ${finalCondition}`, data: { winnerId: finalWinnerId, condition: finalCondition } });
       this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
+      this._wonEmitted = true;
+      this._winCondition = finalCondition || 'Unknown condition';
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: finalWinnerId,
         playerName: winner?.name || 'Unknown',
-        condition: finalCondition || 'Unknown condition',
+        condition: this._winCondition,
       });
       this.onFinishedCallback?.();
       this.broadcastState();
@@ -1893,6 +1896,8 @@ export class GameCoordinator {
     const winnerId = state.winner;
     const winner = state.players.find(p => p.id === winnerId);
     if (winnerId && winner) {
+      this._wonEmitted = true;
+      this._winCondition = '毕业结算';
       this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game force-ended: 毕业结算`, data: { winnerId, condition: '毕业结算' } });
       this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
@@ -4220,10 +4225,12 @@ export class GameCoordinator {
       this.logger.log({ turn: state.turnNumber, playerId: winnerId, type: 'phase_change', message: `Game won via plan: ${condition}`, data: { winnerId, condition } });
       this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
+      this._wonEmitted = true;
+      this._winCondition = condition || 'Unknown condition';
       this.io.to(this.roomId).emit('game:player-won', {
         playerId: winnerId,
         playerName: winner?.name || 'Unknown',
-        condition: condition || 'Unknown condition',
+        condition: this._winCondition,
       });
       this.onFinishedCallback?.();
     }

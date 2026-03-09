@@ -12,12 +12,12 @@ export async function animatePieceMove(
   tweenEngine: TweenEngine,
   effectLayer: Container,
 ): Promise<void> {
-  const baseStep = 350;
+  const baseStep = 450;
   // Progressive acceleration: longer paths move faster per step
   const stepDuration = AnimationConfig.scaleDuration(
     path.length <= 4 ? baseStep :
-    path.length <= 8 ? baseStep * 0.7 :
-    baseStep * 0.5
+    path.length <= 8 ? baseStep * 0.75 :
+    baseStep * 0.55
   );
 
   // Initial squash anticipation for the first jump
@@ -83,9 +83,11 @@ export async function animatePieceMove(
     }
   }
 
-  // Play landing sound after all steps complete
+  // Play landing sound after all steps complete, then pause at destination
   if (path.length > 0) {
     playSound('piece_land');
+    // Pause at destination so the player can see where the piece landed
+    await new Promise(resolve => setTimeout(resolve, AnimationConfig.scaleDuration(400)));
   }
 }
 

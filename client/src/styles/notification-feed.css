@@ -69,11 +69,10 @@
   }
 }
 
-/* Mobile: full width, bottom position */
+/* Mobile: full width, top position to avoid blocking action area */
 @media (max-width: 768px) {
   .notification-feed {
-    top: auto;
-    bottom: 80px;
+    top: 50px;
     right: 8px;
     left: 8px;
     max-width: none;
