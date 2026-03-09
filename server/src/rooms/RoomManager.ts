@@ -1,11 +1,21 @@
 // server/src/rooms/RoomManager.ts
-import { Player, PLAYER_COLORS, MAX_PLAYERS, Position, TrainingPlan, Card, ActiveEffect, DEFAULT_PLAN_SLOTS } from '@nannaricher/shared';
+import { Player, PLAYER_COLORS, MAX_PLAYERS, Position, TrainingPlan, Card, ActiveEffect, DEFAULT_PLAN_SLOTS, SpectatorInfo } from '@nannaricher/shared';
 import type { GameCoordinator } from '../game/GameCoordinator.js';
+
+export interface Spectator {
+  socketId: string;
+  userId?: string;
+  name: string;
+  authVerified?: boolean;
+  isReady: boolean;       // ready to join next game
+  diceOption: 1 | 2;
+}
 
 export interface Room {
   roomId: string;
   hostSocketId: string;
   players: Player[];
+  spectators: Spectator[];
   phase: 'waiting' | 'playing' | 'finished';
   createdAt: number;
   lastActivity: number;
@@ -19,12 +29,14 @@ function generateRoomCode(): string {
   return code;
 }
 
-function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: number, userId?: string, authVerified?: boolean): Player {
+function createPlayer(name: string, socketId: string, diceCount: 1 | 2, index: number, userId?: string, authVerified?: boolean, isBot = false, botStrategy?: string): Player {
   return {
     id: `p${Date.now()}_${index}`,
     socketId,
     userId,
     authVerified,
+    isBot,
+    botStrategy,
     name,
     color: PLAYER_COLORS[index],
     money: diceCount === 2 ? 2000 : 3000,
@@ -87,6 +99,7 @@ export class RoomManager {
       roomId,
       hostSocketId: socketId,
       players: [player],
+      spectators: [],
       phase: 'waiting',
       createdAt: Date.now(),
       lastActivity: Date.now(),
@@ -126,9 +139,92 @@ export class RoomManager {
     if (room) room.lastActivity = Date.now();
   }
 
+  // --------------------------------------------------
+  // Bot Management
+  // --------------------------------------------------
+
+  addBot(roomId: string, botName: string, diceOption: 1 | 2, strategyName: string): Player | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.players.length >= MAX_PLAYERS) return null;
+
+    const player = createPlayer(
+      botName,
+      `bot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      diceOption,
+      room.players.length,
+      undefined,
+      undefined,
+      true,
+      strategyName,
+    );
+    room.players.push(player);
+    room.lastActivity = Date.now();
+    return player;
+  }
+
+  removePlayer(roomId: string, playerId: string): Player | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    const idx = room.players.findIndex(p => p.id === playerId);
+    if (idx === -1) return null;
+    // Cannot remove the host (index 0)
+    if (idx === 0) return null;
+
+    const [removed] = room.players.splice(idx, 1);
+    // Re-assign colors to remaining players
+    room.players.forEach((p, i) => { p.color = PLAYER_COLORS[i]; });
+    room.lastActivity = Date.now();
+    return removed;
+  }
+
+  // --------------------------------------------------
+  // Spectator Management
+  // --------------------------------------------------
+
+  addSpectator(roomId: string, socketId: string, name: string, diceOption: 1 | 2 = 1, userId?: string, authVerified?: boolean): Spectator | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    // Check if already a spectator
+    if (room.spectators.some(s => s.socketId === socketId)) return null;
+
+    const spectator: Spectator = { socketId, userId, name, authVerified, isReady: false, diceOption };
+    room.spectators.push(spectator);
+    room.lastActivity = Date.now();
+    return spectator;
+  }
+
+  removeSpectator(roomId: string, socketId: string): Spectator | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    const idx = room.spectators.findIndex(s => s.socketId === socketId);
+    if (idx === -1) return null;
+
+    const [removed] = room.spectators.splice(idx, 1);
+    return removed;
+  }
+
+  getSpectatorInfos(roomId: string): SpectatorInfo[] {
+    const room = this.rooms.get(roomId);
+    if (!room) return [];
+    return room.spectators.map(s => ({ name: s.name }));
+  }
+
+  findRoomBySpectatorSocket(socketId: string): Room | undefined {
+    for (const room of this.rooms.values()) {
+      if (room.spectators.some(s => s.socketId === socketId)) return room;
+    }
+    return undefined;
+  }
+
   resetPlayerForRestart(player: Player): Player {
     return {
       ...player,
+      isBot: player.isBot,
+      botStrategy: player.botStrategy,
       money: player.diceCount === 2 ? 2000 : 3000,
       gpa: 3.0,
       exploration: 0,
@@ -188,6 +284,12 @@ export class RoomManager {
   // --------------------------------------------------
 
   handleDisconnect(socketId: string): void {
+    // Check spectators first
+    const specRoom = this.findRoomBySpectatorSocket(socketId);
+    if (specRoom) {
+      this.removeSpectator(specRoom.roomId, socketId);
+    }
+
     const room = this.findRoomBySocket(socketId);
     if (!room) return;
 

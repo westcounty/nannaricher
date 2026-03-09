@@ -78,6 +78,8 @@ export function GameScreen() {
   const drawnCard = useGameStore((s) => s.drawnCard);
   const socketActions = useGameStore((s) => s.socketActions);
   const readyPlayerIds = useGameStore((s) => s.readyPlayerIds);
+  const spectators = useGameStore((s) => s.spectators);
+  const isSpectator = useGameStore((s) => s.isSpectator);
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
   // confirmPlan removed — plan selection is now server-driven via pendingAction
@@ -666,6 +668,8 @@ export function GameScreen() {
           }}
           readyPlayerIds={readyPlayerIds}
           isHost={gameState.players[0]?.id === playerId}
+          spectators={spectators}
+          isSpectator={isSpectator}
         />
       )}
 

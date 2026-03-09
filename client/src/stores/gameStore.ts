@@ -3,7 +3,7 @@
 // Replaces the GameContext state management while keeping backward compatibility.
 
 import { create } from 'zustand';
-import type { GameState, Player, Card, PendingAction } from '@nannaricher/shared';
+import type { GameState, Player, Card, PendingAction, SpectatorInfo } from '@nannaricher/shared';
 
 // ============================================
 // Supporting Types
@@ -65,6 +65,8 @@ interface GameStore {
   gameState: GameState | null;
   roomId: string | null;
   playerId: string | null;
+  isSpectator: boolean;
+  spectators: SpectatorInfo[];
 
   // === Transient State ===
   currentEvent: GameEvent | null;
@@ -95,6 +97,7 @@ interface GameStore {
   setGameState: (state: GameState) => void;
   setRoomId: (id: string) => void;
   setPlayerId: (id: string) => void;
+  setSpectators: (spectators: SpectatorInfo[]) => void;
   setCurrentEvent: (event: GameEvent | null) => void;
   setDiceResult: (result: DiceResult | null) => void;
   setDrawnCard: (data: { card: Card; deckType: string; playerId?: string; addedToHand?: boolean } | null) => void;
@@ -123,6 +126,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   roomId: null,
   playerId: null,
+  isSpectator: false,
+  spectators: [],
 
   // --- Transient State ---
   currentEvent: null,
@@ -187,7 +192,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setRoomId: (id) => set({ roomId: id }),
 
-  setPlayerId: (id) => set({ playerId: id }),
+  setPlayerId: (id) => set({ playerId: id, isSpectator: id === '__spectator__' }),
+
+  setSpectators: (spectators) => set({ spectators }),
 
   setCurrentEvent: (event) => set({ currentEvent: event }),
 
@@ -237,6 +244,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     error: null,
     notifications: [],
     readyPlayerIds: [],
+    isSpectator: false,
+    spectators: [],
   }),
 
   // --- Socket Actions ---

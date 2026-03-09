@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import { useGameStore } from '../stores/gameStore';
-import { Player, MIN_PLAYERS } from '@nannaricher/shared';
+import { Player, MIN_PLAYERS, MAX_PLAYERS } from '@nannaricher/shared';
 
 interface WaitingRoomProps {
   roomId: string;
@@ -97,7 +97,7 @@ export function WaitingRoom({
 
       <div className="players-section">
         <h3>
-          玩家 ({players.length}/6)
+          玩家 ({players.length}/{MAX_PLAYERS})
         </h3>
         <ul className="player-list">
           <AnimatePresence>
@@ -114,13 +114,35 @@ export function WaitingRoom({
                   className="player-color"
                   style={{ backgroundColor: player.color, boxShadow: `0 0 8px ${player.color}` }}
                 />
-                <span className="player-name">{player.name}</span>
+                <span className="player-name">
+                  {player.name}
+                </span>
                 {player.id === playerId && <span className="you-badge">你</span>}
                 {index === 0 && <span className="host-badge">房主</span>}
+                {isHost && index !== 0 && (
+                  <button
+                    className="leave-room-button"
+                    style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: '12px' }}
+                    onClick={() => socket?.emit('room:remove-player', { playerId: player.id })}
+                  >
+                    移除
+                  </button>
+                )}
               </motion.li>
             ))}
           </AnimatePresence>
         </ul>
+        {isHost && players.length < MAX_PLAYERS && (
+          <motion.button
+            className="start-button"
+            style={{ marginTop: 8, fontSize: '14px', padding: '6px 16px' }}
+            onClick={() => socket?.emit('room:add-bot')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            🤖 添加机器人
+          </motion.button>
+        )}
       </div>
 
       {players.length < MIN_PLAYERS && (

@@ -96,6 +96,7 @@ export class GameEngine implements IGameEngine {
       turnNumber: 0,
       roundNumber: 1,  // 每隔6回合增加一个大轮
       players: [],
+      spectators: [],
       cardDecks: {
         chance: this.shuffleDeck([...decks.chance]),
         destiny: this.shuffleDeck([...decks.destiny]),

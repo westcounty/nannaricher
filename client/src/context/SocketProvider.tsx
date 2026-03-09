@@ -439,6 +439,11 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     socket.on('game:restarting', handleRestarting);
     socket.on('game:ready-state', handleReadyState);
 
+    const handleSpectatorUpdate = (data: { spectators: import('@nannaricher/shared').SpectatorInfo[] }) => {
+      store.getState().setSpectators(data.spectators);
+    };
+    socket.on('room:spectator-update', handleSpectatorUpdate);
+
     // ------ Cleanup ------
     return () => {
       if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
@@ -460,6 +465,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('room:dissolved', handleRoomDissolved);
       socket.off('game:restarting', handleRestarting);
       socket.off('game:ready-state', handleReadyState);
+      socket.off('room:spectator-update', handleSpectatorUpdate);
     };
   }, [socket]);
 

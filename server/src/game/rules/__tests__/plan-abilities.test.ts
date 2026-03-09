@@ -15,6 +15,7 @@ function createMockPlayer(overrides: Partial<Player> = {}): Player {
   return {
     id: 'p1',
     socketId: 'socket1',
+    isBot: false,
     name: 'TestPlayer',
     color: '0',
     money: 1000,
@@ -65,6 +66,7 @@ function createMockGameState(overrides: Partial<GameState> = {}): GameState {
     turnNumber: 1,
     roundNumber: 1,
     players: [createMockPlayer()],
+    spectators: [],
     cardDecks: { chance: [], destiny: [], training: [] },
     discardPiles: { chance: [], destiny: [] },
     pendingAction: null,

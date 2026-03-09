@@ -9,6 +9,7 @@ import type { Player, Position } from '@nannaricher/shared';
 function createMockPlayer(overrides: Partial<Player> & { id: string; name: string }): Player {
   return {
     socketId: `sock_${overrides.id}`,
+    isBot: false,
     color: '#e74c3c',
     money: 1500,
     gpa: 3.0,

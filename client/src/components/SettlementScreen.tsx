@@ -3,8 +3,8 @@
 // Displays winner, all-player rankings, game stats, and navigation buttons.
 
 import { useState } from 'react';
-import { getRoundName } from '@nannaricher/shared';
-import type { GameState, Player } from '@nannaricher/shared';
+import { getRoundName, MAX_PLAYERS } from '@nannaricher/shared';
+import type { GameState, Player, SpectatorInfo } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
 import '../styles/settlement.css';
@@ -16,6 +16,8 @@ interface SettlementScreenProps {
   onReturnToLobby: () => void;
   readyPlayerIds: string[];
   isHost: boolean;
+  spectators: SpectatorInfo[];
+  isSpectator: boolean;
 }
 
 /** Compute a composite score for ranking (winner excluded from sorting — always first). */
@@ -33,7 +35,7 @@ function rankPlayers(players: Player[], winnerId: string): Player[] {
   return sorted;
 }
 
-export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost }: SettlementScreenProps) {
+export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost, spectators, isSpectator }: SettlementScreenProps) {
   const { socket } = useSocket();
   const [visible, setVisible] = useState(true);
 
@@ -172,20 +174,56 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
           <div className="settlement-ready__title">新一局</div>
           <div className="settlement-ready__players">
             {nonHostPlayers.map(player => {
-              const playerReady = readyPlayerIds.includes(player.id);
+              const playerReady = player.isBot || readyPlayerIds.includes(player.id);
               return (
                 <div key={player.id} className={`settlement-ready__player ${playerReady ? 'settlement-ready__player--ready' : ''}`}>
                   <span className="settlement-color-dot" style={{ backgroundColor: player.color }} />
-                  <span className="settlement-ready__player-name">{player.name}</span>
+                  <span className="settlement-ready__player-name">
+                    {player.name}
+                  </span>
                   <span className={`settlement-ready__status ${playerReady ? 'settlement-ready__status--ready' : ''}`}>
                     {playerReady ? '已准备' : '未准备'}
                   </span>
+                  {isHost && (
+                    <button
+                      className="settlement-btn"
+                      style={{ marginLeft: 8, padding: '2px 8px', fontSize: '11px' }}
+                      onClick={() => socket?.emit('room:remove-player', { playerId: player.id })}
+                    >
+                      移除
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
+
+          {isHost && gameState.players.length < MAX_PLAYERS && (
+            <button
+              className="settlement-btn settlement-btn--restart"
+              style={{ marginBottom: 8, fontSize: '13px' }}
+              onClick={() => socket?.emit('room:add-bot')}
+            >
+              🤖 添加机器人
+            </button>
+          )}
+
           <div className="settlement-ready__actions">
-            {isHost ? (
+            {isSpectator ? (
+              <button
+                className={`settlement-btn ${isReady ? 'settlement-btn--ready-cancel' : 'settlement-btn--ready'}`}
+                onClick={() => {
+                  if (!socket) return;
+                  if (isReady) {
+                    socket.emit('room:spectator-cancel-ready');
+                  } else {
+                    socket.emit('room:spectator-ready');
+                  }
+                }}
+              >
+                {isReady ? '取消准备' : '准备加入'}
+              </button>
+            ) : isHost ? (
               <button
                 className="settlement-btn settlement-btn--restart"
                 onClick={handleRestartWithReady}
@@ -202,6 +240,15 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
               </button>
             )}
           </div>
+
+          {spectators.length > 0 && (
+            <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: 4 }}>观战中</div>
+              {spectators.map((s, i) => (
+                <span key={i} style={{ fontSize: '13px', color: '#cbd5e1', marginRight: 8 }}>{s.name}</span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Action buttons */}

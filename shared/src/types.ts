@@ -50,6 +50,8 @@ export interface Player {
   socketId: string;
   userId?: string;        // authenticated user UUID (from tuchan-api)
   authVerified?: boolean; // true if JWT signature was verified (not mock/dev token)
+  isBot: boolean;         // whether this is a bot player
+  botStrategy?: string;   // bot strategy name (e.g. 'specialist', 'balanced')
   name: string;
   color: string;
   money: number;
@@ -141,6 +143,12 @@ export type GamePhase = 'waiting' | 'playing' | 'finished'
   | 'waiting_others'    // 等待他人
   | 'multi_interaction'; // 多人互动
 
+// === Spectator ===
+export interface SpectatorInfo {
+  name: string;
+  odKey?: string;        // opaque key for spectator identification
+}
+
 export interface GameState {
   roomId: string;
   phase: GamePhase;
@@ -148,6 +156,7 @@ export interface GameState {
   turnNumber: number;
   roundNumber: number;  // 每6回合一个大轮
   players: Player[];
+  spectators: SpectatorInfo[];  // 观战者列表
   cardDecks: {
     chance: Card[];
     destiny: Card[];
@@ -176,6 +185,11 @@ export interface GameLogEntry {
 export interface ClientToServerEvents {
   'room:create': (data: { playerName: string; diceOption: 1 | 2 }) => void;
   'room:join': (data: { roomId: string; playerName: string; diceOption: 1 | 2 }) => void;
+  'room:add-bot': () => void;                          // host adds a bot player
+  'room:remove-player': (data: { playerId: string }) => void;  // host removes player (real or bot)
+  'room:join-as-spectator': (data: { roomId: string; playerName: string }) => void;  // join room as spectator
+  'room:spectator-ready': () => void;                  // spectator readies up for next game
+  'room:spectator-cancel-ready': () => void;           // spectator cancels ready
   'game:start': () => void;
   'game:roll-dice': () => void;
   'game:choose-action': (data: { actionId: string; choice: string }) => void;
@@ -245,6 +259,7 @@ export interface ServerToClientEvents {
   'room:dissolved': (data: { message: string }) => void;
   'game:ready-state': (data: { readyPlayerIds: string[] }) => void;
   'game:restarting': () => void;
+  'room:spectator-update': (data: { spectators: SpectatorInfo[] }) => void;
 }
 
 // === Player History Tracking ===

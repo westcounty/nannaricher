@@ -4,7 +4,7 @@ import type { Room } from '../rooms/RoomManager.js';
 import { RoomManager } from '../rooms/RoomManager.js';
 import { GameEngine } from '../game/GameEngine.js';
 import { GameCoordinator } from '../game/GameCoordinator.js';
-import { MIN_PLAYERS, INITIAL_TRAINING_DRAW, PLAYER_COLORS } from '@nannaricher/shared';
+import { MIN_PLAYERS, MAX_PLAYERS, INITIAL_TRAINING_DRAW, PLAYER_COLORS } from '@nannaricher/shared';
 import { saveGameResults } from '../db/gameResults.js';
 
 /** Shared helper: create fresh engine+coordinator, start a new game for room.players */
@@ -29,12 +29,20 @@ function initAndStartNewGame(
   });
   roomManager.setCoordinator(roomId, coordinator);
 
+  // Register all bot players for auto-play
+  for (const player of room.players) {
+    if (player.isBot && player.botStrategy) {
+      coordinator.registerBot(player.id, player.botStrategy);
+    }
+  }
+
   io.to(roomId).emit('game:restarting');
 
   const state = coordinator.getState();
   state.phase = 'playing';
   state.turnNumber = 1;
   state.roundNumber = 1;
+  state.spectators = roomManager.getSpectatorInfos(roomId);
   state.log.push({ turn: 1, playerId: 'system', message: '游戏重新开始！', timestamp: Date.now() });
 
   io.to(roomId).emit('game:announcement', { message: '房主重开了游戏！', type: 'success' });
@@ -83,6 +91,14 @@ export function registerGameHandlers(
     state.phase = 'playing';
     state.turnNumber = 1;
     state.roundNumber = 1; // 大一
+    state.spectators = roomManager.getSpectatorInfos(roomId);
+
+    // Register all bot players for auto-play
+    for (const player of room.players) {
+      if (player.isBot && player.botStrategy) {
+        coordinator.registerBot(player.id, player.botStrategy);
+      }
+    }
 
     state.log.push({
       turn: state.turnNumber,
@@ -337,35 +353,42 @@ export function registerGameHandlers(
       return;
     }
 
-    if (room.readyPlayerIds.size === 0) {
+    // Count ready players (including bots which are auto-ready) + ready spectators
+    const readyBotIds = room.players.filter(p => p.isBot).map(p => p.id);
+    const allReadyIds = new Set([...room.readyPlayerIds, ...readyBotIds]);
+
+    if (allReadyIds.size === 0) {
       socket.emit('room:error', { message: 'No players have readied up' });
       return;
     }
 
-    // Determine who stays: host + ready players (exclude disconnected)
     const hostId = room.players[0]?.id;
-    const connectedReadyIds = [...room.readyPlayerIds].filter(pid => {
+
+    // Determine who stays: host + ready players (exclude disconnected real players)
+    const connectedReadyIds = [...allReadyIds].filter(pid => {
       const p = room.players.find(pl => pl.id === pid);
-      return p && !p.isDisconnected;
+      if (!p) return false;
+      if (p.isBot) return true; // bots are always "connected"
+      return !p.isDisconnected;
     });
-    if (connectedReadyIds.length === 0) {
-      socket.emit('room:error', { message: '没有已连接的准备玩家' });
-      return;
-    }
+
+    // Add ready spectators as new players (up to MAX_PLAYERS)
+    const readySpectators = room.spectators.filter(s => s.isReady);
     const keepPlayerIds = new Set<string>([...(hostId ? [hostId] : []), ...connectedReadyIds]);
 
-    // Remove unready non-host players from socket room
+    // Move unready non-host real players to spectators
     for (const player of room.players) {
-      if (!keepPlayerIds.has(player.id)) {
+      if (!keepPlayerIds.has(player.id) && !player.isBot) {
         const socketsInRoom = io.sockets.adapter.rooms.get(roomId);
         if (socketsInRoom) {
           for (const sid of socketsInRoom) {
             const s = io.sockets.sockets.get(sid);
             if (s && s.data.playerId === player.id) {
-              s.emit('room:dissolved', { message: '你未准备，已被移出房间' });
-              s.leave(roomId);
-              s.data.roomId = undefined;
+              // Convert to spectator instead of kicking
               s.data.playerId = undefined;
+              roomManager.addSpectator(roomId, sid, player.name, player.diceCount, s.data.userId, s.data.authVerified);
+              s.emit('game:announcement', { message: '你未准备，已转为观战', type: 'info' });
+              break;
             }
           }
         }
@@ -381,6 +404,78 @@ export function registerGameHandlers(
         return reset;
       });
 
+    // Add ready spectators as new players (if there's room)
+    for (const spec of readySpectators) {
+      if (room.players.length >= MAX_PLAYERS) break;
+
+      const idx = room.players.length;
+      const newPlayer: import('@nannaricher/shared').Player = {
+        id: `p${Date.now()}_${idx}_spec`,
+        socketId: spec.socketId,
+        userId: spec.userId,
+        authVerified: spec.authVerified,
+        isBot: false,
+        name: spec.name,
+        color: PLAYER_COLORS[idx],
+        money: spec.diceOption === 2 ? 2000 : 3000,
+        gpa: 3.0,
+        exploration: 0,
+        position: { type: 'main', index: 0 },
+        diceCount: spec.diceOption,
+        trainingPlans: [],
+        majorPlan: null,
+        minorPlans: [],
+        planSlotLimit: 2,
+        heldCards: [],
+        effects: [],
+        skipNextTurn: false,
+        isInHospital: false,
+        isAtDing: false,
+        isBankrupt: false,
+        isDisconnected: false,
+        linesVisited: [],
+        lineEventsTriggered: {},
+        hospitalVisits: 0,
+        moneyZeroCount: 0,
+        cafeteriaNoNegativeStreak: 0,
+        cardsDrawnWithEnglish: 0,
+        cardsDrawnWithDigitStart: [],
+        chanceCardsUsedOnPlayers: {},
+        gulou_endpoint_count: 0,
+        modifiedWinThresholds: {},
+        maxWinConditionSlots: 3,
+        disabledWinConditions: [],
+        lawyerShield: false,
+        lastDiceValues: [],
+        consecutivePositiveTurns: 0,
+        totalTuitionPaid: 0,
+        confiscatedIncome: 0,
+        consecutiveLowMoneyTurns: 0,
+        kechuangGpaGained: 0,
+        foodLineNonNegativeCount: 0,
+      };
+      room.players.push(newPlayer);
+
+      // Update socket data for the spectator
+      const s = io.sockets.sockets.get(spec.socketId);
+      if (s) {
+        s.data.playerId = newPlayer.id;
+      }
+
+      // Remove from spectators
+      roomManager.removeSpectator(roomId, spec.socketId);
+    }
+
+    // Reset remaining spectators' ready state
+    for (const spec of room.spectators) {
+      spec.isReady = false;
+    }
+
+    if (room.players.length < MIN_PLAYERS) {
+      socket.emit('room:error', { message: `至少需要 ${MIN_PLAYERS} 名玩家` });
+      return;
+    }
+
     // Update hostSocketId to the current host's socket
     const hostPlayer = room.players.find(p => p.id === hostId);
     if (hostPlayer) {
@@ -388,5 +483,10 @@ export function registerGameHandlers(
     }
 
     initAndStartNewGame(room, roomId, io, roomManager);
+
+    // Send spectator update after restart
+    io.to(roomId).emit('room:spectator-update', {
+      spectators: roomManager.getSpectatorInfos(roomId),
+    });
   });
 }

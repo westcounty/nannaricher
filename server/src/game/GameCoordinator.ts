@@ -23,6 +23,7 @@ import { GameEngine } from './GameEngine.js';
 import { GameLogger } from './GameLogger.js';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import type { GameServer } from '../socket/types.js';
+import { BotManager } from './bot/BotManager.js';
 
 // --- Negate Card System (类无懈可击) ---
 const NEGATE_CARD_DEFS: Record<string, {
@@ -65,6 +66,7 @@ export class GameCoordinator {
   private negateWindow: NegateWindow | null = null;
   private planResolutionQueue: { playerId: string; response: string }[] | null = null;
   private _wonEmitted = false;
+  private botManager: BotManager = new BotManager();
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
@@ -139,12 +141,29 @@ export class GameCoordinator {
     return this.engine;
   }
 
+  /** Register a bot player for automatic action handling */
+  registerBot(playerId: string, strategyName: string): void {
+    this.botManager.registerBot(playerId, strategyName);
+  }
+
+  /** Unregister a bot player */
+  unregisterBot(playerId: string): void {
+    this.botManager.unregisterBot(playerId);
+  }
+
+  /** Get the BotManager instance */
+  getBotManager(): BotManager {
+    return this.botManager;
+  }
+
   /** Clean up timers and callbacks before this coordinator is replaced. */
   dispose(): void {
     this.clearPendingActionTimeout();
+    if (this.botSafetyTimer) { clearTimeout(this.botSafetyTimer); this.botSafetyTimer = null; }
     this.negateWindow = null;
     this.onFinishedCallback = null;
     this.processingAction = false;
+    this.botManager.dispose();
   }
 
   /** Force-skip the current turn: clear all pending state and advance. */
@@ -224,6 +243,8 @@ export class GameCoordinator {
         this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
         this.onFinishedCallback?.();
       }
+      // Schedule bot actions for vote (bots may need to vote)
+      this.scheduleBotActions(state);
       return;
     }
 
@@ -242,6 +263,98 @@ export class GameCoordinator {
       this.saveGameSummary();
       this.logger.persist().catch(err => console.error('Failed to persist game log:', err));
       this.onFinishedCallback?.();
+    }
+
+    // Schedule bot actions after broadcasting
+    this.scheduleBotActions(state);
+  }
+
+  private botSafetyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Schedule bot auto-play if the current pendingAction targets a bot */
+  private scheduleBotActions(state: GameState): void {
+    if (state.phase === 'finished' || !state.pendingAction) return;
+
+    // Clear previous safety timer
+    if (this.botSafetyTimer) {
+      clearTimeout(this.botSafetyTimer);
+      this.botSafetyTimer = null;
+    }
+
+    const pa = state.pendingAction;
+    const targetPlayer = state.players.find(p => p.id === pa.playerId);
+    if (targetPlayer?.isBot) {
+      const isRegistered = this.botManager.isBot(pa.playerId);
+      if (!isRegistered) {
+        // Auto-register bot if it's not yet registered
+        if (targetPlayer.botStrategy) {
+          this.botManager.registerBot(pa.playerId, targetPlayer.botStrategy);
+        }
+      }
+    }
+
+    this.botManager.scheduleBotAction(
+      state,
+      (playerId, actionId, choice) => this.handleChooseAction(playerId, actionId, choice),
+      (playerId) => this.handleRollDice(playerId),
+      (playerId, cardId, targetPlayerId) => this.handleUseCard(playerId, cardId, targetPlayerId),
+    );
+
+    // Safety net: periodically check for stuck bot actions
+    // Check both single-player and multi-player pending actions
+    const needsBotAction = (() => {
+      if (!state.pendingAction) return false;
+      const pa = state.pendingAction;
+      // Single-player action targeting a bot
+      if (state.players.find(p => p.id === pa.playerId)?.isBot) return true;
+      // Multi-player action where some bots haven't responded
+      if (pa.type === 'multi_vote' || pa.type === 'chain_action' || pa.type === 'parallel_plan_selection') {
+        const responses = pa.responses || {};
+        return state.players.some(p => p.isBot && !responses[p.id]);
+      }
+      return false;
+    })();
+
+    if (needsBotAction) {
+      let retryCount = 0;
+      const scheduleCheck = (delayMs: number) => {
+        this.botSafetyTimer = setTimeout(() => {
+          this.botSafetyTimer = null;
+          const currentState = this.engine.getState();
+          if (currentState.phase === 'finished' || !currentState.pendingAction) return;
+          const pa = currentState.pendingAction;
+          const botPlayer = currentState.players.find(p => p.id === pa.playerId);
+          const isBotAction = botPlayer?.isBot || pa.type === 'multi_vote' || pa.type === 'chain_action' || pa.type === 'parallel_plan_selection';
+          if (!isBotAction) return;
+
+          retryCount++;
+          if (retryCount <= 2) {
+            // First retries: re-schedule through BotManager
+            console.log(`[Bot Safety ${retryCount}] Retrying stuck bot action: type=${pa.type}, player=${botPlayer?.name || pa.playerId}`);
+            this.botManager.scheduleBotAction(
+              currentState,
+              (pid, aid, ch) => this.handleChooseAction(pid, aid, ch),
+              (pid) => this.handleRollDice(pid),
+              (pid, cid, tid) => this.handleUseCard(pid, cid, tid),
+            );
+            scheduleCheck(3000);
+          } else {
+            // Force handle: clear locks and force-advance the game
+            console.log(`[Bot Safety FORCE] Still stuck after ${retryCount} retries: ${botPlayer?.name || pa.playerId} ${pa.type}, force handling`);
+            this.processingAction = false;
+            this.handleDisconnectedPlayerAction();
+            // If still stuck after force handle, keep checking
+            const s3 = this.engine.getState();
+            if (s3.pendingAction && s3.phase !== 'finished') {
+              const bp3 = s3.players.find(p => p.id === s3.pendingAction?.playerId);
+              if (bp3?.isBot) {
+                scheduleCheck(2000);
+              }
+            }
+          }
+        }, delayMs);
+      };
+      scheduleCheck(3000);
     }
   }
 
@@ -571,7 +684,10 @@ export class GameCoordinator {
     this.clearPendingActionTimeout();
     this.addLog(pa.playerId, '玩家断连，自动处理操作');
     if (pa.type === 'roll_dice') {
-      this.handleRollDice(pa.playerId);
+      // Use currentPlayer if pa.playerId doesn't match (fixes bot stall edge case)
+      const currentPlayer = state.players[state.currentPlayerIndex];
+      const rollPlayerId = currentPlayer ? currentPlayer.id : pa.playerId;
+      this.handleRollDice(rollPlayerId);
     } else if (pa.type === 'chain_action') {
       // Fill remaining chain players with default and complete
       const chainOrder = pa.chainOrder || [];
