@@ -2,6 +2,7 @@
 import { getPlayerPlanIds, Player } from '@nannaricher/shared';
 import type { EventHandler } from '../EventHandler.js';
 import type { GameEngine } from '../EventHandler.js';
+import { boardData, MAIN_BOARD_SIZE } from '../../data/board.js';
 
 export function registerCardHandlers(eventHandler: EventHandler): void {
   // === Destiny Card Handlers ===
@@ -184,9 +185,13 @@ export function registerCardHandlers(eventHandler: EventHandler): void {
 
   // 民航超速 — 移动到前面12格内任意位置
   eventHandler.registerHandler('card_destiny_civil_aviation_overspeed', (engine, playerId) => {
+    const player = engine.getPlayer(playerId);
+    const currentIndex = player?.position.type === 'main' ? player.position.index : 0;
     const options = [];
     for (let i = 1; i <= 12; i++) {
-      options.push({ label: `前进 ${i} 格`, value: `civil_aviation_${i}` });
+      const destIndex = (currentIndex + i) % MAIN_BOARD_SIZE;
+      const destName = boardData.mainBoard[destIndex]?.name || `格${destIndex}`;
+      options.push({ label: `前进 ${i} 格`, value: `civil_aviation_${i}`, description: `→ ${destName}` });
     }
     const action = engine.createPendingAction(
       playerId,

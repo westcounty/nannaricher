@@ -72,6 +72,11 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
   const stationLayerRef = useRef<StationLayer | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
   const initialFocusDoneRef = useRef(false);
+  // Camera-follow-piece tracking state
+  const cameraTrackingRef = useRef<{
+    playerId: string;
+    tickerFn: (() => void) | null;
+  } | null>(null);
 
   // Expose imperative methods to parent
   useImperativeHandle(ref, () => ({
@@ -285,21 +290,19 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       });
     }
 
-    // Auto-focus logic: use positionToWorldCoords (from gameState) instead of
-    // getPlayerPosition (piece visual position) so we focus on the DESTINATION,
-    // not where the piece currently is before animation.
+    // Auto-focus logic: follow pieces during movement with real-time tracking.
     if (prevStateRef.current && viewportRef.current) {
       const prevState = prevStateRef.current;
       const turnChanged = prevState.currentPlayerIndex !== gameState.currentPlayerIndex;
       const newCurrentPlayer = gameState.players[gameState.currentPlayerIndex];
 
       if (turnChanged && newCurrentPlayer) {
+        // Turn changed — stop any previous tracking
+        stopCameraTracking();
         const worldPos = positionToWorldCoords(newCurrentPlayer.position);
         if (localPlayerId && newCurrentPlayer.id === localPlayerId) {
-          // It's now my turn — focusOnSelf with zoom reset
           viewportRef.current.focusOnSelf(worldPos.x, worldPos.y);
         } else {
-          // Someone else's turn — just pan to them without changing zoom
           viewportRef.current.focusOnPlayer(worldPos.x, worldPos.y);
         }
       } else if (!turnChanged && newCurrentPlayer) {
@@ -312,9 +315,8 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
             (prevPlayer.position.type === 'line' && newCurrentPlayer.position.type === 'line' &&
               prevPlayer.position.lineId !== newCurrentPlayer.position.lineId);
           if (posChanged) {
-            // Follow the current player's piece to their new destination
-            const worldPos = positionToWorldCoords(newCurrentPlayer.position);
-            viewportRef.current.focusOnPlayer(worldPos.x, worldPos.y);
+            // Start real-time camera tracking of the animating piece
+            startCameraTracking(newCurrentPlayer.id);
           }
         }
       }
@@ -327,6 +329,72 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
 
     stageRef.current?.updateState(gameState, currentPlayerId);
   }, [gameState, currentPlayerId]);
+
+  // --- Camera tracking helpers: follow animating piece in real-time ---
+  const stopCameraTracking = () => {
+    const tracking = cameraTrackingRef.current;
+    if (tracking?.tickerFn && appRef.current) {
+      appRef.current.ticker.remove(tracking.tickerFn);
+    }
+    cameraTrackingRef.current = null;
+  };
+
+  const startCameraTracking = (playerId: string) => {
+    stopCameraTracking(); // clear previous
+
+    const app = appRef.current;
+    const vc = viewportRef.current;
+    const pLayer = playerLayerRef.current;
+    if (!app || !vc || !pLayer) {
+      // Fallback: just pan to destination
+      const player = gameState.players.find(p => p.id === playerId);
+      if (player) vc?.focusOnPlayer(
+        positionToWorldCoords(player.position).x,
+        positionToWorldCoords(player.position).y,
+      );
+      return;
+    }
+
+    // Throttle camera updates to ~15fps to avoid jitter
+    let lastUpdateTime = 0;
+    const CAMERA_UPDATE_INTERVAL = 66; // ms
+
+    const tickerFn = () => {
+      const now = performance.now();
+      if (now - lastUpdateTime < CAMERA_UPDATE_INTERVAL) return;
+      lastUpdateTime = now;
+
+      const pos = pLayer.getPlayerPosition(playerId);
+      if (!pos || !viewportRef.current) {
+        stopCameraTracking();
+        return;
+      }
+
+      // Check if piece is still animating
+      const animId = pLayer.getAnimatingPieceId();
+      if (animId !== playerId) {
+        // Animation finished — do one final focus on the actual game-state position
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player && viewportRef.current) {
+          const finalPos = positionToWorldCoords(player.position);
+          viewportRef.current.focusOnPlayer(finalPos.x, finalPos.y);
+        }
+        stopCameraTracking();
+        return;
+      }
+
+      // Follow the piece's current visual position
+      viewportRef.current.focusOnPlayer(pos.x, pos.y);
+    };
+
+    cameraTrackingRef.current = { playerId, tickerFn };
+    app.ticker.add(tickerFn);
+  };
+
+  // Clean up camera tracking on unmount
+  useEffect(() => {
+    return () => { stopCameraTracking(); };
+  }, []);
 
   // Handle viewport resize using ResizeObserver for accurate container tracking
   useEffect(() => {

@@ -272,12 +272,12 @@ export class StationLayer implements RenderLayer {
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
       bg.fill({ color: colorDark, alpha: 0.25 });
 
-      // 2. Glass overlay
+      // 2. Glass overlay (higher opacity for readability)
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.fill({ color: 0x1A1230, alpha: 0.6 });
+      bg.fill({ color: 0x1A1230, alpha: 0.82 });
 
       // 3. Border (stronger for event stations)
-      const borderAlpha = cell.type === 'event' ? 0.8 : 0.6;
+      const borderAlpha = cell.type === 'event' ? 0.9 : 0.7;
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
       bg.stroke({ width: borderWidth, color: colorLight, alpha: borderAlpha });
 
@@ -359,10 +359,16 @@ export class StationLayer implements RenderLayer {
         text: displayName,
         style: new TextStyle({
           fontFamily: DESIGN_TOKENS.typography.fontFamily,
-          fontSize: isCorner ? 13 : 9,
+          fontSize: isCorner ? 14 : 11,
           fill: nameColor,
           fontWeight: 'bold',
           align: 'center',
+          dropShadow: {
+            alpha: 0.8,
+            blur: 2,
+            color: 0x000000,
+            distance: 1,
+          },
         }),
       });
       nameText.anchor.set(0.5);
@@ -376,11 +382,17 @@ export class StationLayer implements RenderLayer {
           text: desc,
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: 9,
+            fontSize: 10,
             fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
             align: 'center',
             wordWrap: true,
             wordWrapWidth: cardW - 16,
+            dropShadow: {
+              alpha: 0.6,
+              blur: 2,
+              color: 0x000000,
+              distance: 1,
+            },
           }),
         });
         descText.anchor.set(0.5);
@@ -414,7 +426,7 @@ export class StationLayer implements RenderLayer {
       // --- Interaction ---
       card.eventMode = 'static';
       card.cursor = 'pointer';
-      card.alpha = 0.95;
+      card.alpha = 1.0;
       card.cullable = true; // enable off-screen culling for performance
 
       card.on('pointerdown', () => {
@@ -433,7 +445,7 @@ export class StationLayer implements RenderLayer {
       });
       card.on('pointerout', () => {
         animateScale(card, 1.0, this.tweenEngine);
-        card.alpha = 0.95;
+        card.alpha = 1.0;
         this.options.onCellHover?.(null);
       });
 
@@ -470,13 +482,13 @@ export class StationLayer implements RenderLayer {
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
         bg.fill({ color: colorDark, alpha: 0.25 });
 
-        // Glass overlay
+        // Glass overlay (higher opacity for readability)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.fill({ color: 0x1A1230, alpha: 0.6 });
+        bg.fill({ color: 0x1A1230, alpha: 0.82 });
 
         // Border (gold for experience, line color for regular)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.stroke({ width: isExperience ? 2 : 1.5, color: isExperience ? 0xE0C55E : colorLight, alpha: isExperience ? 0.7 : 0.5 });
+        bg.stroke({ width: isExperience ? 2 : 1.5, color: isExperience ? 0xE0C55E : colorLight, alpha: isExperience ? 0.8 : 0.6 });
 
         // Experience card gold star marker
         if (isExperience) {
@@ -518,12 +530,18 @@ export class StationLayer implements RenderLayer {
           text: this.getShortName(stationName),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 12 : 10,
+            fontSize: isExperience ? 13 : 11,
             fill: isExperience ? 0xE0C55E : 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
             wordWrap: true,
             wordWrapWidth: cardW - 8,
+            dropShadow: {
+              alpha: 0.8,
+              blur: 2,
+              color: 0x000000,
+              distance: 1,
+            },
           }),
         });
         nameText.anchor.set(0.5);
@@ -533,7 +551,7 @@ export class StationLayer implements RenderLayer {
         // --- Interaction ---
         card.eventMode = 'static';
         card.cursor = 'pointer';
-        card.alpha = 0.95;
+        card.alpha = 1.0;
         card.cullable = true; // enable off-screen culling for performance
 
         card.on('pointerdown', () => {
@@ -552,7 +570,7 @@ export class StationLayer implements RenderLayer {
         });
         card.on('pointerout', () => {
           animateScale(card, 1.0, this.tweenEngine);
-          card.alpha = 0.95;
+          card.alpha = 1.0;
           this.options.onCellHover?.(null);
         });
 

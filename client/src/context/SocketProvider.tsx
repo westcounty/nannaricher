@@ -8,6 +8,13 @@ import { useGameStore } from '../stores/gameStore';
 import type { GameState, PendingAction } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
 import { AnimationGate } from '../game/AnimationGate';
+import { movementEventGate } from '../game/MovementEventGate';
+import {
+  buildLineExitSummaryNotification,
+  buildPlanAbilityNotification,
+  collectStateNotifications,
+} from './stateNotifications';
+import { shouldDeferStateUpdateDuringMovement } from './stateUpdateQueue';
 
 let _lastEventKey = '';
 let _lastEventTime = 0;
@@ -77,22 +84,6 @@ function diffAndPlaySounds(
     }
   }
 
-  // Opponent major status changes (always, not just when hidden)
-  for (const nextPlayer of next.players) {
-    if (nextPlayer.id === localPlayerId) continue;
-    const prevPlayer = prev.players.find((p) => p.id === nextPlayer.id);
-    if (!prevPlayer) continue;
-
-    const name = nextPlayer.name;
-
-    if (!prevPlayer.isBankrupt && nextPlayer.isBankrupt) {
-      useGameStore.getState().addNotification(`${name} 破产了！`, 'warning');
-    }
-
-    if (!prevPlayer.isInHospital && nextPlayer.isInHospital) {
-      useGameStore.getState().addNotification(`${name} 住院了！`, 'warning');
-    }
-  }
 }
 
 /**
@@ -109,6 +100,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
   const prevStateRef = useRef<GameState | null>(null);
   const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEventActionIdRef = useRef<string | null>(null);
+  const latestMovementTokenRef = useRef<number | null>(null);
+  const queuedStateUpdateRef = useRef<GameState | null>(null);
   const store = useGameStore;
 
   // Keep isLoading synced with connection status
@@ -118,6 +111,60 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!socket) return;
+
+    const positionsEqual = (a: GameState['players'][number]['position'], b: GameState['players'][number]['position']) => {
+      if (a.type !== b.type) return false;
+      if (a.type === 'main' && b.type === 'main') return a.index === b.index;
+      if (a.type === 'line' && b.type === 'line') return a.lineId === b.lineId && a.index === b.index;
+      return false;
+    };
+
+    const registerMovementBarrier = (prev: GameState | null, next: GameState) => {
+      if (!prev) return;
+      const prevCurrent = prev.players[prev.currentPlayerIndex];
+      const nextCurrent = next.players[next.currentPlayerIndex];
+      if (!prevCurrent || !nextCurrent) return;
+      if (prevCurrent.id !== nextCurrent.id) return;
+      if (positionsEqual(prevCurrent.position, nextCurrent.position)) return;
+
+      const token = movementEventGate.nextToken();
+      movementEventGate.markPending(token);
+      latestMovementTokenRef.current = token;
+      store.getState().setMovementUiBlocked(true);
+      void movementEventGate.waitFor(token).then(() => {
+        if (latestMovementTokenRef.current === token) {
+          latestMovementTokenRef.current = null;
+          store.getState().setMovementUiBlocked(false);
+          const queuedState = queuedStateUpdateRef.current;
+          if (queuedState) {
+            queuedStateUpdateRef.current = null;
+            applyStateUpdate(queuedState);
+          }
+        }
+      });
+    };
+
+    const deferUntilMovementSettles = async (show: () => void | Promise<void>) => {
+      // Wait for movement token first (if any)
+      const token = latestMovementTokenRef.current;
+      if (token !== null) {
+        await movementEventGate.waitFor(token);
+      }
+      // Then also wait for any remaining animations (landing pause, etc.)
+      if (AnimationGate.isAnimating) {
+        await AnimationGate.waitForIdle();
+      }
+      await show();
+    };
+
+    const addDeferredNotification = (
+      message: string,
+      type: 'info' | 'warning' | 'success',
+    ) => {
+      void deferUntilMovementSettles(async () => {
+        store.getState().addNotification(message, type);
+      });
+    };
 
     // ------ Inject socket actions into Zustand store ------
     store.getState().setSocketActions({
@@ -129,6 +176,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         }
       },
       chooseAction: (actionId: string, choice: string) => {
+        store.getState().setDismissedPendingActionId(actionId);
         socket.emit('game:choose-action', { actionId, choice });
         // Don't clear event for parallel_plan_selection — panel shows "waiting" state
         const currentEvent = store.getState().currentEvent;
@@ -145,11 +193,17 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     });
 
     // ------ Game event listeners -> store updates ------
-    const handleStateUpdate = (state: GameState) => {
+    const applyStateUpdate = (state: GameState) => {
       const localPlayerId = store.getState().playerId;
       diffAndPlaySounds(prevStateRef.current, state, localPlayerId);
+      registerMovementBarrier(prevStateRef.current, state);
+      const statusNotifications = collectStateNotifications(prevStateRef.current, state, localPlayerId);
       prevStateRef.current = state;
       store.getState().setGameState(state);
+      if (!state.pendingAction || state.pendingAction.id !== store.getState().dismissedPendingActionId) {
+        store.getState().setDismissedPendingActionId(null);
+      }
+      statusNotifications.forEach((item) => addDeferredNotification(item.message, item.type));
 
       // Fallback: detect winner from state update if game:player-won was missed
       if (state.phase === 'finished' && state.winner && !store.getState().winner) {
@@ -178,6 +232,34 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
           && (!newPa || newPa.type !== ('parallel_plan_selection' as any))) {
         store.getState().setCurrentEvent(null);
       }
+    };
+
+    const flushQueuedStateUpdate = () => {
+      const queuedState = queuedStateUpdateRef.current;
+      if (!queuedState) return;
+
+      queuedStateUpdateRef.current = null;
+      applyStateUpdate(queuedState);
+    };
+
+    const handleStateUpdate = (state: GameState) => {
+      if (shouldDeferStateUpdateDuringMovement({
+        hasActiveMovementToken: latestMovementTokenRef.current !== null,
+        prevState: prevStateRef.current,
+        nextState: state,
+      })) {
+        queuedStateUpdateRef.current = state;
+        // When deferring due to AnimationGate (no movement token), schedule
+        // a flush when animations complete so queued state isn't stuck forever.
+        if (latestMovementTokenRef.current === null && AnimationGate.isAnimating) {
+          AnimationGate.waitForIdle().then(() => {
+            flushQueuedStateUpdate();
+          });
+        }
+        return;
+      }
+
+      applyStateUpdate(state);
     };
 
     const handleRoomCreated = ({ roomId, playerId }: { roomId: string; playerId: string }) => {
@@ -214,15 +296,11 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleCardDrawn = (data: { card: any; deckType: string; playerId?: string; addedToHand?: boolean }) => {
-      const show = () => {
+      const show = async () => {
         playSound('card_draw');
         store.getState().setDrawnCard(data);
       };
-      if (AnimationGate.isAnimating) {
-        AnimationGate.waitForIdle().then(show);
-      } else {
-        show();
-      }
+      void deferUntilMovementSettles(show);
     };
 
     const handleDiceResult = (data: { playerId: string; values: number[]; total: number; isEventDice?: boolean }) => {
@@ -261,14 +339,16 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         _lastEventTime = now;
       }
 
-      // Parallel plan selection — always show as full modal
+      // Parallel plan selection — always show as full modal, but defer until animations finish
       if (data.pendingAction?.type === ('parallel_plan_selection' as any)) {
-        store.getState().setCurrentEvent({
-          title: '升学阶段',
-          description: '选择培养计划',
-          pendingAction: data.pendingAction,
+        void deferUntilMovementSettles(async () => {
+          store.getState().setCurrentEvent({
+            title: '升学阶段',
+            description: '选择培养计划',
+            pendingAction: data.pendingAction,
+          });
+          playSound('event_trigger');
         });
-        playSound('event_trigger');
         return;
       }
 
@@ -283,19 +363,9 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return isMinor ? 'minor' as const : 'normal' as const;
       })();
 
-      // Helper: wait for piece animations to finish before showing any UI.
-      // Uses requestAnimationFrame to let PlayerLayer.update() start animations
-      // from the React useEffect triggered by the same state-update batch.
-      const afterAnimations = async (): Promise<void> => {
-        // Yield two frames so the React effect that calls PlayerLayer.update()
-        // has a chance to run and register animations with AnimationGate.
-        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-        await AnimationGate.waitForIdle();
-      };
-
       // Minor non-interactive events -> notification toast instead of modal
       if (effectiveSeverity === 'minor' && !data.pendingAction) {
-        afterAnimations().then(() => {
+        void deferUntilMovementSettles(async () => {
           store.getState().addNotification(
             `${data.title}: ${data.description}`,
             'info',
@@ -322,7 +392,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
           if (data.effects.exploration) effectParts.push(`\uD83D\uDDFA\uFE0F${data.effects.exploration > 0 ? '+' : ''}${data.effects.exploration}`);
         }
         const suffix = effectParts.length > 0 ? ` (${effectParts.join(' ')})` : '';
-        afterAnimations().then(() => {
+        void deferUntilMovementSettles(async () => {
           store.getState().addNotification(
             `${data.title}: ${data.description}${suffix}`,
             'info',
@@ -332,7 +402,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      afterAnimations().then(() => {
+      void deferUntilMovementSettles(async () => {
         store.getState().setCurrentEvent({
           title: data.title,
           description: data.description,
@@ -346,21 +416,16 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
 
     const handleAnnouncement = (data: { message: string; type: 'info' | 'warning' | 'success' }) => {
-      // Wait for piece animations to finish before showing announcement
-      const show = () => {
+      const show = async () => {
         store.getState().addNotification(data.message, data.type);
         if (data.type === 'success') playSound('event_positive');
         else if (data.type === 'warning') playSound('event_negative');
       };
-      if (AnimationGate.isAnimating) {
-        AnimationGate.waitForIdle().then(show);
-      } else {
-        show();
-      }
+      void deferUntilMovementSettles(show);
     };
 
     const handlePlayerWon = (data: { playerId: string; playerName: string; condition: string }) => {
-      const show = () => {
+      const show = async () => {
         store.getState().setWinner(data);
         playSound('victory');
         setTimeout(() => playSound('victory_fanfare'), 300);
@@ -369,12 +434,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('nannaricher_roomId');
         localStorage.removeItem('nannaricher_playerId');
       };
-      // Wait for piece animations to finish before showing victory screen
-      if (AnimationGate.isAnimating) {
-        AnimationGate.waitForIdle().then(show);
-      } else {
-        show();
-      }
+      void deferUntilMovementSettles(show);
     };
 
     const handleVoteResult = (data: { cardId: string; results: Record<string, string[]>; winnerOption: string }) => {
@@ -412,6 +472,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       store.getState().setReadyPlayerIds([]);
       // Clear stale notifications from previous game
       store.setState({ notifications: [] });
+      store.getState().setMovementUiBlocked(false);
     };
 
     const handleReadyState = (data: { readyPlayerIds: string[] }) => {
@@ -424,7 +485,14 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       deltas: { money: number; gpa: number; exploration: number };
     }) => {
       const state = store.getState();
-      const player = state.gameState?.players.find(p => p.id === data.playerId);
+      const player = state.gameState?.players.find((p) => p.id === data.playerId);
+      const notification = buildLineExitSummaryNotification(
+        player?.name || '玩家',
+        data.lineName,
+        data.deltas,
+      );
+      addDeferredNotification(notification.message, notification.type);
+      return;
       const name = player?.name || '玩家';
       const parts: string[] = [];
       if (data.deltas.money) parts.push(`资金${data.deltas.money > 0 ? '+' : ''}${data.deltas.money}`);
@@ -438,7 +506,14 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       playerId: string; planName: string; message: string;
     }) => {
       const state = store.getState();
-      const player = state.gameState?.players.find(p => p.id === data.playerId);
+      const player = state.gameState?.players.find((p) => p.id === data.playerId);
+      const notification = buildPlanAbilityNotification(
+        player?.name || '玩家',
+        data.planName,
+        data.message,
+      );
+      addDeferredNotification(notification.message, notification.type);
+      return;
       const name = player?.name || '玩家';
       store.getState().addNotification(
         `${name}【${data.planName}】${data.message}`,

@@ -21,6 +21,7 @@ import type { TweenEngine } from '../animations/TweenEngine';
 import { animatePieceMove } from '../animations/PieceMoveAnim';
 import { playLandingEffect } from '../animations/LandingEffects';
 import { AnimationGate } from '../AnimationGate';
+import { movementEventGate } from '../MovementEventGate';
 import { MAIN_BOARD_CELLS, CORNER_INDICES } from '@nannaricher/shared';
 
 // Internal representation of a rendered player piece
@@ -168,6 +169,7 @@ export class PlayerLayer implements RenderLayer {
               const pieceRef = existing;
               const playerId = player.id;
               const pos = player.position;
+              const movementToken = movementEventGate.consumeNextPendingToken();
               this.animatingPieces.add(playerId);
               AnimationGate.start();
 
@@ -175,6 +177,9 @@ export class PlayerLayer implements RenderLayer {
                 .finally(() => {
                   this.animatingPieces.delete(playerId);
                   AnimationGate.end();
+                  if (movementToken !== null) {
+                    movementEventGate.markCompleted(movementToken);
+                  }
                   // Guarantee final position if this piece wasn't replaced
                   const current = this.playerPieces.get(playerId);
                   if (current === pieceRef) {
@@ -187,13 +192,21 @@ export class PlayerLayer implements RenderLayer {
               this.tryPlayLandingEffect(pos, targetCenter, this.effectLayer, this.tweenEngine);
             } else {
               // Empty path fallback — snap
+              const movementToken = movementEventGate.consumeNextPendingToken();
               existing.container.x = targetX;
               existing.container.y = targetY;
+              if (movementToken !== null) {
+                movementEventGate.markCompleted(movementToken);
+              }
             }
           } else {
             // No animation deps — instant snap
+            const movementToken = movementEventGate.consumeNextPendingToken();
             existing.container.x = targetX;
             existing.container.y = targetY;
+            if (movementToken !== null) {
+              movementEventGate.markCompleted(movementToken);
+            }
           }
         } else if (highlightChanged) {
           // Cancel animation before rebuild
@@ -229,8 +242,21 @@ export class PlayerLayer implements RenderLayer {
   }
 
   /**
+   * Get the ID of a piece currently being animated, or null if no animation.
+   * When multiple pieces animate simultaneously, returns the most recently started one.
+   */
+  getAnimatingPieceId(): string | null {
+    if (this.animatingPieces.size === 0) return null;
+    // Return last added (most recent animation)
+    let last: string | null = null;
+    for (const id of this.animatingPieces) last = id;
+    return last;
+  }
+
+  /**
    * Get the position of a player's piece in mainContainer-local coordinates.
    * (Adds the board-center offset so callers like ViewportController get correct world coords.)
+   * Returns the REAL-TIME visual position (during animation this is the current tween position).
    */
   getPlayerPosition(playerId: string): { x: number; y: number } | null {
     const piece = this.playerPieces.get(playerId);
