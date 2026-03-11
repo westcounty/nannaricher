@@ -38,7 +38,7 @@ const DiceFace: React.FC<{ value: number; rolling: boolean }> = ({ value, rollin
           key={index}
           cx={cx}
           cy={cy}
-          r="12"
+          r="14"
           className="dice-dot"
         />
       ))}
