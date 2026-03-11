@@ -460,32 +460,15 @@ export class PlayerLayer implements RenderLayer {
       // Load whale sprite async and replace fallback
       Assets.load<Texture>(whaleUrl).then((texture) => {
         if (texture && group.parent) {
-          // Wrap whale sprite in a container with circular mask to hide white background
-          const whaleContainer = new Container();
           const whale = new Sprite(texture);
           whale.anchor.set(0.5);
           whale.width = pieceSize;
           whale.height = pieceSize;
-          whaleContainer.addChild(whale);
-
-          // Circular mask
-          const mask = new Graphics();
-          mask.circle(0, 0, pieceRadius);
-          mask.fill({ color: 0xffffff });
-          whaleContainer.addChild(mask);
-          whaleContainer.mask = mask;
-
-          // Replace fallback circle with masked whale
+          // Replace fallback circle with whale sprite (PNG has transparent bg)
           const fbIndex = group.getChildIndex(fallbackPiece);
           group.removeChild(fallbackPiece);
           fallbackPiece.destroy();
-          group.addChildAt(whaleContainer, fbIndex);
-
-          // Add colored border ring around the masked piece
-          const border = new Graphics();
-          border.circle(0, 0, pieceRadius);
-          border.stroke({ width: 2.5, color, alpha: 0.9 });
-          group.addChildAt(border, fbIndex + 1);
+          group.addChildAt(whale, fbIndex);
         }
       }).catch(() => {
         // Keep fallback circle on error

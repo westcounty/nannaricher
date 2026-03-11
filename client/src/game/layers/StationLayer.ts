@@ -547,12 +547,10 @@ export class StationLayer implements RenderLayer {
 
         card.addChild(bg);
 
-        // --- Branch cell illustration (use line's shared image) ---
-        const branchImgUrl = LINE_IMAGE_MAP[line.id];
-        if (branchImgUrl) {
-          const cardKey = `line:${line.id}:${i}`;
-          this.loadBranchImage(card, branchImgUrl, cardW, cardH, cardKey);
-        }
+        // --- Branch cell illustration (each cell has its own image) ---
+        const branchImgUrl = `/art/cells/line/${line.id}_${i}.png`;
+        const cardKey = `line:${line.id}:${i}`;
+        this.loadBranchImage(card, branchImgUrl, cardW, cardH, cardKey);
 
         // --- Resolve station name from boardData ---
         const lineData = boardData.lines[line.id];
@@ -776,18 +774,23 @@ export class StationLayer implements RenderLayer {
   private loadBranchImage(card: Container, url: string, cardW: number, cardH: number, cardKey: string): void {
     const thumbUrl = toThumbUrl(url);
 
+    const nameBgH = 18;
+    const imgAreaH = cardH - nameBgH - 4;
+
     loadCellTexture(thumbUrl).then(texture => {
       if (!texture || !card.parent) return;
 
       const sprite = new Sprite(texture);
-      // Cover-fill: scale to fill the card area
-      const scaleX = cardW / texture.width;
-      const scaleY = cardH / texture.height;
-      const scale = Math.max(scaleX, scaleY);
+      // Fit image into area above name bar
+      const padding = 2;
+      const imgAreaW = cardW - padding * 2;
+      const scaleX = imgAreaW / texture.width;
+      const scaleY = (imgAreaH - padding) / texture.height;
+      const scale = Math.min(scaleX, scaleY);
       sprite.width = texture.width * scale;
       sprite.height = texture.height * scale;
       sprite.anchor.set(0.5);
-      sprite.alpha = 0.35; // subtle background, don't overpower the name
+      sprite.y = -cardH / 2 + padding + imgAreaH / 2;
 
       // Insert after bg (index 1) but before name
       card.addChildAt(sprite, 1);
@@ -802,7 +805,24 @@ export class StationLayer implements RenderLayer {
         isCorner: false,
       });
     }).catch(() => {
-      // Fail silently — cell shows just its colored background
+      // Try full-size as fallback
+      loadCellTexture(url).then(texture => {
+        if (!texture || !card.parent) return;
+        const sprite = new Sprite(texture);
+        const padding = 2;
+        const imgAreaW = cardW - padding * 2;
+        const scaleX = imgAreaW / texture.width;
+        const scaleY = (imgAreaH - padding) / texture.height;
+        const scale = Math.min(scaleX, scaleY);
+        sprite.width = texture.width * scale;
+        sprite.height = texture.height * scale;
+        sprite.anchor.set(0.5);
+        sprite.y = -cardH / 2 + padding + imgAreaH / 2;
+        card.addChildAt(sprite, 1);
+        if (cardKey) {
+          this.hiResState.set(cardKey, { sprite, hiResUrl: url, loaded: true, cardW, cardH, isCorner: false });
+        }
+      }).catch(() => {});
     });
   }
 
