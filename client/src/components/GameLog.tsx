@@ -49,7 +49,7 @@ const SEVERITY_STYLES: Record<Severity, {
     glow: 'none',
   },
   important: {
-    borderColor: 'var(--color-accent, #C9A227)',
+    borderColor: 'var(--color-accent, #D4AF37)',
     fontWeight: '500',
     background: 'rgba(201, 162, 39, 0.05)',
     glow: 'none',
@@ -72,9 +72,11 @@ const SEVERITY_FILTER_LABELS: Record<SeverityFilter, string> = {
 interface GameLogProps {
   entries: GameLogEntry[];
   players: Player[];
+  /** When true, skip the collapsible header and always show entries */
+  alwaysExpanded?: boolean;
 }
 
-export function GameLog({ entries, players }: GameLogProps) {
+export function GameLog({ entries, players, alwaysExpanded }: GameLogProps) {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -120,19 +122,23 @@ export function GameLog({ entries, players }: GameLogProps) {
     setSeverityFilter(e.target.value as SeverityFilter);
   };
 
-  return (
-    <div className={`game-log ${isExpanded ? 'expanded' : 'collapsed'}`}>
-      <div className="log-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="log-header-left">
-          <h3>游戏日志</h3>
-          <span className="log-count">{entries.length} 条记录</span>
-        </div>
-        <button className="log-toggle-button">
-          {isExpanded ? '收起' : '展开'}
-        </button>
-      </div>
+  const showContent = alwaysExpanded || isExpanded;
 
-      {isExpanded && (
+  return (
+    <div className={`game-log ${showContent ? 'expanded' : 'collapsed'}`}>
+      {!alwaysExpanded && (
+        <div className="log-header" onClick={() => setIsExpanded(!isExpanded)}>
+          <div className="log-header-left">
+            <h3>游戏日志</h3>
+            <span className="log-count">{entries.length} 条记录</span>
+          </div>
+          <button className="log-toggle-button">
+            {isExpanded ? '收起' : '展开'}
+          </button>
+        </div>
+      )}
+
+      {showContent && (
         <>
           <div className="log-filter" style={{ display: 'flex', gap: 'var(--spacing-sm, 8px)', flexWrap: 'wrap', alignItems: 'center' }}>
             <label className="filter-label">筛选玩家:</label>

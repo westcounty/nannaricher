@@ -12,12 +12,14 @@ export interface MorePanelProps {
   chatMessages: Array<{ id: string; playerName: string; playerColor: string; text: string; timestamp: number }>;
   sendChatMessage: (message: string) => void;
   gameState: NonNullable<ReturnType<typeof useGameStore.getState>['gameState']>;
+  onClose?: () => void;
 }
 
 export function MorePanel({
   chatMessages,
   sendChatMessage,
   gameState,
+  onClose,
 }: MorePanelProps) {
   const [tab, setTab] = useState<MoreTab>('chat');
 
@@ -28,20 +30,25 @@ export function MorePanel({
           className={`more-panel-tab ${tab === 'chat' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('chat')}
         >
-          💬 聊天
+          聊天
         </button>
         <button
           className={`more-panel-tab ${tab === 'log' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('log')}
         >
-          📜 日志
+          日志
         </button>
+        {onClose && (
+          <button className="mobile-sheet-close more-panel-close" onClick={onClose}>
+            ✕
+          </button>
+        )}
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {tab === 'chat' ? (
-          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+          <ChatPanel messages={chatMessages} onSend={sendChatMessage} alwaysExpanded />
         ) : (
-          <GameLog entries={gameState.log} players={gameState.players} />
+          <GameLog entries={gameState.log} players={gameState.players} alwaysExpanded />
         )}
       </div>
     </div>

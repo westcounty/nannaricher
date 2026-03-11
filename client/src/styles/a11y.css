@@ -59,12 +59,12 @@ body {
 
 /* 键盘导航焦点样式 */
 .keyboard-navigation *:focus {
-  outline: 3px solid #5E3A8D !important;
+  outline: 3px solid #5B2D8E !important;
   outline-offset: 2px !important;
 }
 
 /* 焦点可见性 */
 *:focus-visible {
-  outline: 3px solid #5E3A8D;
+  outline: 3px solid #5B2D8E;
   outline-offset: 2px;
 }

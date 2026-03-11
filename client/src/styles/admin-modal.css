@@ -29,7 +29,7 @@
   margin: 0 0 16px;
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--color-accent, #c9a227);
+  color: var(--color-accent, #d4af37);
   text-align: center;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .admin-modal__input:focus {
-  border-color: var(--color-accent, #c9a227);
+  border-color: var(--color-accent, #d4af37);
 }
 
 .admin-modal__actions {
@@ -118,7 +118,7 @@
 
 .admin-modal__btn--confirm {
   background: rgba(201, 162, 39, 0.25);
-  color: var(--color-accent, #c9a227);
+  color: var(--color-accent, #d4af37);
 }
 
 .admin-modal__btn--confirm:hover {

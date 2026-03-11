@@ -111,9 +111,9 @@ const BUILTIN_NAMES: string[] = [
 async function fetchLLMNames(): Promise<string[]> {
   if (!LLM_CONFIG.apiKey) return [];
 
-  const prompt = `你是南京大学（南大）校园文化达人。请生成${LLM_BATCH_SIZE}个搞笑的、简短的中文昵称（2-6个汉字），用于游戏中的机器人玩家名字。
+  const prompt = `你是南哪大学（南哪）校园文化达人。请生成${LLM_BATCH_SIZE}个搞笑的、简短的中文昵称（2-6个汉字），用于游戏中的机器人玩家名字。
 要求：
-- 与南京大学校园生活相关（校区、食堂、图书馆、考试、宿舍、社团等）
+- 与南哪大学校园生活相关（校区、食堂、图书馆、考试、宿舍、社团等）
 - 幽默有趣、脑洞大开
 - 每个名字2-6个汉字，不要加emoji或标点
 - 返回JSON数组格式，例如：["仙林卷王","鼓楼摸鱼帝","食堂干饭王","图书馆占座侠","保研锦鲤"]

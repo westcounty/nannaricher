@@ -36,30 +36,30 @@ export const METRO_BOARD_HEIGHT = 2500;
 // ============================================
 // Station Size Constants
 // ============================================
-export const STATION_RADIUS = 18;
-export const CORNER_STATION_RADIUS = 28;
-export const LINE_STATION_RADIUS = 14;
+export const STATION_RADIUS = 22;
+export const CORNER_STATION_RADIUS = 36;
+export const LINE_STATION_RADIUS = 18;
 
 // Station card dimensions (width × height) — used by StationLayer
-export const MAIN_STATION_SIZE = 80;
-export const MAIN_STATION_HEIGHT = 100;
-export const CORNER_STATION_SIZE = 120;
-export const CORNER_STATION_HEIGHT = 140;
+export const MAIN_STATION_SIZE = 130;
+export const MAIN_STATION_HEIGHT = 150;
+export const CORNER_STATION_SIZE = 200;
+export const CORNER_STATION_HEIGHT = 220;
 // Branch line stations — sized for readable Chinese text
-export const LINE_STATION_SIZE = 62;
-export const LINE_STATION_HEIGHT = 72;
-export const EXP_STATION_SIZE = 72;
-export const EXP_STATION_HEIGHT = 82;
+export const LINE_STATION_SIZE = 70;
+export const LINE_STATION_HEIGHT = 82;
+export const EXP_STATION_SIZE = 90;
+export const EXP_STATION_HEIGHT = 105;
 
 // Track widths — used by TrackLayer
-export const MAIN_TRACK_WIDTH = 6;
+export const MAIN_TRACK_WIDTH = 10;
 export const LINE_TRACK_WIDTH = 4;
 
 // ============================================
 // Ring Geometry Constants
 // ============================================
-const HALF_WIDTH = 540;   // half-width of rounded rect ring
-const HALF_HEIGHT = 540;  // half-height of rounded rect ring (same as width for uniform spacing)
+const HALF_WIDTH = 700;   // half-width of rounded rect ring
+const HALF_HEIGHT = 700;  // half-height of rounded rect ring (same as width for uniform spacing)
 
 // ============================================
 // Main Ring Station Positions
@@ -178,7 +178,7 @@ export function bezierArcLength(
 // ============================================
 
 // Minimum spacing between adjacent branch stations (px)
-const MIN_CELL_SPACING = 80;
+const MIN_CELL_SPACING = 120;
 
 /**
  * Get the outward direction for a branch based on which side of the ring it's on.

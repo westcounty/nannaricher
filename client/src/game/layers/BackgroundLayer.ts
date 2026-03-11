@@ -50,7 +50,7 @@ export class BackgroundLayer implements RenderLayer {
       16,
     );
     bg.fill({ color: 0x16102A });
-    bg.stroke({ width: 2, color: 0x5E3A8D, alpha: 0.4 });
+    bg.stroke({ width: 2, color: 0x5B2D8E, alpha: 0.4 });
 
     this.container!.addChild(bg);
   }
@@ -76,8 +76,8 @@ export class BackgroundLayer implements RenderLayer {
       CENTER_AREA_SIZE,
       12,
     );
-    centerGfx.fill({ color: 0x5E3A8D, alpha: 0.15 });
-    centerGfx.stroke({ width: 2, color: 0x5E3A8D, alpha: 0.5 });
+    centerGfx.fill({ color: 0x5B2D8E, alpha: 0.15 });
+    centerGfx.stroke({ width: 2, color: 0x5B2D8E, alpha: 0.5 });
     this.container!.addChild(centerGfx);
 
     // Title — gold accent on dark background
@@ -85,7 +85,7 @@ export class BackgroundLayer implements RenderLayer {
       text: '菜根人生',
       style: new TextStyle({
         fontSize: 20,
-        fill: 0xE0C55E,
+        fill: 0xE8CC6E,
         fontWeight: 'bold',
       }),
     });

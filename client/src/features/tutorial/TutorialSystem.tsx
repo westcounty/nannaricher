@@ -260,7 +260,7 @@ export function TutorialSystem() {
         {/* Tooltip body */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #3D2566 0%, #5E3A8D 100%)',
+            background: 'linear-gradient(135deg, #3D1F66 0%, #5B2D8E 100%)',
             borderRadius: 12,
             padding: '16px 20px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 12px rgba(94,58,141,0.3)',
@@ -274,7 +274,7 @@ export function TutorialSystem() {
               fontSize: 15,
               fontWeight: 700,
               marginBottom: 8,
-              color: '#E0C55E',
+              color: '#E8CC6E',
             }}
           >
             {activeStep.title}
@@ -334,7 +334,7 @@ export function TutorialSystem() {
 
 function Arrow({ side }: { side: 'top' | 'bottom' | 'left' | 'right' }) {
   const size = 8;
-  const color = '#3D2566';
+  const color = '#3D1F66';
 
   const baseStyle: React.CSSProperties = {
     position: 'absolute',

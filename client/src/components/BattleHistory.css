@@ -85,7 +85,7 @@
 }
 
 .stat-highlight .stat-value {
-  color: var(--color-nju-gold, #C9A227);
+  color: var(--color-nju-gold, #D4AF37);
 }
 
 .stat-label {
@@ -151,7 +151,7 @@
   border-radius: 20px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-nju-gold, #C9A227);
+  color: var(--color-nju-gold, #D4AF37);
   background: rgba(201, 162, 39, 0.12);
   border: 1px solid rgba(201, 162, 39, 0.2);
 }
@@ -195,7 +195,7 @@
   font-size: 0.72rem;
   padding: 3px 10px;
   border-radius: 20px;
-  color: var(--color-nju-purple-light, #8B5FBF);
+  color: var(--color-nju-purple-light, #7B4DB8);
   background: rgba(139, 95, 191, 0.1);
   border: 1px solid rgba(139, 95, 191, 0.15);
 }

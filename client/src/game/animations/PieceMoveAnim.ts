@@ -11,6 +11,7 @@ export async function animatePieceMove(
   path: { x: number; y: number }[],
   tweenEngine: TweenEngine,
   effectLayer: Container,
+  trailColor: number = 0xffffff,
 ): Promise<void> {
   const baseStep = 450;
   // Progressive acceleration: longer paths move faster per step
@@ -36,6 +37,10 @@ export async function animatePieceMove(
     );
   }
 
+  // Trail dots: track active dots so we can limit count
+  const activeTrailDots: Graphics[] = [];
+  const MAX_TRAIL_DOTS = 6;
+
   console.log(`[PieceMoveAnim] path=${path.length} steps, stepDuration=${stepDuration}, piece at (${piece.x.toFixed(0)}, ${piece.y.toFixed(0)})`);
   for (let i = 0; i < path.length; i++) {
     const target = path[i];
@@ -44,6 +49,9 @@ export async function animatePieceMove(
       piece.y = target.y;
       continue;
     }
+
+    // Spawn a trail dot at the piece's current position before it moves
+    spawnTrailDot(effectLayer, piece.x, piece.y, trailColor, tweenEngine, activeTrailDots, MAX_TRAIL_DOTS);
 
     // For long paths, skip arc on middle stations (linear move), only arc on last 2
     const isLastTwo = i >= path.length - 2;
@@ -89,6 +97,52 @@ export async function animatePieceMove(
     // Pause at destination so the player can see where the piece landed
     await new Promise(resolve => setTimeout(resolve, AnimationConfig.scaleDuration(1000)));
   }
+}
+
+/**
+ * Spawn a semi-transparent trail dot that fades out over 800ms.
+ * Limits the number of visible trail dots to maxDots.
+ */
+function spawnTrailDot(
+  layer: Container,
+  x: number,
+  y: number,
+  color: number,
+  tweenEngine: TweenEngine,
+  activeDots: Graphics[],
+  maxDots: number,
+): void {
+  // Remove oldest dots if at the limit
+  while (activeDots.length >= maxDots) {
+    const oldest = activeDots.shift()!;
+    if (oldest.parent) oldest.parent.removeChild(oldest);
+    oldest.destroy();
+  }
+
+  const dot = new Graphics();
+  dot.circle(0, 0, 4);
+  dot.fill({ color, alpha: 0.4 });
+  dot.x = x;
+  dot.y = y;
+  layer.addChild(dot);
+  activeDots.push(dot);
+
+  const fadeDuration = AnimationConfig.scaleDuration(800);
+  if (fadeDuration <= 0) {
+    // Reduced-motion: remove immediately
+    if (dot.parent) dot.parent.removeChild(dot);
+    dot.destroy();
+    const idx = activeDots.indexOf(dot);
+    if (idx !== -1) activeDots.splice(idx, 1);
+    return;
+  }
+
+  tweenEngine.to(dot, { alpha: 0 }, fadeDuration, EASINGS.easeOut).then(() => {
+    if (dot.parent) dot.parent.removeChild(dot);
+    dot.destroy();
+    const idx = activeDots.indexOf(dot);
+    if (idx !== -1) activeDots.splice(idx, 1);
+  });
 }
 
 function createRipple(layer: Container, x: number, y: number, tweenEngine: TweenEngine): void {

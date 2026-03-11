@@ -20,6 +20,7 @@ import {
   getPlayerPlanIds,
 } from '@nannaricher/shared';
 import { GameEngine } from './GameEngine.js';
+import { getCornerEventSeverity } from './corner-event-severity.js';
 import { GameLogger } from './GameLogger.js';
 import { boardData, MAIN_BOARD_SIZE } from '../data/board.js';
 import type { GameServer } from '../socket/types.js';
@@ -3306,7 +3307,7 @@ export class GameCoordinator {
                 title: cellName,
                 description: pendingAction.prompt,
                 pendingAction,
-                ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
+                ...(cell?.type === 'corner' ? { severity: getCornerEventSeverity(cell.cornerType) } : {}),
               });
             } else if (state.pendingAction) {
               this.broadcastState();
@@ -3314,7 +3315,7 @@ export class GameCoordinator {
                 title: cellName,
                 description: state.pendingAction.prompt,
                 pendingAction: state.pendingAction,
-                ...(cell?.type === 'corner' ? { severity: 'epic' as const } : {}),
+                ...(cell?.type === 'corner' ? { severity: getCornerEventSeverity(cell.cornerType) } : {}),
               });
             } else {
               const effectDeltas = this.computeEffectDeltas(playerId, snapshot);
@@ -3329,7 +3330,7 @@ export class GameCoordinator {
                   description: effectDesc,
                   playerId,
                   ...(effectDeltas ? { effects: effectDeltas } : {}),
-                  ...(cell.type === 'corner' ? { severity: 'epic' as const } : {}),
+                  ...(cell.type === 'corner' ? { severity: getCornerEventSeverity(cell.cornerType) } : {}),
                 });
               }
               this.broadcastState();
@@ -3541,6 +3542,9 @@ export class GameCoordinator {
       this.engine.movePlayerForward(playerId, total);
       this.addLog(playerId, `${currentPlayer.name} 从鼎移动 ${total} 步`);
 
+      // Broadcast the new board position before any landing UI/events.
+      this.broadcastState();
+
       // Handle landing on new cell
       this.handleCellLanding(playerId, currentPlayer.position);
       return;
@@ -3630,6 +3634,9 @@ export class GameCoordinator {
     }
 
     this.logger.log({ turn: state.turnNumber, round: state.roundNumber, playerId, type: 'move', message: `移动到 ${JSON.stringify(currentPlayer.position)}`, data: { from: posBefore, to: currentPlayer.position, steps: total, backward: isBackward } });
+
+    // Broadcast the new board position before any landing UI/events.
+    this.broadcastState();
 
     // Handle landing
     this.handleCellLanding(playerId, currentPlayer.position);

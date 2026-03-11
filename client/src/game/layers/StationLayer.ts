@@ -1,7 +1,7 @@
 // client/src/game/layers/StationLayer.ts
 // Renders all station cards (main ring + branch line stations) with frosted-glass card effect.
 
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text, TextStyle, Sprite, Assets, Texture } from 'pixi.js';
 import type { GameState, Position } from '@nannaricher/shared';
 import { MAIN_BOARD_CELLS, CORNER_INDICES, LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
@@ -38,6 +38,7 @@ export interface CellHoverInfo {
   position: Position;
   screenX: number;
   screenY: number;
+  imageUrl?: string;
 }
 
 export interface StationLayerOptions {
@@ -86,6 +87,70 @@ const EMOJI_BY_TYPE: Record<string, string> = {
 };
 
 const DEFAULT_EMOJI = '\u{1F4CD}'; // 📍
+
+// ============================================
+// Cell Illustration Map — maps cell id / type to image file
+// ============================================
+const CELL_IMAGE_MAP: Record<string, string> = {
+  // Corner stations
+  start: '/art/cells/start_gen.png',
+  hospital: '/art/cells/hospital.jpg',
+  ding: '/art/cells/ding.jpg',
+  waiting_room: '/art/cells/waiting_room.jpg',
+  // Main ring events
+  tuition: '/art/cells/tuition.jpg',
+  zijing: '/art/cells/zijing.jpg',
+  qingong: '/art/cells/qingong.jpg',
+  retake: '/art/cells/retake.png',
+  jiang_gong: '/art/cells/jiang_gong.png',
+  society: '/art/cells/society.png',
+  kechuang: '/art/cells/kechuang.png',
+  nanna_cp: '/art/cells/nanna_cp.jpg',
+  chuangmen: '/art/cells/chuangmen.jpg',
+};
+
+// Line entry images
+const LINE_IMAGE_MAP: Record<string, string> = {
+  study: '/art/cells/line_study.jpg',
+  money: '/art/cells/line_money.jpg',
+  pukou: '/art/cells/line_pukou.jpg',
+  suzhou: '/art/cells/line_suzhou.png',
+  explore: '/art/cells/line_explore_gen.png',
+  xianlin: '/art/cells/line_xianlin.jpg',
+  gulou: '/art/cells/line_gulou.jpg',
+  food: '/art/cells/line_food.jpg',
+};
+
+// Chance card image
+const CHANCE_IMAGE = '/art/cells/chance.jpg';
+
+// Texture cache
+const textureCache = new Map<string, Texture>();
+
+async function loadCellTexture(url: string): Promise<Texture | null> {
+  if (textureCache.has(url)) return textureCache.get(url)!;
+  try {
+    const texture = await Assets.load<Texture>(url);
+    textureCache.set(url, texture);
+    return texture;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert a full-size image URL to its thumbnail URL.
+ * e.g. /art/cells/start_gen.png  -> /art/thumb/start_gen.webp
+ *      /art/cells/line/foo.png   -> /art/thumb/line/foo.webp   (not currently used for branch cells)
+ */
+function toThumbUrl(fullUrl: string): string {
+  return fullUrl
+    .replace('/art/cells/', '/art/thumb/')
+    .replace(/\.(png|jpg|jpeg)$/i, '.webp');
+}
+
+/** Hi-res zoom threshold: load full images when zoom exceeds this. */
+const HIRES_ZOOM_THRESHOLD = 2.5;
 
 /**
  * Smooth scale animation for card hover.
@@ -147,6 +212,18 @@ export class StationLayer implements RenderLayer {
   private highlights: Map<string, Graphics> = new Map();
   // TweenEngine for hover animations (injected after init)
   private tweenEngine: TweenEngine | null = null;
+  // LOD state for zoom-dependent detail
+  private currentLOD: 'near' | 'mid' | 'far' = 'near';
+  // References to branch line station name texts (for LOD show/hide)
+  private branchTexts: Text[] = [];
+  // Hi-res image tracking: maps card key -> { thumbSprite, hiResUrl, loaded }
+  private hiResState: Map<string, { sprite: Sprite; hiResUrl: string; loaded: boolean; cardW: number; cardH: number; isCorner: boolean }> = new Map();
+  // Whether hi-res images have been triggered
+  private hiResTriggered = false;
+  // Loading pulse animation frame id
+  private pulseAnimFrame: number | null = null;
+  // Sprites currently pulsing (loading)
+  private pulsingSprites: Set<Sprite> = new Set();
 
   constructor(options: StationLayerOptions = {}) {
     this.options = options;
@@ -155,6 +232,29 @@ export class StationLayer implements RenderLayer {
   /** Inject TweenEngine for unified hover animations. */
   setTweenEngine(engine: TweenEngine): void {
     this.tweenEngine = engine;
+  }
+
+  /** Update level-of-detail based on current zoom scale. */
+  updateLOD(zoom: number): void {
+    const newLOD = zoom > 2.0 ? 'near' : zoom > 1.0 ? 'mid' : 'far';
+    if (newLOD !== this.currentLOD) {
+      this.currentLOD = newLOD;
+      this.applyLOD();
+    }
+
+    // Trigger hi-res image loading when zoom exceeds threshold
+    if (!this.hiResTriggered && zoom > HIRES_ZOOM_THRESHOLD) {
+      this.hiResTriggered = true;
+      this.loadAllHiRes();
+    }
+  }
+
+  /** Apply LOD: show/hide branch line text labels based on zoom level. */
+  private applyLOD(): void {
+    const textAlpha = this.currentLOD === 'near' ? 1 : 0;
+    for (const t of this.branchTexts) {
+      t.alpha = textAlpha;
+    }
   }
 
   init(stage: Container): void {
@@ -234,6 +334,13 @@ export class StationLayer implements RenderLayer {
   destroy(): void {
     this.stationCards.clear();
     this.badges.clear();
+    this.branchTexts = [];
+    this.hiResState.clear();
+    this.pulsingSprites.clear();
+    if (this.pulseAnimFrame !== null) {
+      cancelAnimationFrame(this.pulseAnimFrame);
+      this.pulseAnimFrame = null;
+    }
     if (this.container) {
       if (this.container.parent) {
         this.container.parent.removeChild(this.container);
@@ -256,170 +363,106 @@ export class StationLayer implements RenderLayer {
 
       const cardW = isCorner ? CORNER_STATION_SIZE : MAIN_STATION_SIZE;
       const cardH = isCorner ? CORNER_STATION_HEIGHT : MAIN_STATION_HEIGHT;
-      const cornerRadius = isCorner ? 12 : 8;
-      const borderWidth = isCorner ? 2.5 : 1.5;
-      const iconRadius = isCorner ? 18 : 12;
+      const cornerRadius = isCorner ? 16 : 10;
+      const borderWidth = isCorner ? 5 : 2.5;
 
       // Card container
       const card = new Container();
       card.x = pos.x;
       card.y = pos.y;
 
-      // --- Card background graphics ---
+      // --- Card background ---
       const bg = new Graphics();
 
-      // 1. Dark type-color tint
+      // Solid colored background (much more visible than old translucent style)
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.fill({ color: colorDark, alpha: 0.25 });
+      bg.fill({ color: colorDark, alpha: 0.95 });
 
-      // 2. Glass overlay (higher opacity for readability)
+      // Bold colored border
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.fill({ color: 0x1A1230, alpha: 0.82 });
+      bg.stroke({ width: borderWidth, color: colorLight, alpha: 1.0 });
 
-      // 3. Border (stronger for event stations)
-      const borderAlpha = cell.type === 'event' ? 0.9 : 0.7;
-      bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.stroke({ width: borderWidth, color: colorLight, alpha: borderAlpha });
+      // Inner glow (thicker, low-alpha stroke for soft glow effect)
+      bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, cardH - 2, cornerRadius - 1);
+      bg.stroke({ color: colorLight, width: 6, alpha: 0.15 });
 
-      // 4. Icon background circle
-      const iconY = isCorner ? -cardH / 2 + 30 : -cardH / 2 + 24;
-      bg.circle(0, iconY, iconRadius);
-      bg.fill({ color: colorDark, alpha: 0.4 });
-
-      // 5. Force-entry red dot
-      if (cell.forceEntry) {
-        bg.circle(cardW / 2 - 8, -cardH / 2 + 8, 5);
-        bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.text.danger), alpha: 0.85 });
+      // Corner glow halo
+      if (isCorner) {
+        const glowRadius = Math.max(cardW, cardH) * 0.75;
+        bg.circle(0, 0, glowRadius);
+        bg.fill({ color: colorLight, alpha: 0.12 });
       }
 
-      // 6. Type-specific visual enhancements
-      if (isCorner) {
-        // Corner glow: radial halo effect
-        const glowRadius = Math.max(cardW, cardH) * 0.8;
-        bg.circle(0, 0, glowRadius);
-        bg.fill({ color: colorLight, alpha: 0.08 });
-      } else if (cell.type === 'line_entry') {
-        // Line entry: left color bar indicator
-        bg.roundRect(-cardW / 2, -cardH / 2 + 4, 4, cardH - 8, 2);
-        bg.fill({ color: colorLight, alpha: 0.8 });
-      } else if (cell.type === 'event') {
-        // Event station: stronger border + larger emoji
-        bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, cardH - 2, cornerRadius - 1);
-        bg.stroke({ width: 1, color: colorLight, alpha: 0.3 });
-      } else if (cell.type === 'chance') {
-        // Chance station: dashed border effect (simulated with short segments)
-        const dashLen = 6;
-        const gapLen = 4;
-        const hw = cardW / 2 - 2;
-        const hh = cardH / 2 - 2;
-        // Top edge
-        for (let dx = -hw; dx < hw; dx += dashLen + gapLen) {
-          bg.moveTo(dx, -hh);
-          bg.lineTo(Math.min(dx + dashLen, hw), -hh);
-        }
-        // Bottom edge
-        for (let dx = -hw; dx < hw; dx += dashLen + gapLen) {
-          bg.moveTo(dx, hh);
-          bg.lineTo(Math.min(dx + dashLen, hw), hh);
-        }
-        // Left edge
-        for (let dy = -hh; dy < hh; dy += dashLen + gapLen) {
-          bg.moveTo(-hw, dy);
-          bg.lineTo(-hw, Math.min(dy + dashLen, hh));
-        }
-        // Right edge
-        for (let dy = -hh; dy < hh; dy += dashLen + gapLen) {
-          bg.moveTo(hw, dy);
-          bg.lineTo(hw, Math.min(dy + dashLen, hh));
-        }
-        bg.stroke({ width: 1.5, color: colorLight, alpha: 0.5 });
+      // Force-entry red dot
+      if (cell.forceEntry) {
+        bg.circle(cardW / 2 - 10, -cardH / 2 + 10, 7);
+        bg.fill({ color: 0xEF5350 });
+      }
+
+      // Left color bar for line entries
+      if (cell.type === 'line_entry') {
+        bg.roundRect(-cardW / 2, -cardH / 2 + 4, 6, cardH - 8, 3);
+        bg.fill({ color: colorLight });
       }
 
       card.addChild(bg);
 
-      // --- Emoji icon ---
-      const emoji = this.getCellEmoji(cell.id, cell.type);
-      const isEvent = cell.type === 'event';
-      const emojiText = new Text({
-        text: emoji,
-        style: new TextStyle({
-          fontSize: isCorner ? 20 : isEvent ? 16 : 14,
-          align: 'center',
-        }),
-      });
-      emojiText.anchor.set(0.5);
-      emojiText.x = 0;
-      emojiText.y = iconY;
-      card.addChild(emojiText);
+      // --- Illustration image (main visual) ---
+      const imgUrl = this.getCellImageUrl(cell.id, cell.type, cell.lineId);
+      if (imgUrl) {
+        this.loadAndAddImage(card, imgUrl, cardW, cardH, isCorner, colorDark, `main:${index}`);
+      } else {
+        // Fallback: large emoji
+        const emoji = this.getCellEmoji(cell.id, cell.type);
+        const emojiText = new Text({
+          text: emoji,
+          style: new TextStyle({ fontSize: isCorner ? 56 : 36, align: 'center' }),
+        });
+        emojiText.anchor.set(0.5);
+        emojiText.y = isCorner ? -20 : -14;
+        card.addChild(emojiText);
+      }
 
-      // --- Station name ---
+      // --- Station name (large, bold, at bottom) ---
       const displayName = this.getShortName(cell.name);
-      const nameColor = isCorner ? 0xE0C55E : 0xFFFFFF;
+      // Name background bar for readability
+      const nameBgH = isCorner ? 40 : 28;
+      const nameBg = new Graphics();
+      nameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, cornerRadius - 2);
+      nameBg.fill({ color: 0x000000, alpha: 0.7 });
+      card.addChild(nameBg);
+
+      const nameColor = isCorner ? 0xE8CC6E : (cell.type === 'event') ? 0x1A1230 : 0xFFFFFF;
       const nameText = new Text({
         text: displayName,
         style: new TextStyle({
           fontFamily: DESIGN_TOKENS.typography.fontFamily,
-          fontSize: isCorner ? 14 : 11,
+          fontSize: isCorner ? 24 : 15,
           fill: nameColor,
           fontWeight: 'bold',
           align: 'center',
-          dropShadow: {
-            alpha: 0.8,
-            blur: 2,
-            color: 0x000000,
-            distance: 1,
-          },
+          dropShadow: { alpha: 0.9, blur: 2, color: 0x000000, distance: 1 },
         }),
       });
       nameText.anchor.set(0.5);
-      nameText.y = isCorner ? iconY + 30 : iconY + 22;
+      nameText.y = cardH / 2 - nameBgH / 2 - 2;
       card.addChild(nameText);
-
-      // --- Effect summary (corners only) ---
-      if (isCorner) {
-        const desc = this.getShortDesc(cell.description);
-        const descText = new Text({
-          text: desc,
-          style: new TextStyle({
-            fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: 10,
-            fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
-            align: 'center',
-            wordWrap: true,
-            wordWrapWidth: cardW - 16,
-            dropShadow: {
-              alpha: 0.6,
-              blur: 2,
-              color: 0x000000,
-              distance: 1,
-            },
-          }),
-        });
-        descText.anchor.set(0.5);
-        descText.y = cardH / 2 - 18;
-        card.addChild(descText);
-      }
 
       // --- Transfer marker (换乘标记) ---
       const transferLines = this.getTransferLines(index);
       if (transferLines.length > 0) {
-        const transferBg = new Graphics();
-        transferBg.roundRect(-cardW / 2 + 2, cardH / 2 - 14, cardW - 4, 12, 3);
-        transferBg.fill({ color: 0x000000, alpha: 0.4 });
-        card.addChild(transferBg);
-
         const transferLabel = new Text({
           text: transferLines.map(t => t.symbol).join(' '),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: 9,
-            fill: 0xFFFFFF,
+            fontSize: 11,
+            fill: colorLight,
             fontWeight: 'bold',
             align: 'center',
           }),
         });
         transferLabel.anchor.set(0.5);
-        transferLabel.y = cardH / 2 - 8;
+        transferLabel.y = -cardH / 2 + 10;
         card.addChild(transferLabel);
       }
 
@@ -440,6 +483,7 @@ export class StationLayer implements RenderLayer {
             position: { type: 'main', index },
             screenX: e.globalX,
             screenY: e.globalY,
+            imageUrl: imgUrl ?? undefined,
           });
         }
       });
@@ -469,7 +513,7 @@ export class StationLayer implements RenderLayer {
 
         const cardW = isExperience ? EXP_STATION_SIZE : LINE_STATION_SIZE;
         const cardH = isExperience ? EXP_STATION_HEIGHT : LINE_STATION_HEIGHT;
-        const cornerRadius = 6;
+        const cornerRadius = 8;
 
         const card = new Container();
         card.x = pos.x;
@@ -488,17 +532,17 @@ export class StationLayer implements RenderLayer {
 
         // Border (gold for experience, line color for regular)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.stroke({ width: isExperience ? 2 : 1.5, color: isExperience ? 0xE0C55E : colorLight, alpha: isExperience ? 0.8 : 0.6 });
+        bg.stroke({ width: isExperience ? 2.5 : 2, color: isExperience ? 0xE8CC6E : colorLight, alpha: isExperience ? 0.8 : 0.6 });
 
         // Experience card gold star marker
         if (isExperience) {
-          bg.circle(0, -cardH / 2 + 14, 9);
-          bg.fill({ color: 0xE0C55E, alpha: 0.5 });
+          bg.circle(0, -cardH / 2 + 18, 11);
+          bg.fill({ color: 0xE8CC6E, alpha: 0.5 });
         }
 
         // Line color indicator bar (left edge)
-        const barColor = isExperience ? 0xE0C55E : colorLight;
-        bg.roundRect(-cardW / 2, -cardH / 2 + 4, 4, cardH - 8, 2);
+        const barColor = isExperience ? 0xE8CC6E : colorLight;
+        bg.roundRect(-cardW / 2, -cardH / 2 + 5, 5, cardH - 10, 3);
         bg.fill({ color: barColor, alpha: 0.8 });
 
         card.addChild(bg);
@@ -507,46 +551,27 @@ export class StationLayer implements RenderLayer {
         const lineData = boardData.lines[line.id];
         const stationName = isExperience
           ? lineData?.experienceCard?.name ?? '体验卡'
-          : lineData?.cells?.[i]?.name ?? `${i + 1}`;
+          : lineData?.cells?.[i]?.name ?? `站点`;
 
-        // --- Icon / index label ---
-        const labelText = isExperience ? '\u2B50' : `${i + 1}`;
-        const label = new Text({
-          text: labelText,
-          style: new TextStyle({
-            fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 14 : 12,
-            fill: isExperience ? 0xE0C55E : 0xFFFFFF,
-            fontWeight: 'bold',
-            align: 'center',
-          }),
-        });
-        label.anchor.set(0.5);
-        label.y = isExperience ? -cardH / 2 + 14 : -cardH / 2 + 14;
-        card.addChild(label);
-
-        // --- Station name text ---
+        // --- Station name (centered vertically, no image for branch cells) ---
         const nameText = new Text({
           text: this.getShortName(stationName),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 13 : 11,
-            fill: isExperience ? 0xE0C55E : 0xFFFFFF,
+            fontSize: isExperience ? 11 : 9,
+            fill: isExperience ? 0xE8CC6E : 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
             wordWrap: true,
-            wordWrapWidth: cardW - 8,
-            dropShadow: {
-              alpha: 0.8,
-              blur: 2,
-              color: 0x000000,
-              distance: 1,
-            },
+            wordWrapWidth: cardW - 12,
           }),
         });
         nameText.anchor.set(0.5);
-        nameText.y = isExperience ? 10 : 6;
+        nameText.y = 0; // centered vertically
         card.addChild(nameText);
+
+        // Track branch text for LOD visibility
+        this.branchTexts.push(nameText);
 
         // --- Interaction ---
         card.eventMode = 'static';
@@ -565,6 +590,7 @@ export class StationLayer implements RenderLayer {
               position: { type: 'line', lineId: line.id, index: i },
               screenX: e.globalX,
               screenY: e.globalY,
+              imageUrl: LINE_IMAGE_MAP[line.id] ?? undefined,
             });
           }
         });
@@ -595,7 +621,7 @@ export class StationLayer implements RenderLayer {
       text: name,
       style: new TextStyle({
         fontFamily: DESIGN_TOKENS.typography.fontFamily,
-        fontSize: 11,
+        fontSize: 14,
         fill: color,
         fontWeight: 'bold',
         align: 'center',
@@ -625,11 +651,11 @@ export class StationLayer implements RenderLayer {
       const isCorner = isMain && CORNER_INDICES.includes(mainIndex);
       const cardW = isCorner ? CORNER_STATION_SIZE : isMain ? MAIN_STATION_SIZE : key.includes('exp') ? EXP_STATION_SIZE : LINE_STATION_SIZE;
       const cardH = isCorner ? CORNER_STATION_HEIGHT : isMain ? MAIN_STATION_HEIGHT : key.includes('exp') ? EXP_STATION_HEIGHT : LINE_STATION_HEIGHT;
-      const cr = isCorner ? 12 : isMain ? 8 : 6;
+      const cr = isCorner ? 16 : isMain ? 10 : 8;
 
       const glow = new Graphics();
-      glow.roundRect(-cardW / 2 - 3, -cardH / 2 - 3, cardW + 6, cardH + 6, cr + 2);
-      glow.stroke({ width: 2.5, color: 0xE0C55E, alpha: 0.9 });
+      glow.roundRect(-cardW / 2 - 4, -cardH / 2 - 4, cardW + 8, cardH + 8, cr + 3);
+      glow.stroke({ width: 3, color: 0xE8CC6E, alpha: 0.9 });
       card.addChild(glow);
       this.highlights.set(key, glow);
     }
@@ -661,6 +687,187 @@ export class StationLayer implements RenderLayer {
     if (EMOJI_BY_ID[id]) return EMOJI_BY_ID[id];
     if (EMOJI_BY_TYPE[type]) return EMOJI_BY_TYPE[type];
     return DEFAULT_EMOJI;
+  }
+
+  /** Get illustration image URL for a cell. */
+  private getCellImageUrl(id: string, type: string, lineId?: string): string | null {
+    // Direct cell id match
+    if (CELL_IMAGE_MAP[id]) return CELL_IMAGE_MAP[id];
+    // Line entry: use line image
+    if (type === 'line_entry' && lineId && LINE_IMAGE_MAP[lineId]) return LINE_IMAGE_MAP[lineId];
+    // Chance cards
+    if (type === 'chance') return CHANCE_IMAGE;
+    return null;
+  }
+
+  /** Load an image and add it as a sprite to a card container. Loads thumbnail first, hi-res on demand. */
+  private loadAndAddImage(card: Container, url: string, cardW: number, cardH: number, isCorner: boolean, cellBgColor?: number, cardKey?: string): void {
+    const thumbUrl = toThumbUrl(url);
+
+    // Load thumbnail first (fast, small file)
+    loadCellTexture(thumbUrl).then(texture => {
+      if (!texture || !card.parent) return; // card may have been destroyed
+
+      const sprite = this.createImageSprite(texture, cardW, cardH, isCorner);
+
+      // Insert after bg (index 1) but before name text
+      card.addChildAt(sprite, 1);
+
+      // Add dark gradient overlays to blend white-bg illustrations with dark theme
+      this.addImageOverlays(card, cardW, cardH, isCorner, cellBgColor);
+
+      // Track for hi-res upgrade
+      if (cardKey) {
+        this.hiResState.set(cardKey, {
+          sprite,
+          hiResUrl: url,
+          loaded: false,
+          cardW,
+          cardH,
+          isCorner,
+        });
+      }
+
+      // If hi-res was already triggered (e.g., card loaded after zoom), load immediately
+      if (this.hiResTriggered && cardKey) {
+        this.loadHiResForCard(cardKey);
+      }
+    }).catch(() => {
+      // Thumbnail failed — try full-size image directly as fallback
+      loadCellTexture(url).then(texture => {
+        if (!texture || !card.parent) return;
+
+        const sprite = this.createImageSprite(texture, cardW, cardH, isCorner);
+        card.addChildAt(sprite, 1);
+        this.addImageOverlays(card, cardW, cardH, isCorner, cellBgColor);
+
+        // Mark as already hi-res
+        if (cardKey) {
+          this.hiResState.set(cardKey, {
+            sprite,
+            hiResUrl: url,
+            loaded: true,
+            cardW,
+            cardH,
+            isCorner,
+          });
+        }
+      }).catch(() => {
+        // Both failed — cell shows just its colored background (default behavior)
+      });
+    });
+  }
+
+  /** Create and position an image sprite within a card. */
+  private createImageSprite(texture: Texture, cardW: number, cardH: number, isCorner: boolean): Sprite {
+    const sprite = new Sprite(texture);
+    const nameBgH = isCorner ? 40 : 28;
+    const imgAreaH = cardH - nameBgH - 6;
+    const imgAreaW = cardW - 8;
+    const padding = 4;
+
+    const scaleX = (imgAreaW - padding * 2) / texture.width;
+    const scaleY = (imgAreaH - padding * 2) / texture.height;
+    const scale = Math.min(scaleX, scaleY);
+    sprite.width = texture.width * scale;
+    sprite.height = texture.height * scale;
+    sprite.anchor.set(0.5);
+    sprite.x = 0;
+    const imgY = -cardH / 2 + padding;
+    sprite.y = imgY + imgAreaH / 2;
+
+    return sprite;
+  }
+
+  /** Add dark gradient overlays for non-corner cards. */
+  private addImageOverlays(card: Container, cardW: number, cardH: number, isCorner: boolean, cellBgColor?: number): void {
+    if (isCorner) return;
+
+    const nameBgH = 28;
+    const imgAreaH = cardH - nameBgH - 6;
+    const padding = 4;
+    const imgY = -cardH / 2 + padding;
+    const blendColor = cellBgColor ?? 0x1A1230;
+
+    const overlayH = imgAreaH * 0.4;
+    const bottomOverlay = new Graphics();
+    bottomOverlay.rect(-cardW / 2 + 2, imgY + imgAreaH - overlayH, cardW - 4, overlayH);
+    bottomOverlay.fill({ color: blendColor, alpha: 0.35 });
+    card.addChildAt(bottomOverlay, 2);
+
+    const topOverlay = new Graphics();
+    topOverlay.rect(-cardW / 2 + 2, imgY, cardW - 4, imgAreaH * 0.15);
+    topOverlay.fill({ color: blendColor, alpha: 0.2 });
+    card.addChildAt(topOverlay, 3);
+  }
+
+  /** Load hi-res images for all tracked cards. */
+  private loadAllHiRes(): void {
+    for (const key of this.hiResState.keys()) {
+      this.loadHiResForCard(key);
+    }
+  }
+
+  /** Load hi-res image for a single card, replacing the thumbnail sprite. */
+  private loadHiResForCard(cardKey: string): void {
+    const state = this.hiResState.get(cardKey);
+    if (!state || state.loaded) return;
+
+    const { sprite, hiResUrl, cardW, cardH, isCorner } = state;
+
+    // Start pulsing animation on the sprite to indicate loading
+    this.startPulse(sprite);
+
+    loadCellTexture(hiResUrl).then(texture => {
+      this.stopPulse(sprite);
+
+      if (!texture || !sprite.parent) return;
+
+      // Swap the texture on the existing sprite
+      const newSprite = this.createImageSprite(texture, cardW, cardH, isCorner);
+      const parent = sprite.parent;
+      const index = parent.getChildIndex(sprite);
+      parent.removeChildAt(index);
+      parent.addChildAt(newSprite, index);
+
+      state.sprite = newSprite;
+      state.loaded = true;
+    }).catch(() => {
+      this.stopPulse(sprite);
+      // Keep showing thumbnail — it's already visible as fallback
+    });
+  }
+
+  /** Start a subtle pulsing alpha animation on a sprite to indicate loading. */
+  private startPulse(sprite: Sprite): void {
+    this.pulsingSprites.add(sprite);
+    if (this.pulseAnimFrame === null) {
+      const pulse = () => {
+        const t = performance.now() / 600; // ~1.7 Hz
+        const alpha = 0.6 + 0.4 * Math.abs(Math.sin(t));
+        for (const s of this.pulsingSprites) {
+          if (s.parent) {
+            s.alpha = alpha;
+          }
+        }
+        if (this.pulsingSprites.size > 0) {
+          this.pulseAnimFrame = requestAnimationFrame(pulse);
+        } else {
+          this.pulseAnimFrame = null;
+        }
+      };
+      this.pulseAnimFrame = requestAnimationFrame(pulse);
+    }
+  }
+
+  /** Stop pulsing on a sprite and reset alpha. */
+  private stopPulse(sprite: Sprite): void {
+    this.pulsingSprites.delete(sprite);
+    sprite.alpha = 1;
+    if (this.pulsingSprites.size === 0 && this.pulseAnimFrame !== null) {
+      cancelAnimationFrame(this.pulseAnimFrame);
+      this.pulseAnimFrame = null;
+    }
   }
 
   /** Returns transfer line info for a main ring station (entry or exit point). */

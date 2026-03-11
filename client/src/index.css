@@ -4,21 +4,21 @@
 
 /* Custom theme using CSS custom properties */
 @theme {
-  --color-nju-purple: #5E3A8D;
-  --color-nju-purple-light: #8B5FBF;
-  --color-nju-purple-dark: #3D2566;
-  --color-nju-gold: #C9A227;
+  --color-nju-purple: #5B2D8E;
+  --color-nju-purple-light: #7B4DB8;
+  --color-nju-purple-dark: #3D1F66;
+  --color-nju-gold: #D4AF37;
 
-  --color-cell-corner-start: #4CAF50;
-  --color-cell-corner-hospital: #F44336;
-  --color-cell-corner-ding: #FFC107;
-  --color-cell-corner-waiting: #2196F3;
-  --color-cell-event: #FF9800;
-  --color-cell-chance: #9C27B0;
+  --color-cell-corner-start: #4DB870;
+  --color-cell-corner-hospital: #E85070;
+  --color-cell-corner-ding: #7B4DB8;
+  --color-cell-corner-waiting: #4A90CC;
+  --color-cell-event: #B85C1A;
+  --color-cell-chance: #B88DE8;
 
-  --color-resource-money: #FFD700;
-  --color-resource-gpa: #4CAF50;
-  --color-resource-exploration: #FF5722;
+  --color-resource-money: #D4AF37;
+  --color-resource-gpa: #4DB870;
+  --color-resource-exploration: #E8842A;
 
   --font-family-display: "Noto Sans SC", sans-serif;
   --font-family-body: "Noto Sans SC", sans-serif;
@@ -54,22 +54,22 @@
 
 /* Custom base styles */
 :root {
-  --color-nju-purple: #5E3A8D;
-  --color-nju-gold: #C9A227;
+  --color-nju-purple: #5B2D8E;
+  --color-nju-gold: #D4AF37;
   --font-main: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
-  --color-primary: #5E3A8D;
-  --color-primary-light: #8B5FBF;
-  --color-accent: #C9A227;
-  --color-accent-light: #E0C55E;
+  --color-primary: #5B2D8E;
+  --color-primary-light: #7B4DB8;
+  --color-accent: #D4AF37;
+  --color-accent-light: #E8CC6E;
   --color-bg-main: #0F0A1A;
   --color-bg-surface: #1A1230;
   --color-bg-elevated: #252040;
   --color-text-primary: #FFFFFF;
   --color-text-secondary: #B0B0B0;
   --color-text-muted-design: #707070;
-  --color-money: #FFD700;
-  --color-gpa: #4CAF50;
-  --color-exploration: #FF5722;
+  --color-money: #D4AF37;
+  --color-gpa: #4DB870;
+  --color-exploration: #E8842A;
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
   --shadow-md-design: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-lg-design: 0 8px 24px rgba(0,0,0,0.5);
@@ -78,6 +78,35 @@
   --radius-lg-design: 12px;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ---- Design Tokens ---- */
+  /* Brand */
+  --c-brand: #5B2D8E;
+  --c-brand-light: #7B4DB8;
+  --c-brand-dark: #3D1F66;
+  --c-accent: #D4AF37;
+  --c-accent-light: #E8CC6E;
+
+  /* Backgrounds */
+  --c-bg: #0F0A1A;
+  --c-surface: #1A1230;
+  --c-elevated: #252040;
+
+  /* Text */
+  --c-text: #FFFFFF;
+  --c-text-dim: #B0B0B0;
+  --c-text-muted: #707070;
+
+  /* Semantic */
+  --c-success: #66BB6A;
+  --c-danger: #EF5350;
+  --c-warning: #FFA726;
+  --c-info: #42A5F5;
+
+  /* Gradients */
+  --g-brand: linear-gradient(135deg, #5B2D8E, #7B4DB8);
+  --g-positive: linear-gradient(135deg, #2E7D50, #4DB870);
+  --g-negative: linear-gradient(135deg, #C62848, #E85070);
 }
 
 body {
@@ -131,14 +160,34 @@ body {
 
 :root {
   /* Colors — design token aligned */
-  --color-primary: #5E3A8D;
-  --color-secondary: #8B5FBF;
+  --color-primary: #5B2D8E;
+  --color-secondary: #7B4DB8;
   --color-success: #66BB6A;
   --color-warning: #FFB300;
   --color-danger: #EF5350;
   --color-bg: #0F0A1A;
   --color-text: #FFFFFF;
   --color-text-muted: #707070;
+
+  /* Unified design tokens (aliases) */
+  --c-brand: #5B2D8E;
+  --c-brand-light: #7B4DB8;
+  --c-brand-dark: #3D1F66;
+  --c-accent: #D4AF37;
+  --c-accent-light: #E8CC6E;
+  --c-bg: #0F0A1A;
+  --c-surface: #1A1230;
+  --c-elevated: #252040;
+  --c-text: #FFFFFF;
+  --c-text-dim: #B0B0B0;
+  --c-text-muted: #707070;
+  --c-success: #66BB6A;
+  --c-danger: #EF5350;
+  --c-warning: #FFA726;
+  --c-info: #42A5F5;
+  --g-brand: linear-gradient(135deg, #5B2D8E, #7B4DB8);
+  --g-positive: linear-gradient(135deg, #2E7D50, #4DB870);
+  --g-negative: linear-gradient(135deg, #C62848, #E85070);
 
   /* Spacing */
   --spacing-xs: 4px;

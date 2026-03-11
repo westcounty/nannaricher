@@ -1,7 +1,11 @@
 {
   "name": "nannaricher",
   "private": true,
-  "workspaces": ["shared", "server", "client"],
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm run dev -w server",
@@ -13,9 +17,10 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "concurrently": "^9.1.0",
     "cross-env": "^7.0.3",
-    "typescript": "^5.7.0",
-    "@playwright/test": "^1.40.0"
+    "sharp": "^0.34.5",
+    "typescript": "^5.7.0"
   }
 }

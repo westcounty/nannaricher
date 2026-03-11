@@ -31,6 +31,24 @@ interface TweenEntry {
   resolve: () => void;
 }
 
+function canReadTweenTargetValue(target: Record<string, any>, key: string): boolean {
+  try {
+    void target[key];
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function canWriteTweenTargetValue(target: Record<string, any>, key: string, value: number): boolean {
+  try {
+    target[key] = value;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class TweenEngine {
   private tweens: TweenEntry[] = [];
   private boundUpdate: () => void;
@@ -49,13 +67,19 @@ export class TweenEngine {
   ): Promise<void> {
     if (duration <= 0) {
       for (const [key, val] of Object.entries(props)) {
-        target[key] = val;
+        if (!canWriteTweenTargetValue(target, key, val)) {
+          return Promise.resolve();
+        }
       }
       return Promise.resolve();
     }
     return new Promise((resolve) => {
       const startValues: Record<string, number> = {};
       for (const key of Object.keys(props)) {
+        if (!canReadTweenTargetValue(target, key)) {
+          resolve();
+          return;
+        }
         startValues[key] = target[key] as number;
       }
       this.tweens.push({
@@ -77,12 +101,17 @@ export class TweenEngine {
       tw.elapsed += dt;
       const progress = Math.min(tw.elapsed / tw.duration, 1);
       const eased = tw.easing(progress);
+      let targetInvalid = false;
 
       for (const [key, endVal] of Object.entries(tw.props)) {
-        tw.target[key] = tw.startValues[key] + (endVal - tw.startValues[key]) * eased;
+        const nextValue = tw.startValues[key] + (endVal - tw.startValues[key]) * eased;
+        if (!canWriteTweenTargetValue(tw.target, key, nextValue)) {
+          targetInvalid = true;
+          break;
+        }
       }
 
-      if (progress >= 1) {
+      if (targetInvalid || progress >= 1) {
         this.tweens.splice(i, 1);
         tw.resolve();
       }

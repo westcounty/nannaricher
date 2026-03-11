@@ -159,7 +159,7 @@
 }
 
 .settlement-rank--1 {
-  color: #FFD700;
+  color: var(--c-accent);
   font-size: 1.1rem;
 }
 
@@ -223,7 +223,7 @@
 }
 
 .settlement-badge--hospital {
-  background: #42A5F5;
+  background: var(--c-info);
   color: #fff;
 }
 
@@ -386,7 +386,7 @@
 }
 
 .settlement-ready__status--ready {
-  color: #22c55e;
+  color: var(--c-success);
   font-weight: 600;
 }
 
@@ -396,7 +396,7 @@
 }
 
 .settlement-btn--restart {
-  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  background: var(--g-positive);
   color: white;
   box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
 }

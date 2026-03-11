@@ -9,7 +9,7 @@
 .dice-roller-player {
   font-size: 1rem;
   font-weight: 600;
-  color: #C9A227;
+  color: #D4AF37;
   letter-spacing: 1px;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
@@ -66,18 +66,18 @@
 }
 
 .dice-body {
-  fill: #1a1a2e;
-  stroke: #3a3a5e;
+  fill: var(--c-surface);
+  stroke: var(--c-elevated);
   stroke-width: 2;
 }
 
 .dice-dot {
-  fill: #e0e0e0;
+  fill: var(--c-text);
 }
 
 .rolling-indicator {
   font-size: 1.1rem;
-  color: #a0a0c0;
+  color: var(--c-text-muted);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -120,11 +120,11 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: linear-gradient(145deg, #2a2a4e, #1a1a3e);
+  background: linear-gradient(145deg, var(--c-elevated), var(--c-surface));
   border-radius: 10px;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #e0e0e0;
+  color: var(--c-text);
   box-shadow:
     2px 2px 5px rgba(0, 0, 0, 0.4),
     -1px -1px 3px rgba(60, 60, 100, 0.3);
@@ -132,13 +132,13 @@
 
 .dice-total {
   font-size: 1.2rem;
-  color: #c0c0e0;
+  color: var(--c-text-dim);
 }
 
 .total-number {
   font-weight: bold;
-  font-size: 1.4rem;
-  color: #FFD700;
+  font-size: 2rem;
+  color: var(--c-accent);
   margin-left: 4px;
 }
 
@@ -183,6 +183,3 @@
   100% { transform: scale(1) rotate(0deg); }
 }
 
-.total-number {
-  font-size: 2rem;
-}

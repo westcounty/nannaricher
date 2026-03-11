@@ -1,5 +1,5 @@
 // client/src/components/CellTooltip.tsx
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BoardCell, BoardLine } from '@nannaricher/shared';
 
 interface CellTooltipProps {
@@ -7,6 +7,7 @@ interface CellTooltipProps {
   lineData?: BoardLine | null;
   position: { x: number; y: number };
   visible: boolean;
+  imageUrl?: string;
 }
 
 function getCornerDescription(cornerType: string): string {
@@ -39,112 +40,6 @@ function getCellTypeLabel(type: string): string {
   }
 }
 
-export function CellTooltip({ cell, lineData, position, visible }: CellTooltipProps) {
-  if (!cell || !visible) return null;
-
-  // Calculate position to avoid going off-screen
-  const tooltipStyle: React.CSSProperties = {
-    position: 'fixed',
-    left: Math.min(position.x + 15, window.innerWidth - 260),
-    top: Math.min(position.y + 15, window.innerHeight - 200),
-    zIndex: 1000,
-    pointerEvents: 'none',
-    backgroundColor: 'rgba(30, 30, 40, 0.95)',
-    color: '#fff',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-    maxWidth: '250px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: '14px',
-    lineHeight: '1.5',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
-  };
-
-  return (
-    <div style={tooltipStyle} className="cell-tooltip">
-      <h4 style={{
-        margin: '0 0 8px 0',
-        fontSize: '16px',
-        fontWeight: 600,
-        color: '#fff',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-        paddingBottom: '8px',
-      }}>
-        {cell.name}
-      </h4>
-
-      <div style={{
-        display: 'inline-block',
-        padding: '2px 8px',
-        borderRadius: '4px',
-        fontSize: '12px',
-        marginBottom: '8px',
-        backgroundColor: getCellTypeColor(cell.type),
-      }}>
-        {getCellTypeLabel(cell.type)}
-      </div>
-
-      {cell.type === 'line_entry' && (
-        <div style={{ marginTop: '8px' }}>
-          {lineData && (
-            <p style={{ margin: '4px 0', color: '#ccc' }}>
-              <strong>路线:</strong> {lineData.name}
-            </p>
-          )}
-          <p style={{ margin: '4px 0', color: '#4ade80' }}>
-            <strong>入场费:</strong> ${cell.entryFee || 0}
-          </p>
-          {cell.forceEntry && (
-            <p style={{ margin: '4px 0', color: '#f87171' }}>
-              <strong>强制进入</strong>
-            </p>
-          )}
-        </div>
-      )}
-
-      {cell.cornerType && (
-        <div style={{ marginTop: '8px' }}>
-          <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '13px' }}>
-            {getCornerDescription(cell.cornerType)}
-          </p>
-        </div>
-      )}
-
-      {cell.type === 'event' && (
-        <p style={{ margin: '8px 0 0 0', color: '#a78bfa', fontSize: '13px' }}>
-          停留时触发事件
-        </p>
-      )}
-
-      {cell.type === 'chance' && (
-        <p style={{ margin: '8px 0 0 0', color: '#67e8f9', fontSize: '13px' }}>
-          停留时抽取机会卡
-        </p>
-      )}
-
-      {lineData && lineData.cells && (
-        <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
-          <p style={{ margin: '0 0 4px 0', color: '#a78bfa', fontSize: '12px', fontWeight: 600 }}>
-            {lineData.name}
-          </p>
-          {lineData.experienceCard && cell.id === lineData.experienceCard.id && (
-            <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '12px' }}>
-              {lineData.experienceCard.description}
-            </p>
-          )}
-          {lineData.cells.find(c => c.id === cell.id)?.description && (
-            <p style={{ margin: '4px 0', color: '#ccc', fontSize: '12px' }}>
-              {lineData.cells.find(c => c.id === cell.id)!.description}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function getCellTypeColor(type: string): string {
   switch (type) {
     case 'corner':
@@ -158,6 +53,171 @@ function getCellTypeColor(type: string): string {
     default:
       return '#6b7280'; // gray
   }
+}
+
+export function CellTooltip({ cell, lineData, position, visible, imageUrl }: CellTooltipProps) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const prevCellId = useRef<string | null>(null);
+
+  // Reset image state when cell changes
+  useEffect(() => {
+    const currentId = cell?.id ?? null;
+    if (currentId !== prevCellId.current) {
+      prevCellId.current = currentId;
+      setImgLoaded(false);
+      setImgError(false);
+    }
+  }, [cell?.id]);
+
+  const handleImgLoad = useCallback(() => setImgLoaded(true), []);
+  const handleImgError = useCallback(() => setImgError(true), []);
+
+  if (!cell || !visible) return null;
+
+  const showImage = !!imageUrl && !imgError;
+
+  // Smart positioning: avoid viewport overflow
+  // Account for image height in tooltip size estimation
+  const estimatedHeight = showImage ? 440 : 200;
+  const tooltipWidth = 260;
+
+  let left = position.x + 15;
+  let top = position.y + 15;
+
+  // Clamp to viewport
+  if (left + tooltipWidth > window.innerWidth - 10) {
+    left = position.x - tooltipWidth - 15;
+  }
+  if (left < 10) left = 10;
+
+  if (top + estimatedHeight > window.innerHeight - 10) {
+    top = position.y - estimatedHeight - 15;
+  }
+  if (top < 10) top = 10;
+
+  const tooltipStyle: React.CSSProperties = {
+    position: 'fixed',
+    left,
+    top,
+    zIndex: 1000,
+    pointerEvents: 'none',
+    backgroundColor: 'rgba(30, 30, 40, 0.95)',
+    color: '#fff',
+    padding: '0',
+    borderRadius: '10px',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+    maxWidth: '260px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: '14px',
+    lineHeight: '1.5',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    backdropFilter: 'blur(10px)',
+    overflow: 'hidden',
+  };
+
+  return (
+    <div ref={tooltipRef} style={tooltipStyle} className="cell-tooltip">
+      {/* Image preview */}
+      {showImage && (
+        <div className="cell-tooltip__image-wrap">
+          {!imgLoaded && (
+            <div className="cell-tooltip__image-placeholder" />
+          )}
+          <img
+            src={imageUrl}
+            alt={cell.name}
+            className={`cell-tooltip__image ${imgLoaded ? 'cell-tooltip__image--loaded' : ''}`}
+            onLoad={handleImgLoad}
+            onError={handleImgError}
+            draggable={false}
+          />
+        </div>
+      )}
+
+      {/* Text content */}
+      <div style={{ padding: '12px 16px' }}>
+        <h4 style={{
+          margin: '0 0 8px 0',
+          fontSize: '16px',
+          fontWeight: 600,
+          color: '#fff',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          paddingBottom: '8px',
+        }}>
+          {cell.name}
+        </h4>
+
+        <div style={{
+          display: 'inline-block',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          marginBottom: '8px',
+          backgroundColor: getCellTypeColor(cell.type),
+        }}>
+          {getCellTypeLabel(cell.type)}
+        </div>
+
+        {cell.type === 'line_entry' && (
+          <div style={{ marginTop: '8px' }}>
+            {lineData && (
+              <p style={{ margin: '4px 0', color: '#ccc' }}>
+                <strong>路线:</strong> {lineData.name}
+              </p>
+            )}
+            <p style={{ margin: '4px 0', color: '#4ade80' }}>
+              <strong>入场费:</strong> ${cell.entryFee || 0}
+            </p>
+            {cell.forceEntry && (
+              <p style={{ margin: '4px 0', color: '#f87171' }}>
+                <strong>强制进入</strong>
+              </p>
+            )}
+          </div>
+        )}
+
+        {cell.cornerType && (
+          <div style={{ marginTop: '8px' }}>
+            <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '13px' }}>
+              {getCornerDescription(cell.cornerType)}
+            </p>
+          </div>
+        )}
+
+        {cell.type === 'event' && (
+          <p style={{ margin: '8px 0 0 0', color: '#a78bfa', fontSize: '13px' }}>
+            停留时触发事件
+          </p>
+        )}
+
+        {cell.type === 'chance' && (
+          <p style={{ margin: '8px 0 0 0', color: '#67e8f9', fontSize: '13px' }}>
+            停留时抽取机会卡
+          </p>
+        )}
+
+        {lineData && lineData.cells && (
+          <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+            <p style={{ margin: '0 0 4px 0', color: '#a78bfa', fontSize: '12px', fontWeight: 600 }}>
+              {lineData.name}
+            </p>
+            {lineData.experienceCard && cell.id === lineData.experienceCard.id && (
+              <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '12px' }}>
+                {lineData.experienceCard.description}
+              </p>
+            )}
+            {lineData.cells.find(c => c.id === cell.id)?.description && (
+              <p style={{ margin: '4px 0', color: '#ccc', fontSize: '12px' }}>
+                {lineData.cells.find(c => c.id === cell.id)!.description}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default CellTooltip;

@@ -9,10 +9,10 @@ export default {
     extend: {
       colors: {
         nju: {
-          purple: '#5E3A8D',
-          'purple-light': '#8B5FBF',
-          'purple-dark': '#3D2566',
-          gold: '#C9A227',
+          purple: '#5B2D8E',
+          'purple-light': '#7B4DB8',
+          'purple-dark': '#3D1F66',
+          gold: '#D4AF37',
         },
         cell: {
           corner: {

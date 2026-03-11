@@ -51,7 +51,7 @@
 .epic-card__title {
   font-size: 32px;
   font-weight: 700;
-  color: #c9a227;
+  color: #d4af37;
   margin-bottom: 12px;
   text-shadow: 0 0 20px rgba(201, 162, 39, 0.4);
 }
@@ -77,8 +77,8 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
 }
-.epic-effect.positive { color: #66bb6a; }
-.epic-effect.negative { color: #ef5350; }
+.epic-effect.positive { color: var(--c-success); }
+.epic-effect.negative { color: var(--c-danger); }
 
 .epic-card__options {
   display: flex;
@@ -105,14 +105,14 @@
 
 .epic-option--selected {
   background: rgba(201, 162, 39, 0.2);
-  border-color: #c9a227;
+  border-color: #d4af37;
 }
 
 .epic-option__label { display: block; font-size: 15px; font-weight: 600; }
 .epic-option__desc { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
 
 .epic-card__confirm {
-  background: linear-gradient(135deg, #c9a227, #a8841e);
+  background: linear-gradient(135deg, #d4af37, #a8841e);
   border: none;
   border-radius: 10px;
   color: white;

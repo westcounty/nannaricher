@@ -49,6 +49,8 @@
   gap: 6px;
   flex-shrink: 0;
   backdrop-filter: blur(12px);
+  z-index: 90;
+  position: relative;
 }
 
 .mobile-bottom-nav__btn {
@@ -132,6 +134,18 @@
   line-height: 1;
 }
 
+.mobile-bottom-nav__label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+/* Stack icon and label vertically in nav buttons */
+.mobile-bottom-nav__btn--nav {
+  flex-direction: column;
+}
+
 .mobile-bottom-nav__badge {
   position: absolute;
   top: 4px;
@@ -160,6 +174,12 @@
   background: var(--color-bg-surface);
   border-radius: 8px;
   margin-bottom: 8px;
+  align-items: center;
+}
+
+.more-panel-close {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .more-panel-tab {

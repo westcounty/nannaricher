@@ -2,7 +2,7 @@
 // Three-layout responsive game screen: desktop (>=1024), tablet (768-1023), mobile (<768)
 // Redesigned with CompactHeader, ActionBar, CompactPlayerCard, MobileStatusBar, MobileBottomNav
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { CompactHeader } from './CompactHeader';
 import { CompactPlayerCard } from './CompactPlayerCard';
@@ -34,9 +34,11 @@ import { SettlementScreen } from './SettlementScreen';
 import { NotificationFeed } from './NotificationFeed';
 import { EpicEventModal } from './EpicEventModal';
 import { playSound } from '../audio/AudioManager';
+import { shouldShowPendingActionDialog } from './pendingActionVisibility';
 import type { CellHoverInfo } from '../game/layers/StationLayer';
 import { CellTooltip } from './CellTooltip';
-import type { BoardCell, BoardLine, Player } from '@nannaricher/shared';
+import { CellDetailDrawer } from './CellDetailDrawer';
+import type { BoardCell, BoardLine, Player, Position } from '@nannaricher/shared';
 import { getRoundName, LINE_CONFIGS } from '@nannaricher/shared';
 // getPlayerPlanIds import removed — plan selection now server-driven
 import { boardData } from '../data/board';
@@ -76,10 +78,14 @@ export function GameScreen() {
   const isRolling = useGameStore((s) => s.isRolling);
   const diceResult = useGameStore((s) => s.diceResult);
   const drawnCard = useGameStore((s) => s.drawnCard);
+  const isMovementUiBlocked = useGameStore((s) => s.isMovementUiBlocked);
+  const dismissedPendingActionId = useGameStore((s) => s.dismissedPendingActionId);
   const socketActions = useGameStore((s) => s.socketActions);
   const readyPlayerIds = useGameStore((s) => s.readyPlayerIds);
   const spectators = useGameStore((s) => s.spectators);
   const isSpectator = useGameStore((s) => s.isSpectator);
+  const sidePanelCollapsed = useGameStore((s) => s.sidePanelCollapsed);
+  const toggleSidePanel = useGameStore((s) => s.toggleSidePanel);
 
   const chooseAction = socketActions?.chooseAction ?? (() => {});
   // confirmPlan removed — plan selection is now server-driven via pendingAction
@@ -161,6 +167,28 @@ export function GameScreen() {
 
   const isVoting = gameState.pendingAction?.type === 'multi_vote';
   const isChainAction = gameState.pendingAction?.type === 'chain_action';
+  const shouldShowMultiSelectDialog = shouldShowPendingActionDialog({
+    hasPendingAction: !!hasPendingAction,
+    isVoting,
+    isChainAction,
+    hasCurrentEvent: !!currentEvent,
+    optionCount: gameState.pendingAction?.options?.length ?? 0,
+    maxSelections: gameState.pendingAction?.maxSelections ?? 1,
+    isMovementUiBlocked,
+    isPendingActionLocallyDismissed: gameState.pendingAction?.id === dismissedPendingActionId,
+    mode: 'multi',
+  });
+  const shouldShowSingleChoiceDialog = shouldShowPendingActionDialog({
+    hasPendingAction: !!hasPendingAction,
+    isVoting,
+    isChainAction,
+    hasCurrentEvent: !!currentEvent,
+    optionCount: gameState.pendingAction?.options?.length ?? 0,
+    maxSelections: gameState.pendingAction?.maxSelections ?? 1,
+    isMovementUiBlocked,
+    isPendingActionLocallyDismissed: gameState.pendingAction?.id === dismissedPendingActionId,
+    mode: 'single',
+  });
 
   // Can roll dice check
   const canRollDice = isMyTurn &&
@@ -172,20 +200,28 @@ export function GameScreen() {
 
   const needsToRoll = myPlayer && (myPlayer.isInHospital || myPlayer.isAtDing);
 
-  // Cell hover state for tooltip
-  const [hoveredCell, setHoveredCell] = useState<{ cell: BoardCell; lineData?: BoardLine | null; x: number; y: number } | null>(null);
+  // Touch device detection — skip tooltip on touch, use drawer instead
+  const isTouchDevice = useRef('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  // Cell hover state for tooltip (desktop only)
+  const [hoveredCell, setHoveredCell] = useState<{ cell: BoardCell; lineData?: BoardLine | null; x: number; y: number; imageUrl?: string } | null>(null);
+
+  // Cell detail drawer state (click/tap on both desktop and mobile)
+  const [cellDetail, setCellDetail] = useState<{ cell: BoardCell; lineData?: BoardLine | null; imageUrl?: string } | null>(null);
 
   const handleCellHover = (info: CellHoverInfo | null) => {
+    // On touch devices, skip tooltip entirely — use drawer via tap instead
+    if (isTouchDevice.current) return;
     if (!info) {
       setHoveredCell(null);
       return;
     }
-    const { position, screenX, screenY } = info;
+    const { position, screenX, screenY, imageUrl } = info;
     if (position.type === 'main') {
       const cell = boardData.mainBoard[position.index];
       if (cell) {
         const lineData = cell.lineId ? boardData.lines[cell.lineId] ?? null : null;
-        setHoveredCell({ cell: cell as BoardCell, lineData, x: screenX, y: screenY });
+        setHoveredCell({ cell: cell as BoardCell, lineData, x: screenX, y: screenY, imageUrl });
       }
     } else {
       const lineData = boardData.lines[position.lineId];
@@ -199,20 +235,38 @@ export function GameScreen() {
             name: lineCell.name,
             type: 'line_entry' as BoardCell['type'],
           };
-          setHoveredCell({ cell: syntheticCell, lineData, x: screenX, y: screenY });
+          setHoveredCell({ cell: syntheticCell, lineData, x: screenX, y: screenY, imageUrl });
         }
       }
     }
   };
 
-  // Auto-dismiss tooltip after 2s on touch devices to prevent accidental trigger on mobile
-  useEffect(() => {
-    if (!hoveredCell) return;
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (!isTouchDevice) return;
-    const timer = setTimeout(() => setHoveredCell(null), 2000);
-    return () => clearTimeout(timer);
-  }, [hoveredCell]);
+  // Cell click handler — opens the detail drawer on both desktop and mobile
+  const handleCellClick = useCallback((cellId: string, position: Position) => {
+    if (position.type === 'main') {
+      const cell = boardData.mainBoard[position.index];
+      if (cell) {
+        const lineData = cell.lineId ? boardData.lines[cell.lineId] ?? null : null;
+        // Try to find imageUrl from station layer (not available here, so skip)
+        setCellDetail({ cell: cell as BoardCell, lineData });
+      }
+    } else {
+      const lineData = boardData.lines[position.lineId];
+      if (lineData) {
+        const isExperience = position.index === lineData.cells.length;
+        const lineCell = isExperience ? lineData.experienceCard : lineData.cells[position.index];
+        if (lineCell) {
+          const syntheticCell: BoardCell = {
+            index: position.index,
+            id: lineCell.id,
+            name: lineCell.name,
+            type: 'line_entry' as BoardCell['type'],
+          };
+          setCellDetail({ cell: syntheticCell, lineData });
+        }
+      }
+    }
+  }, []);
 
   // Mobile panel toggle
   const handlePanelToggle = (panelId: PanelId) => {
@@ -255,6 +309,11 @@ export function GameScreen() {
   // Disable canvas interactions when modals are open
   useEffect(() => {
     canvasRef.current?.setInteractionEnabled(!hasModalOverlay);
+  }, [hasModalOverlay]);
+
+  // Close detail drawer when a game modal opens
+  useEffect(() => {
+    if (hasModalOverlay) setCellDetail(null);
   }, [hasModalOverlay]);
 
   return (
@@ -311,7 +370,7 @@ export function GameScreen() {
                   gameState={gameState}
                   currentPlayerId={currentPlayer?.id || null}
                   localPlayerId={playerId}
-                  onCellClick={() => {}}
+                  onCellClick={handleCellClick}
                   onCellHover={handleCellHover}
                 />
               </div>
@@ -344,7 +403,14 @@ export function GameScreen() {
             </div>
 
             {/* Sidebar */}
-            <div className="game-sidebar">
+            <div className={`game-sidebar ${sidePanelCollapsed ? 'collapsed' : ''}`}>
+              <button
+                className="panel-collapse-btn"
+                onClick={toggleSidePanel}
+                title={sidePanelCollapsed ? '展开面板' : '收起面板'}
+              >
+                {sidePanelCollapsed ? '\u00AB' : '\u00BB'}
+              </button>
               {/* Player cards */}
               <div className="game-sidebar__section">
                 {allPlayers.map((player) => (
@@ -385,11 +451,11 @@ export function GameScreen() {
                     📜 日志
                   </button>
                 </div>
-                <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   {sidebarTab === 'chat' ? (
-                    <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+                    <ChatPanel messages={chatMessages} onSend={sendChatMessage} alwaysExpanded />
                   ) : (
-                    <GameLog entries={gameState.log} players={gameState.players} />
+                    <GameLog entries={gameState.log} players={gameState.players} alwaysExpanded />
                   )}
                 </div>
               </div>
@@ -430,7 +496,7 @@ export function GameScreen() {
                 gameState={gameState}
                 currentPlayerId={currentPlayer?.id || null}
                 localPlayerId={playerId}
-                onCellClick={() => {}}
+                onCellClick={handleCellClick}
                 onCellHover={handleCellHover}
               />
             </div>
@@ -489,14 +555,16 @@ export function GameScreen() {
 
           {/* Bottom sheet for panels */}
           <div className={`mobile-sheet ${activePanel ? 'mobile-sheet--open' : ''}`}>
-            <div className="mobile-sheet-header">
-              <h3 className="mobile-sheet-title">
-                {activePanel === 'hand' ? '手牌' : activePanel === 'players' ? '玩家' : '更多'}
-              </h3>
-              <button className="mobile-sheet-close" onClick={closePanel}>
-                ✕
-              </button>
-            </div>
+            {activePanel !== 'more' && (
+              <div className="mobile-sheet-header">
+                <h3 className="mobile-sheet-title">
+                  {activePanel === 'hand' ? '手牌' : activePanel === 'players' ? '玩家' : '聊天'}
+                </h3>
+                <button className="mobile-sheet-close" onClick={closePanel}>
+                  ✕
+                </button>
+              </div>
+            )}
             <div className="mobile-sheet-body">
               <MobileSheetContent
                 activePanel={activePanel}
@@ -510,6 +578,7 @@ export function GameScreen() {
                 isMyTurn={isMyTurn}
                 useCard={useCard}
                 onPlayerClick={handlePlayerCardClick}
+                onClose={closePanel}
               />
             </div>
           </div>
@@ -592,13 +661,8 @@ export function GameScreen() {
       )}
 
       {/* Multi-Select Choice Dialog (e.g. plan redraw) */}
-      {hasPendingAction &&
-        !isVoting &&
-        !isChainAction &&
-        !currentEvent &&
-        gameState.pendingAction?.options &&
-        gameState.pendingAction.options.length > 0 &&
-        (gameState.pendingAction.maxSelections ?? 1) > 1 && (
+      {shouldShowMultiSelectDialog &&
+        gameState.pendingAction && (
           <MultiSelectDialog
             key={gameState.pendingAction.id}
             title="选择培养计划"
@@ -621,13 +685,8 @@ export function GameScreen() {
         )}
 
       {/* Choice Dialog (single select) */}
-      {hasPendingAction &&
-        !isVoting &&
-        !isChainAction &&
-        !currentEvent &&
-        gameState.pendingAction?.options &&
-        gameState.pendingAction.options.length > 0 &&
-        (gameState.pendingAction.maxSelections ?? 1) <= 1 && (
+      {shouldShowSingleChoiceDialog &&
+        gameState.pendingAction && (
           <ChoiceDialog
             key={gameState.pendingAction.id}
             title={pendingActionToChoices(gameState.pendingAction).title}
@@ -674,12 +733,21 @@ export function GameScreen() {
       )}
 
 
-      {/* Cell Tooltip */}
+      {/* Cell Tooltip (desktop hover only — hidden when detail drawer is open) */}
       <CellTooltip
         cell={hoveredCell?.cell ?? null}
         lineData={hoveredCell?.lineData}
         position={{ x: hoveredCell?.x ?? 0, y: hoveredCell?.y ?? 0 }}
-        visible={!!hoveredCell}
+        visible={!!hoveredCell && !cellDetail}
+        imageUrl={hoveredCell?.imageUrl}
+      />
+
+      {/* Cell Detail Drawer (click/tap on any device) */}
+      <CellDetailDrawer
+        cell={cellDetail?.cell ?? null}
+        lineData={cellDetail?.lineData}
+        imageUrl={cellDetail?.imageUrl}
+        onClose={() => setCellDetail(null)}
       />
 
       {/* Tutorial System */}

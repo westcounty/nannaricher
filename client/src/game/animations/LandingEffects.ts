@@ -20,7 +20,9 @@ export function playLandingEffect(
   y: number,
   type: EffectType,
   tweenEngine: TweenEngine,
-  color = 0xE0C55E,
+  color = 0xE8CC6E,
+  cellId?: string,
+  cellType?: string,
 ): void {
   const duration = AnimationConfig.scaleDuration(500);
   if (duration <= 0) return;
@@ -35,6 +37,22 @@ export function playLandingEffect(
     case 'line_entry':
       spawnDoorEffect(layer, x, y, duration, tweenEngine, color);
       break;
+  }
+
+  // Cell-type-specific colored particles on top of existing effects
+  const particleColor = getCellParticleColor(cellId, cellType);
+  spawnParticles(layer, x, y, particleColor, 10, tweenEngine);
+
+  // Corner cells: tiny screen shake
+  if (cellId && ['start', 'hospital', 'ding', 'waiting_room'].includes(cellId)) {
+    const stage = layer.parent;
+    if (stage) {
+      const origX = stage.x, origY = stage.y;
+      setTimeout(() => { stage.x = origX + 2; stage.y = origY - 1; }, 0);
+      setTimeout(() => { stage.x = origX - 2; stage.y = origY + 1; }, 50);
+      setTimeout(() => { stage.x = origX + 1; stage.y = origY; }, 100);
+      setTimeout(() => { stage.x = origX; stage.y = origY; }, 150);
+    }
   }
 }
 
@@ -79,7 +97,7 @@ function spawnStarBurst(
     star.lineTo(0, 4);
     star.lineTo(-2, 0);
     star.closePath();
-    star.fill({ color: 0xE0C55E, alpha: 0.9 });
+    star.fill({ color: 0xE8CC6E, alpha: 0.9 });
     star.x = x;
     star.y = y;
     layer.addChild(star);
@@ -148,6 +166,50 @@ function spawnDoorEffect(
       y: y + Math.sin(angle) * dist,
       alpha: 0,
     }, duration * 0.8, EASINGS.easeOut).then(() => cleanup(dot));
+  }
+}
+
+/** Map cell identity to a particle color. */
+function getCellParticleColor(cellId?: string, cellType?: string): number {
+  // Corner cells
+  if (cellId === 'start') return 0xD4AF37;        // gold
+  if (cellId === 'hospital') return 0xE85070;      // red
+  if (cellId === 'ding') return 0x7B4DB8;          // purple
+  if (cellId === 'waiting_room') return 0x4A90CC;  // blue
+  // Type-based
+  if (cellType === 'chance') return 0x9B60D0;      // purple
+  if (cellType === 'event') return 0xE8842A;       // orange
+  if (cellType === 'line_entry') return 0x4A90CC;  // blue
+  return 0xE8CC6E; // default gold-light
+}
+
+/** Spawn circular particles that burst outward and fade. */
+function spawnParticles(
+  container: Container,
+  x: number,
+  y: number,
+  color: number,
+  count: number,
+  tweenEngine: TweenEngine,
+): void {
+  for (let i = 0; i < count; i++) {
+    const p = new Graphics();
+    const size = 3 + Math.random() * 4;
+    p.circle(0, 0, size);
+    p.fill({ color, alpha: 0.9 });
+    p.x = x;
+    p.y = y;
+    container.addChild(p);
+
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+    const speed = 40 + Math.random() * 60;
+    const targetX = x + Math.cos(angle) * speed;
+    const targetY = y + Math.sin(angle) * speed - 20; // slight upward bias
+    const dur = 600 + Math.random() * 400;
+
+    tweenEngine
+      .to(p as unknown as Record<string, number>, { x: targetX, y: targetY, alpha: 0 }, dur, EASINGS.easeOut)
+      .then(() => cleanup(p));
   }
 }
 

@@ -50,6 +50,9 @@ temp/
 # Archives
 *.tar.gz
 
+# API keys
+media/apikey/
+
 # Screenshots/images
 *.png
 *.jpg

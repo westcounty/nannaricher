@@ -173,6 +173,9 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       };
       viewportRef.current = vc;
 
+      // Wire LOD updates: adjust branch station detail based on zoom level
+      vc.onZoomChange((zoom) => stationLayer.updateLOD(zoom));
+
       // Push initial state and do initial focus
       stage.updateState(gameState, currentPlayerId);
       playerLayer.update(gameState, currentPlayerId);

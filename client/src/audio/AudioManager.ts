@@ -3,6 +3,7 @@
 // 懒初始化 AudioContext，符合浏览器自动播放策略
 
 import { SOUNDS, type SoundName } from './sounds';
+import { createAudioPlaybackContext } from './audioPlaybackContext';
 
 // Re-export for backward compatibility
 export type { SoundName };
@@ -93,10 +94,9 @@ class AudioManagerImpl {
       this.masterGain.gain.value = this.settings.masterVolume * this.settings.sfxVolume;
       this.masterGain.connect(this.ctx.destination);
 
-      // Create a single patched context that routes audio through the master gain
-      this.patchedCtx = Object.create(this.ctx, {
-        destination: { get: () => this.masterGain },
-      }) as AudioContext;
+      // Route generated sounds through the persistent master gain while keeping
+      // Web Audio methods bound to the original context.
+      this.patchedCtx = createAudioPlaybackContext(this.ctx, this.masterGain);
 
       return this.ctx;
     } catch (error) {

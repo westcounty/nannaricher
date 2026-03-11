@@ -158,6 +158,64 @@
     padding-bottom: 56px;
   }
 
+  /* Tablet: mobile-sheet (shared with mobile layout) */
+  .mobile-sheet {
+    position: fixed;
+    bottom: 56px;
+    left: 0;
+    right: 0;
+    max-height: 50vh;
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--game-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    z-index: var(--z-fixed);
+    overflow: hidden;
+    padding: 0;
+    transform: translateY(100%);
+    transition: transform var(--transition-normal), visibility 0s var(--transition-normal);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    visibility: hidden;
+  }
+
+  .mobile-sheet.mobile-sheet--open {
+    transform: translateY(0);
+    visibility: visible;
+    transition: transform var(--transition-normal), visibility 0s 0s;
+  }
+
+  .mobile-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--game-border);
+    background: var(--color-bg-surface);
+  }
+
+  .mobile-sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px;
+  }
+
+  .mobile-sheet-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: calc(var(--z-fixed) - 1);
+  }
+
+  .mobile-sheet-backdrop.mobile-sheet-backdrop--visible {
+    display: block;
+  }
+
   /* Status bar: more compact on tablet */
   .status-bar {
     padding: 8px 16px;
@@ -195,13 +253,47 @@
     border-radius: var(--radius);
   }
 
-  /* Mobile: hide desktop side panel and bottom bar */
-  .side-panel {
-    display: none;
+  /* Mobile: hide desktop side panel / sidebar and bottom bar */
+  .side-panel,
+  .game-sidebar {
+    display: none !important;
   }
 
   .bottom-bar {
     display: none;
+  }
+
+  /* Map area takes full screen minus top bar and bottom nav */
+  .game-canvas-area,
+  .game-map-container {
+    width: 100vw !important;
+    flex: 1 !important;
+  }
+
+  /* Floating action button style for dice button */
+  .action-bar__dice-btn {
+    position: fixed !important;
+    bottom: 70px !important;
+    right: 16px !important;
+    z-index: 100 !important;
+    width: 64px !important;
+    min-width: 64px !important;
+    height: 64px !important;
+    border-radius: 50% !important;
+    font-size: 1.5rem !important;
+    padding: 0 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 12px rgba(212,175,55,0.3) !important;
+  }
+
+  /* Hide the text in dice button on mobile, show only emoji */
+  .action-bar__dice-btn .action-bar__dice-text {
+    display: none !important;
+  }
+
+  /* Compact resource bar on mobile */
+  .action-bar__resources {
+    font-size: 0.75rem !important;
+    gap: 8px !important;
   }
 
   /* Mobile: compact status bar */
@@ -239,7 +331,7 @@
     right: 0;
     background: var(--color-bg-elevated);
     border-top: 1px solid var(--game-border);
-    z-index: var(--z-sticky);
+    z-index: 90;
     padding: 0;
     padding-bottom: max(0px, env(safe-area-inset-bottom));
     height: calc(56px + max(0px, env(safe-area-inset-bottom)));
@@ -290,15 +382,20 @@
     border-top: 1px solid var(--game-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: var(--z-fixed);
-    overflow-y: auto;
+    overflow: hidden;
     padding: 0;
     transform: translateY(100%);
-    transition: transform var(--transition-normal);
+    transition: transform var(--transition-normal), visibility 0s var(--transition-normal);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    visibility: hidden;
   }
 
   .mobile-sheet.mobile-sheet--open {
     transform: translateY(0);
+    visibility: visible;
+    transition: transform var(--transition-normal), visibility 0s 0s;
   }
 
   .mobile-sheet-header {
@@ -337,6 +434,8 @@
   .mobile-sheet-body {
     padding: 12px 16px;
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   /* Mobile: hand cards in sheet */

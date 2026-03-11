@@ -22,6 +22,7 @@ export interface MobileSheetContentProps {
   isMyTurn: boolean;
   useCard: (cardId: string, targetPlayerId?: string) => void;
   onPlayerClick?: (playerId: string) => void;
+  onClose?: () => void;
 }
 
 export function MobileSheetContent({
@@ -36,6 +37,7 @@ export function MobileSheetContent({
   isMyTurn,
   useCard: onUseCard,
   onPlayerClick,
+  onClose,
 }: MobileSheetContentProps) {
   switch (activePanel) {
     case 'hand':
@@ -81,6 +83,7 @@ export function MobileSheetContent({
           chatMessages={chatMessages}
           sendChatMessage={sendChatMessage}
           gameState={gameState}
+          onClose={onClose}
         />
       );
 

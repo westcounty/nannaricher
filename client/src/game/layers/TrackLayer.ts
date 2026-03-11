@@ -56,7 +56,7 @@ export class TrackLayer implements RenderLayer {
       { width: MAIN_TRACK_WIDTH + 10, color: 0x4A4A5A, alpha: 0.15 },
       { width: MAIN_TRACK_WIDTH + 4, color: 0x2A2A3A, alpha: 0.9 },
       { width: MAIN_TRACK_WIDTH, color: 0x5A5A6A, alpha: 0.9 },
-      { width: 2, color: 0xffffff, alpha: 0.12 },
+      { width: 2, color: 0xffffff, alpha: 0.15 },
     ];
 
     for (const layer of layers) {
@@ -80,9 +80,9 @@ export class TrackLayer implements RenderLayer {
 
       // 3-layer neon tube per branch (smooth path with U-turn curves)
       const layers: { width: number; color: number; alpha: number }[] = [
-        { width: LINE_TRACK_WIDTH + 6, color: lineColor, alpha: 0.12 },
-        { width: LINE_TRACK_WIDTH + 2, color: lineColorDark, alpha: 0.8 },
-        { width: LINE_TRACK_WIDTH, color: lineColor, alpha: 0.9 },
+        { width: LINE_TRACK_WIDTH + 6, color: lineColor, alpha: 0.08 },
+        { width: LINE_TRACK_WIDTH + 2, color: lineColorDark, alpha: 0.5 },
+        { width: LINE_TRACK_WIDTH, color: lineColor, alpha: 0.5 },
       ];
 
       for (const layer of layers) {

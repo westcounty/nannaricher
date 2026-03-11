@@ -122,7 +122,7 @@
   font-weight: 900;
   letter-spacing: 0.08em;
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #fff 0%, #C9A227 50%, #E0C55E 100%);
+  background: linear-gradient(135deg, #fff 0%, #D4AF37 50%, #E8CC6E 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -144,7 +144,7 @@
   width: 80px;
   height: 2px;
   margin: 20px auto 0;
-  background: linear-gradient(90deg, transparent, var(--color-nju-gold, #C9A227), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-nju-gold, #D4AF37), transparent);
   border-radius: 1px;
 }
 
@@ -212,14 +212,19 @@
   font-size: 2.5rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+
+.lobby-button:hover .button-icon {
+  transform: scale(1.15);
 }
 
 .lobby-button.create .button-icon {
-  color: var(--color-nju-gold, #C9A227);
+  color: var(--color-nju-gold, #D4AF37);
 }
 
 .lobby-button.join .button-icon {
-  color: var(--color-nju-purple-light, #8B5FBF);
+  color: var(--color-nju-purple-light, #7B4DB8);
 }
 
 .lobby-button .button-text {
@@ -310,7 +315,7 @@
 }
 
 .form-group input:focus {
-  border-color: var(--color-nju-purple-light, #8B5FBF);
+  border-color: var(--color-nju-purple-light, #7B4DB8);
   background: rgba(15, 10, 26, 0.8);
   box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
 }
@@ -358,7 +363,7 @@
 
 .dice-option.selected {
   background: rgba(94, 58, 141, 0.15);
-  border-color: var(--color-nju-purple-light, #8B5FBF);
+  border-color: var(--color-nju-purple-light, #7B4DB8);
   box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
 }
 
@@ -405,7 +410,7 @@
   font-family: var(--font-main);
   letter-spacing: 0.06em;
   color: #0F0A1A;
-  background: linear-gradient(135deg, #C9A227 0%, #E0C55E 100%);
+  background: linear-gradient(135deg, #D4AF37 0%, #E8CC6E 100%);
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -483,7 +488,7 @@
   font-size: 2.8rem;
   font-weight: 900;
   letter-spacing: 0.25em;
-  background: linear-gradient(135deg, #fff 30%, var(--color-nju-gold, #C9A227) 100%);
+  background: linear-gradient(135deg, #fff 30%, var(--color-nju-gold, #D4AF37) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -504,7 +509,7 @@
 }
 
 .copy-button:hover {
-  color: #C9A227;
+  color: #D4AF37;
   background: rgba(201, 162, 39, 0.15);
   border-color: rgba(201, 162, 39, 0.4);
 }
@@ -579,13 +584,13 @@
 }
 
 .you-badge {
-  color: var(--color-nju-purple-light, #8B5FBF);
+  color: var(--color-nju-purple-light, #7B4DB8);
   background: rgba(139, 95, 191, 0.12);
   border: 1px solid rgba(139, 95, 191, 0.2);
 }
 
 .host-badge {
-  color: var(--color-nju-gold, #C9A227);
+  color: var(--color-nju-gold, #D4AF37);
   background: rgba(201, 162, 39, 0.1);
   border: 1px solid rgba(201, 162, 39, 0.2);
 }
@@ -633,6 +638,20 @@
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+
+/* Floating background decoration */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(3deg); }
+}
+
+.lobby-bg-decoration {
+  position: fixed;
+  opacity: 0.03;
+  animation: float-gentle 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ============================================

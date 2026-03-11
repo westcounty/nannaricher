@@ -1,8 +1,37 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useFadeAnimation } from '../hooks/useAnimation';
 import { useGameStore } from '../stores/gameStore';
+import { MAIN_BOARD_CELLS } from '@nannaricher/shared';
 import { PlanSelectionPanel } from './PlanSelectionPanel';
 import './EventModal.css';
+
+// Cell illustration map — mirrors StationLayer's CELL_IMAGE_MAP
+const CELL_IMAGE_MAP: Record<string, string> = {
+  start: '/art/cells/start_gen.png',
+  hospital: '/art/cells/hospital.jpg',
+  ding: '/art/cells/ding.jpg',
+  waiting_room: '/art/cells/waiting_room.jpg',
+  tuition: '/art/cells/tuition.jpg',
+  zijing: '/art/cells/zijing.jpg',
+  qingong: '/art/cells/qingong.jpg',
+  retake: '/art/cells/retake.png',
+  jiang_gong: '/art/cells/jiang_gong.png',
+  society: '/art/cells/society.png',
+  kechuang: '/art/cells/kechuang.png',
+  nanna_cp: '/art/cells/nanna_cp.jpg',
+  chuangmen: '/art/cells/chuangmen.jpg',
+};
+
+const LINE_IMAGE_MAP: Record<string, string> = {
+  study: '/art/cells/line_study.jpg',
+  money: '/art/cells/line_money.jpg',
+  pukou: '/art/cells/line_pukou.jpg',
+  suzhou: '/art/cells/line_suzhou.png',
+  explore: '/art/cells/line_explore_gen.png',
+  xianlin: '/art/cells/line_xianlin.jpg',
+  gulou: '/art/cells/line_gulou.jpg',
+  food: '/art/cells/line_food.jpg',
+};
 
 interface EffectPreview {
   money?: number;
@@ -188,6 +217,28 @@ export function EventModal({
     return 'neutral';
   })();
 
+  // Resolve cell illustration from acting player's position
+  const cellImageUrl = useMemo(() => {
+    if (!gameState || !actingPlayerId) return null;
+    const player = gameState.players.find(p => p.id === actingPlayerId);
+    if (!player) return null;
+    const pos = player.position;
+    if (pos.type === 'main') {
+      const cell = MAIN_BOARD_CELLS[pos.index];
+      if (!cell) return null;
+      // Check direct cell id match, then line entry image
+      if (CELL_IMAGE_MAP[cell.id]) return CELL_IMAGE_MAP[cell.id];
+      if (cell.type === 'line_entry' && cell.lineId && LINE_IMAGE_MAP[cell.lineId]) {
+        return LINE_IMAGE_MAP[cell.lineId];
+      }
+      return null;
+    }
+    if (pos.type === 'line') {
+      return LINE_IMAGE_MAP[pos.lineId] ?? null;
+    }
+    return null;
+  }, [gameState, actingPlayerId]);
+
   if (!isVisible && !isClosing) return null;
 
   return (
@@ -216,6 +267,11 @@ export function EventModal({
         </div>
 
         <div className="modal-body">
+          {cellImageUrl && (
+            <div className="event-modal-illustration">
+              <img src={cellImageUrl} alt="" loading="lazy" />
+            </div>
+          )}
           <p className="modal-description">{description}</p>
 
           {hasOptions && (() => {

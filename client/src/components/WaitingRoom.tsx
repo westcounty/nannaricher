@@ -4,6 +4,13 @@ import { useSocket } from '../context/SocketContext';
 import { useGameStore } from '../stores/gameStore';
 import { Player, MIN_PLAYERS, MAX_PLAYERS } from '@nannaricher/shared';
 
+const PLAYER_AVATARS = [
+  '/art/whale-piece-green/best.png',
+  '/art/whale-piece-orange/best.png',
+  '/art/whale-piece-purple/best.png',
+  '/art/whale-piece-teal/best.png',
+];
+
 interface WaitingRoomProps {
   roomId: string;
   playerId: string;
@@ -110,9 +117,18 @@ export function WaitingRoom({
                 transition={{ delay: index * 0.06, duration: 0.3 }}
                 layout
               >
-                <span
-                  className="player-color"
-                  style={{ backgroundColor: player.color, boxShadow: `0 0 8px ${player.color}` }}
+                <img
+                  src={PLAYER_AVATARS[index % PLAYER_AVATARS.length]}
+                  alt=""
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    flexShrink: 0,
+                    border: `2px solid ${player.color}`,
+                    boxShadow: `0 0 8px ${player.color}`,
+                  }}
                 />
                 <span className="player-name">
                   {player.name}

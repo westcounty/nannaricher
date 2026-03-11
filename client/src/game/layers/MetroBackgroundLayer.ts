@@ -2,7 +2,7 @@
 // Premium multi-layer background for the metro-style board:
 // deep space gradient, subtle grid, decorative border, and center info panel.
 
-import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text, TextStyle, Sprite, Assets, Texture } from 'pixi.js';
 import type { GameState } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
 import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
@@ -44,7 +44,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
       if (isMyTurn) {
         // Your turn: warm gold tint
-        this.turnOverlay.fill({ color: 0xC9A227, alpha: 0.05 });
+        this.turnOverlay.fill({ color: 0xD4AF37, alpha: 0.05 });
       } else {
         // Waiting: cool blue-gray
         this.turnOverlay.fill({ color: 0x1E1E32, alpha: 0.15 });
@@ -140,7 +140,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     const hw = METRO_BOARD_WIDTH / 2;
     const hh = METRO_BOARD_HEIGHT / 2;
     const spacing = 60;
-    const lineColor = 0x5E3A8D;
+    const lineColor = 0x5B2D8E;
 
     const gridGfx = new Graphics();
 
@@ -183,7 +183,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       METRO_BOARD_HEIGHT - margin * 2,
       12,
     );
-    outerBorder.stroke({ width: 2, color: 0xC9A227, alpha: 0.25 });
+    outerBorder.stroke({ width: 2, color: 0xD4AF37, alpha: 0.25 });
     this.container!.addChild(outerBorder);
 
     // Inner accent border: purple stroke, 10px inset from outer
@@ -196,7 +196,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       METRO_BOARD_HEIGHT - innerInset * 2,
       10,
     );
-    innerBorder.stroke({ width: 1, color: 0x5E3A8D, alpha: 0.3 });
+    innerBorder.stroke({ width: 1, color: 0x5B2D8E, alpha: 0.3 });
     this.container!.addChild(innerBorder);
 
     // Corner decorations: diamond shapes at the 4 corners
@@ -215,7 +215,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       diamond.lineTo(corner.x, corner.y + diamondSize);
       diamond.lineTo(corner.x - diamondSize, corner.y);
       diamond.closePath();
-      diamond.fill({ color: 0xC9A227, alpha: 0.3 });
+      diamond.fill({ color: 0xD4AF37, alpha: 0.3 });
       this.container!.addChild(diamond);
     }
   }
@@ -230,88 +230,103 @@ export class MetroBackgroundLayer implements RenderLayer {
   }
 
   private drawCenterPanel(): void {
-    const panelW = 280;
-    const panelH = 200;
+    const panelW = 360;
+    const panelH = 260;
     const fontFamily = DESIGN_TOKENS.typography.fontFamily;
 
     // Panel background
     const panel = new Graphics();
     panel.roundRect(-panelW / 2, -panelH / 2, panelW, panelH, 12);
     panel.fill({ color: 0x1A1230, alpha: 0.7 });
-    panel.stroke({ width: 1.5, color: 0xC9A227, alpha: 0.4 });
+    panel.stroke({ width: 1.5, color: 0xD4AF37, alpha: 0.4 });
     this.container!.addChild(panel);
 
     // Title
     const title = new Text({
       text: '菜根人生',
       style: new TextStyle({
-        fontSize: 28,
-        fill: 0xE0C55E,
+        fontSize: 36,
+        fill: 0xE8CC6E,
         fontWeight: 'bold',
         fontFamily,
       }),
     });
     title.anchor.set(0.5);
-    title.y = -panelH / 2 + 32;
+    title.y = -panelH / 2 + 40;
     this.container!.addChild(title);
 
     // Subtitle
     const subtitle = new Text({
       text: '南哪大富翁',
       style: new TextStyle({
-        fontSize: 13,
+        fontSize: 16,
         fill: 0xB0B0B0,
         fontFamily,
       }),
     });
     subtitle.anchor.set(0.5);
-    subtitle.y = -panelH / 2 + 58;
+    subtitle.y = -panelH / 2 + 72;
     this.container!.addChild(subtitle);
 
     // Divider line
     const divider = new Graphics();
-    divider.moveTo(-panelW / 2 + 30, -panelH / 2 + 75);
-    divider.lineTo(panelW / 2 - 30, -panelH / 2 + 75);
-    divider.stroke({ width: 1, color: 0xC9A227, alpha: 0.3 });
+    divider.moveTo(-panelW / 2 + 30, -panelH / 2 + 95);
+    divider.lineTo(panelW / 2 - 30, -panelH / 2 + 95);
+    divider.stroke({ width: 1, color: 0xD4AF37, alpha: 0.3 });
     this.container!.addChild(divider);
 
     // Dynamic round text
     this.roundText = new Text({
       text: '第 1/20 回合',
       style: new TextStyle({
-        fontSize: 14,
+        fontSize: 16,
         fill: 0xB0B0B0,
         fontFamily,
       }),
     });
     this.roundText.anchor.set(0.5);
-    this.roundText.y = -panelH / 2 + 95;
+    this.roundText.y = -panelH / 2 + 120;
     this.container!.addChild(this.roundText);
 
     // Dynamic current player text
     this.currentPlayerText = new Text({
       text: '🎲 —',
       style: new TextStyle({
-        fontSize: 14,
+        fontSize: 16,
         fill: 0xB0B0B0,
         fontFamily,
       }),
     });
     this.currentPlayerText.anchor.set(0.5);
-    this.currentPlayerText.y = -panelH / 2 + 120;
+    this.currentPlayerText.y = -panelH / 2 + 150;
     this.container!.addChild(this.currentPlayerText);
 
     // Dynamic phase text
     this.phaseText = new Text({
       text: '',
       style: new TextStyle({
-        fontSize: 12,
+        fontSize: 14,
         fill: 0x8B8B8B,
         fontFamily,
       }),
     });
     this.phaseText.anchor.set(0.5);
-    this.phaseText.y = -panelH / 2 + 145;
+    this.phaseText.y = -panelH / 2 + 180;
     this.container!.addChild(this.phaseText);
+
+    // Load emblem watermark
+    Assets.load<Texture>('/art/nanna-emblem/best.png').then((texture) => {
+      if (texture && this.container) {
+        const emblem = new Sprite(texture);
+        emblem.anchor.set(0.5);
+        emblem.width = 280;
+        emblem.height = 280;
+        emblem.x = 0; // center of board
+        emblem.y = 0;
+        emblem.alpha = 0.06;
+        // Add below the text, as a background element
+        this.container.addChildAt(emblem, 0);
+      }
+    }).catch(() => {});
   }
 }

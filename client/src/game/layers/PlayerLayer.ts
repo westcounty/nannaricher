@@ -3,7 +3,7 @@
 // KEY FIX: Uses differential updates instead of removeChildren() + full redraw.
 // Maintains a Map of player pieces; only updates when position/highlight changes.
 
-import { Container, Graphics, Text, TextStyle, Ticker } from 'pixi.js';
+import { Container, Graphics, Text, TextStyle, Ticker, Sprite, Assets, Texture } from 'pixi.js';
 import type { GameState, Player, Position } from '@nannaricher/shared';
 import { LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
@@ -17,6 +17,17 @@ import {
 import type { Point } from '../layout/MetroLayout';
 
 const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
+
+/** Map player color hex values to whale piece sprite images */
+const PIECE_IMAGE_MAP: Record<number, string> = {
+  0xE53935: '/art/whale-piece-red/best.png',
+  0x1E88E5: '/art/whale-piece-blue/best.png',
+  0x43A047: '/art/whale-piece-green/best.png',
+  0xFB8C00: '/art/whale-piece-orange/best.png',
+  0x8E24AA: '/art/whale-piece-purple/best.png',
+  0x00897B: '/art/whale-piece-teal/best.png',
+};
+
 import type { TweenEngine } from '../animations/TweenEngine';
 import { animatePieceMove } from '../animations/PieceMoveAnim';
 import { playLandingEffect } from '../animations/LandingEffects';
@@ -30,6 +41,8 @@ interface PlayerPiece {
   lastPosition: Position;
   lastIsCurrent: boolean;
   pulseGlow?: Graphics;  // breathing glow ring for current player
+  baseY: number;         // base Y position before idle bob offset
+  phaseOffset: number;   // unique phase offset for idle bobbing
 }
 
 /**
@@ -80,9 +93,14 @@ export class PlayerLayer implements RenderLayer {
       // Pulse glow animation driven by ticker
       this.pulseTickerFn = () => {
         const time = performance.now();
-        for (const piece of this.playerPieces.values()) {
+        for (const [playerId, piece] of this.playerPieces) {
           if (piece.pulseGlow) {
             piece.pulseGlow.alpha = 0.3 + 0.5 * Math.sin(time / 400);
+          }
+          // Idle bobbing: gentle up-and-down float when not animating
+          if (!this.animatingPieces.has(playerId)) {
+            const bobOffset = Math.sin(time * 0.00314 + piece.phaseOffset) * 3; // ~2s period, 3px amplitude
+            piece.container.y = piece.baseY + bobOffset;
           }
         }
       };
@@ -173,7 +191,8 @@ export class PlayerLayer implements RenderLayer {
               this.animatingPieces.add(playerId);
               AnimationGate.start();
 
-              animatePieceMove(existing.container, animPath, this.tweenEngine, this.effectLayer)
+              const pieceColor = PLAYER_COLORS_HEX[idx % PLAYER_COLORS_HEX.length];
+              animatePieceMove(existing.container, animPath, this.tweenEngine, this.effectLayer, pieceColor)
                 .finally(() => {
                   this.animatingPieces.delete(playerId);
                   AnimationGate.end();
@@ -185,6 +204,7 @@ export class PlayerLayer implements RenderLayer {
                   if (current === pieceRef) {
                     pieceRef.container.x = targetX;
                     pieceRef.container.y = targetY;
+                    pieceRef.baseY = targetY;
                   }
                 });
 
@@ -195,6 +215,7 @@ export class PlayerLayer implements RenderLayer {
               const movementToken = movementEventGate.consumeNextPendingToken();
               existing.container.x = targetX;
               existing.container.y = targetY;
+              existing.baseY = targetY;
               if (movementToken !== null) {
                 movementEventGate.markCompleted(movementToken);
               }
@@ -204,6 +225,7 @@ export class PlayerLayer implements RenderLayer {
             const movementToken = movementEventGate.consumeNextPendingToken();
             existing.container.x = targetX;
             existing.container.y = targetY;
+            existing.baseY = targetY;
             if (movementToken !== null) {
               movementEventGate.markCompleted(movementToken);
             }
@@ -224,7 +246,9 @@ export class PlayerLayer implements RenderLayer {
             const center = this.calculatePosition(player);
             const offset = getStackOffset(stackIndex, stackTotal);
             existing.container.x = center.x + offset.x;
-            existing.container.y = center.y + offset.y;
+            const newBaseY = center.y + offset.y;
+            existing.baseY = newBaseY;
+            // Don't set container.y directly; the ticker bob loop will apply it
           }
         }
       } else {
@@ -410,42 +434,76 @@ export class PlayerLayer implements RenderLayer {
     group.y = posY + offset.y;
 
     const pieceRadius = inLine ? 14 : 20;
-    const shadowOffY = inLine ? 16 : 24;
     if (inLine) {
       group.y += 8; // shift down to avoid overlapping station label
     }
 
-    // Piece graphic
-    const piece = new Graphics();
+    // Shadow ellipse beneath piece
+    const shadow = new Graphics();
+    shadow.ellipse(0, 18, 16, 6);
+    shadow.fill({ color: 0x000000, alpha: 0.3 });
+    group.addChild(shadow);
 
-    // Drop shadow
-    piece.ellipse(0, shadowOffY, pieceRadius + 3, pieceRadius * 0.35);
-    piece.fill({ color: 0x000000, alpha: 0.3 });
+    // Try to load whale sprite for this color, with circle fallback
+    const whaleUrl = PIECE_IMAGE_MAP[color];
+    const pieceSize = inLine ? 28 : 40;
 
-    // Main body
-    piece.circle(0, 0, pieceRadius);
-    piece.fill({ color });
+    if (whaleUrl) {
+      // Create fallback circle immediately (will be replaced when sprite loads)
+      const fallbackPiece = new Graphics();
+      fallbackPiece.circle(0, 0, pieceRadius);
+      fallbackPiece.fill({ color });
+      fallbackPiece.circle(0, 0, pieceRadius);
+      fallbackPiece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
+      group.addChild(fallbackPiece);
 
-    // Single white stroke border (clean contrast against any background)
-    piece.circle(0, 0, pieceRadius);
-    piece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
+      // Load whale sprite async and replace fallback
+      Assets.load<Texture>(whaleUrl).then((texture) => {
+        if (texture && group.parent) {
+          const whale = new Sprite(texture);
+          whale.anchor.set(0.5);
+          whale.width = pieceSize;
+          whale.height = pieceSize;
+          // Replace fallback circle with whale sprite
+          const fbIndex = group.getChildIndex(fallbackPiece);
+          group.removeChild(fallbackPiece);
+          fallbackPiece.destroy();
+          group.addChildAt(whale, fbIndex);
+        }
+      }).catch(() => {
+        // Keep fallback circle on error
+      });
+    } else {
+      // No whale image available — use original colored circle
+      const piece = new Graphics();
 
-    // Inner lighter circle for depth
-    piece.circle(0, -2, pieceRadius * 0.6);
-    piece.fill({ color: 0xffffff, alpha: 0.18 });
+      // Main body
+      piece.circle(0, 0, pieceRadius);
+      piece.fill({ color });
 
-    // Specular highlight
-    const hlOff = inLine ? 4 : 5;
-    piece.circle(-hlOff, -hlOff, hlOff * 0.7);
-    piece.fill({ color: 0xffffff, alpha: 0.45 });
+      // Single white stroke border
+      piece.circle(0, 0, pieceRadius);
+      piece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
+
+      // Inner lighter circle for depth
+      piece.circle(0, -2, pieceRadius * 0.6);
+      piece.fill({ color: 0xffffff, alpha: 0.18 });
+
+      // Specular highlight
+      const hlOff = inLine ? 4 : 5;
+      piece.circle(-hlOff, -hlOff, hlOff * 0.7);
+      piece.fill({ color: 0xffffff, alpha: 0.45 });
+
+      group.addChild(piece);
+    }
 
     // Current player golden ring
     if (isCurrent) {
-      piece.circle(0, 0, pieceRadius + 5);
-      piece.stroke({ width: 3, color: 0xFFD700 });
+      const ring = new Graphics();
+      ring.circle(0, 0, pieceRadius + 5);
+      ring.stroke({ width: 3, color: 0xFFD700 });
+      group.addChild(ring);
     }
-
-    group.addChild(piece);
 
     // Pulse glow ring for current player (breathing animation driven by ticker)
     let pulseGlow: Graphics | undefined;
@@ -500,6 +558,8 @@ export class PlayerLayer implements RenderLayer {
       lastPosition: { ...player.position } as Position,
       lastIsCurrent: isCurrent,
       pulseGlow,
+      baseY: group.y,
+      phaseOffset: playerIndex * 1.5,
     });
   }
 
@@ -514,9 +574,9 @@ export class PlayerLayer implements RenderLayer {
       const cell = MAIN_BOARD_CELLS[pos.index];
       if (!cell) return;
       if (CORNER_INDICES.includes(pos.index)) {
-        playLandingEffect(effectLayer, center.x, center.y, 'corner', tweenEngine);
+        playLandingEffect(effectLayer, center.x, center.y, 'corner', tweenEngine, undefined, cell.id, cell.type);
       } else if (cell.type === 'line_entry') {
-        playLandingEffect(effectLayer, center.x, center.y, 'line_entry', tweenEngine);
+        playLandingEffect(effectLayer, center.x, center.y, 'line_entry', tweenEngine, undefined, cell.id, cell.type);
       }
     } else {
       // Branch line: check if this is the experience card (last station)

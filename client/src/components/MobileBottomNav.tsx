@@ -56,7 +56,8 @@ export function MobileBottomNav({
         className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--nav ${activePanel === 'hand' ? 'mobile-bottom-nav__btn--active' : ''}`}
         onClick={onOpenCards}
       >
-        <span className="mobile-bottom-nav__icon">🃏</span>
+        <span className="mobile-bottom-nav__icon">{'\uD83C\uDCCF'}</span>
+        <span className="mobile-bottom-nav__label">{'\u624B\u724C'}</span>
         {cardCount > 0 && (
           <span className="mobile-bottom-nav__badge">{cardCount}</span>
         )}
@@ -67,15 +68,17 @@ export function MobileBottomNav({
         className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--nav ${activePanel === 'players' ? 'mobile-bottom-nav__btn--active' : ''}`}
         onClick={onOpenPlayers}
       >
-        <span className="mobile-bottom-nav__icon">👥</span>
+        <span className="mobile-bottom-nav__icon">{'\uD83D\uDC64'}</span>
+        <span className="mobile-bottom-nav__label">{'\u73A9\u5BB6'}</span>
       </button>
 
-      {/* More button */}
+      {/* Chat / More button */}
       <button
         className={`mobile-bottom-nav__btn mobile-bottom-nav__btn--nav ${activePanel === 'more' ? 'mobile-bottom-nav__btn--active' : ''}`}
         onClick={onOpenMore}
       >
-        <span className="mobile-bottom-nav__icon">⋯</span>
+        <span className="mobile-bottom-nav__icon">{'\uD83D\uDCAC'}</span>
+        <span className="mobile-bottom-nav__label">{'\u804A\u5929'}</span>
         {hasUnreadChat && <span className="mobile-bottom-nav__unread-dot" />}
       </button>
     </div>

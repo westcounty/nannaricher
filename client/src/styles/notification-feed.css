@@ -1,14 +1,16 @@
-/* NotificationFeed — stacked notification toasts */
+/* NotificationFeed — stacked notification toasts (top-center) */
 
 .notification-feed {
   position: fixed;
   top: 60px;
-  right: 12px;
-  z-index: 900;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-width: 340px;
+  gap: 8px;
+  max-width: 400px;
+  width: 90%;
   pointer-events: none;
 }
 
@@ -16,27 +18,43 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   border-radius: 8px;
   font-size: 0.85rem;
   line-height: 1.3;
   color: #fff;
   pointer-events: auto;
-  animation: notif-slide-in 0.3s ease-out;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: toast-slide-in 0.3s ease-out;
+  background: rgba(26, 18, 48, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(123, 77, 184, 0.2);
+  border-left: 4px solid #7B4DB8;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .notif-item--info {
-  background: rgba(59, 130, 246, 0.9);
+  border-left-color: #7B4DB8;
 }
 
 .notif-item--success {
-  background: rgba(34, 197, 94, 0.9);
+  border-left-color: #66BB6A;
 }
 
 .notif-item--warning {
-  background: rgba(234, 179, 8, 0.9);
-  color: #1a1a1a;
+  border-left-color: #D4AF37;
+  color: #fff;
+}
+
+.notif-item--error {
+  border-left-color: #EF5350;
+}
+
+.notif-item--collapsed {
+  background: rgba(26, 18, 48, 0.8);
+  border-left-color: rgba(123, 77, 184, 0.4);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 8px 16px;
 }
 
 .notif-item__text {
@@ -49,32 +67,32 @@
   color: inherit;
   font-size: 1.1rem;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0.5;
   padding: 0 2px;
   line-height: 1;
+  transition: opacity 0.15s ease;
 }
 
 .notif-item__close:hover {
   opacity: 1;
 }
 
-@keyframes notif-slide-in {
+@keyframes toast-slide-in {
   from {
     opacity: 0;
-    transform: translateX(40px);
+    transform: translateY(-20px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
-/* Mobile: full width, top position to avoid blocking action area */
+/* Mobile: full width */
 @media (max-width: 768px) {
   .notification-feed {
     top: 50px;
-    right: 8px;
-    left: 8px;
+    width: calc(100% - 16px);
     max-width: none;
   }
 }

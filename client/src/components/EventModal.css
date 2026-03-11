@@ -42,7 +42,7 @@
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid rgba(139, 95, 191, 0.3);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--g-brand);
   color: white;
 }
 
@@ -77,6 +77,33 @@
   padding: 24px;
   flex: 1;
   overflow-y: auto;
+}
+
+/* Cell illustration preview */
+.event-modal-illustration {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.event-modal-illustration img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+}
+
+.event-modal-illustration::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(transparent, rgba(26, 18, 48, 0.8));
 }
 
 .modal-description {
@@ -119,12 +146,12 @@
 }
 
 .effect-item.positive {
-  border-left-color: #22c55e;
+  border-left-color: var(--c-success);
   background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.negative {
-  border-left-color: #ef4444;
+  border-left-color: var(--c-danger);
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
@@ -144,30 +171,30 @@
 }
 
 .effect-item.positive .effect-value {
-  color: #4ade80;
+  color: var(--c-success);
 }
 
 .effect-item.negative .effect-value {
-  color: #f87171;
+  color: var(--c-danger);
 }
 
 .effect-item.cards-effect {
-  border-left-color: #8b5cf6;
+  border-left-color: var(--c-brand-light);
   background: linear-gradient(90deg, rgba(139, 92, 246, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.cards-effect .effect-value {
-  color: #a78bfa;
+  color: var(--c-brand-light);
   font-size: 0.9rem;
 }
 
 .effect-item.status-effect {
-  border-left-color: #f59e0b;
+  border-left-color: var(--c-warning);
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(255, 255, 255, 0.05) 50%);
 }
 
 .effect-item.status-effect .effect-value {
-  color: #fbbf24;
+  color: var(--c-accent-light);
   font-size: 0.9rem;
 }
 
@@ -184,22 +211,22 @@
   font-size: 1rem;
   font-weight: 600;
   color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--g-brand);
   border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(91, 45, 142, 0.4);
 }
 
 .confirm-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 16px rgba(91, 45, 142, 0.5);
 }
 
 .confirm-button:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(91, 45, 142, 0.3);
 }
 
 .confirm-button:disabled {
@@ -209,7 +236,7 @@
 
 /* Sentiment-based theming */
 .event-modal--positive .modal-header {
-  background: linear-gradient(135deg, #22863a 0%, #2ea043 100%);
+  background: var(--g-positive);
 }
 
 .event-modal--positive {
@@ -220,7 +247,7 @@
 }
 
 .event-modal--negative .modal-header {
-  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+  background: var(--g-negative);
 }
 
 .event-modal--negative {
@@ -274,7 +301,7 @@
 
 .option-card.selected {
   background: rgba(201, 162, 39, 0.15);
-  border-color: #c9a227;
+  border-color: #d4af37;
 }
 
 .option-card:disabled {
@@ -319,11 +346,11 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.option-card__effect.positive { color: #66bb6a; }
-.option-card__effect.negative { color: #ef5350; }
+.option-card__effect.positive { color: var(--c-success); }
+.option-card__effect.negative { color: var(--c-danger); }
 
 .option-checkmark {
-  color: #C9A227;
+  color: #D4AF37;
   font-size: 1.2rem;
   font-weight: bold;
 }
@@ -373,8 +400,8 @@
 }
 
 .options-tab.active {
-  color: #c9a227;
-  border-bottom-color: #c9a227;
+  color: #d4af37;
+  border-bottom-color: #d4af37;
 }
 
 .options-tab__count {
@@ -388,7 +415,7 @@
 
 .options-tab.active .options-tab__count {
   background: rgba(201, 162, 39, 0.2);
-  color: #c9a227;
+  color: #d4af37;
 }
 
 .options-tab-content {

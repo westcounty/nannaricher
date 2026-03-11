@@ -5,16 +5,19 @@ import { useGameStore } from '../stores/gameStore';
 import type { NotificationItem } from '../stores/gameStore';
 import '../styles/notification-feed.css';
 
-const DISMISS_MS = 6000;
+function getDisplayDuration(text: string): number {
+  return Math.min(8000, Math.max(3000, text.length * 100));
+}
 
 function NotificationEntry({ item }: { item: NotificationItem }) {
   const removeNotification = useGameStore((s) => s.removeNotification);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const duration = getDisplayDuration(item.message);
     timerRef.current = setTimeout(() => {
       removeNotification(item.id);
-    }, DISMISS_MS);
+    }, duration);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };

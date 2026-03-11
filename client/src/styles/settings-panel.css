@@ -36,7 +36,7 @@
   margin: 0 0 12px;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--color-accent, #c9a227);
+  color: var(--color-accent, #d4af37);
 }
 
 .settings-panel__row {
@@ -79,7 +79,7 @@
 
 .settings-panel__slider {
   width: 100%;
-  accent-color: var(--color-brand-primary, #8b5fbf);
+  accent-color: var(--color-brand-primary, #7b4db8);
   margin-top: 4px;
 }
 
@@ -94,7 +94,7 @@
 
 .settings-panel__toggle-indicator--on {
   background: rgba(94, 58, 141, 0.3);
-  color: var(--color-accent, #c9a227);
+  color: var(--color-accent, #d4af37);
 }
 
 /* Leave / Dissolve actions */

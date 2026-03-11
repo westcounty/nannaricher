@@ -173,8 +173,23 @@ export function Lobby() {
         transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
       >
         <h1>菜根人生</h1>
+        <img src="/art/nanna-emblem/best.png" alt="" style={{ width: 64, height: 64, opacity: 0.4, margin: '8px auto', display: 'block' }} />
         <p className="subtitle">南大版大富翁</p>
       </motion.div>
+
+      {/* Floating background decoration */}
+      <img
+        src="/art/nanna-emblem/best.png"
+        alt=""
+        className="lobby-bg-decoration"
+        style={{ width: 200, height: 200, top: '10%', left: '5%' }}
+      />
+      <img
+        src="/art/nanna-emblem/best.png"
+        alt=""
+        className="lobby-bg-decoration"
+        style={{ width: 150, height: 150, bottom: '15%', right: '8%', animationDelay: '3s' }}
+      />
 
       <AnimatePresence mode="wait">
         {state.mode === 'select' && (

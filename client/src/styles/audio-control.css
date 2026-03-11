@@ -57,7 +57,7 @@
 
 .audio-control__slider {
   width: 100%;
-  accent-color: var(--color-brand-primary, #8b5fbf);
+  accent-color: var(--color-brand-primary, #7b4db8);
 }
 
 .audio-control__slider--master {

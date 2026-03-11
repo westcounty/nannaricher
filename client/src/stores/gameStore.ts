@@ -79,6 +79,8 @@ interface GameStore {
   isLoading: boolean;
   error: string | null;
   isRolling: boolean;
+  isMovementUiBlocked: boolean;
+  dismissedPendingActionId: string | null;
 
   // === Computed Properties (function form) ===
   isMyTurn: () => boolean;
@@ -108,6 +110,13 @@ interface GameStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setRolling: (rolling: boolean) => void;
+  setMovementUiBlocked: (blocked: boolean) => void;
+  setDismissedPendingActionId: (actionId: string | null) => void;
+
+  // === Side Panel Collapse ===
+  sidePanelCollapsed: boolean;
+  toggleSidePanel: () => void;
+
   readyPlayerIds: string[];
   setReadyPlayerIds: (ids: string[]) => void;
   resetToLobby: () => void;
@@ -140,6 +149,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isLoading: true,
   error: null,
   isRolling: false,
+  isMovementUiBlocked: false,
+  dismissedPendingActionId: null,
   notifications: [],
 
   // --- Computed Properties ---
@@ -214,6 +225,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setError: (error) => set({ error, isLoading: false }),
 
   setRolling: (rolling) => set({ isRolling: rolling }),
+  setMovementUiBlocked: (blocked) => set({ isMovementUiBlocked: blocked }),
+  setDismissedPendingActionId: (actionId) => set({ dismissedPendingActionId: actionId }),
+
+  // --- Side Panel Collapse ---
+  sidePanelCollapsed: false,
+  toggleSidePanel: () => set((s) => ({ sidePanelCollapsed: !s.sidePanelCollapsed })),
 
   readyPlayerIds: [],
   setReadyPlayerIds: (ids) => set({ readyPlayerIds: ids }),
@@ -240,6 +257,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     drawnCard: null,
     announcement: null,
     isRolling: false,
+    isMovementUiBlocked: false,
+    dismissedPendingActionId: null,
     isLoading: false,
     error: null,
     notifications: [],

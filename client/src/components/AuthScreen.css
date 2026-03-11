@@ -61,7 +61,7 @@
   font-weight: 900;
   letter-spacing: 0.08em;
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #fff 0%, #C9A227 50%, #E0C55E 100%);
+  background: linear-gradient(135deg, #fff 0%, #D4AF37 50%, #E8CC6E 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -82,7 +82,7 @@
   width: 80px;
   height: 2px;
   margin: 20px auto 0;
-  background: linear-gradient(90deg, transparent, var(--color-nju-gold, #C9A227), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-nju-gold, #D4AF37), transparent);
   border-radius: 1px;
 }
 
@@ -144,7 +144,7 @@
   left: 0;
   width: 50%;
   height: 2px;
-  background: linear-gradient(90deg, #C9A227, #E0C55E);
+  background: linear-gradient(90deg, #D4AF37, #E8CC6E);
   border-radius: 1px 1px 0 0;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -189,7 +189,7 @@
 }
 
 .auth-field input:focus {
-  border-color: var(--color-nju-purple-light, #8B5FBF);
+  border-color: var(--color-nju-purple-light, #7B4DB8);
   background: rgba(15, 10, 26, 0.8);
   box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
 }
@@ -227,7 +227,7 @@
 }
 
 .auth-send-code:hover:not(:disabled) {
-  color: #C9A227;
+  color: #D4AF37;
   background: rgba(201, 162, 39, 0.15);
   border-color: rgba(201, 162, 39, 0.4);
 }
@@ -265,7 +265,7 @@
   font-family: inherit;
   letter-spacing: 0.06em;
   color: #0F0A1A;
-  background: linear-gradient(135deg, #C9A227 0%, #E0C55E 100%);
+  background: linear-gradient(135deg, #D4AF37 0%, #E8CC6E 100%);
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -329,7 +329,7 @@
 }
 
 .auth-toggle:hover {
-  color: var(--color-nju-purple-light, #8B5FBF);
+  color: var(--color-nju-purple-light, #7B4DB8);
 }
 
 /* ============================================
