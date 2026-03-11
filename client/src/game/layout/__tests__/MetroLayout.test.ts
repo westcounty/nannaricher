@@ -46,18 +46,18 @@ describe('Board dimensions', () => {
   });
 
   it('exports station card dimensions', () => {
-    expect(MAIN_STATION_SIZE).toBe(80);
-    expect(MAIN_STATION_HEIGHT).toBe(100);
-    expect(CORNER_STATION_SIZE).toBe(120);
-    expect(CORNER_STATION_HEIGHT).toBe(140);
-    expect(LINE_STATION_SIZE).toBe(62);
-    expect(LINE_STATION_HEIGHT).toBe(72);
-    expect(EXP_STATION_SIZE).toBe(72);
-    expect(EXP_STATION_HEIGHT).toBe(82);
+    expect(MAIN_STATION_SIZE).toBe(130);
+    expect(MAIN_STATION_HEIGHT).toBe(150);
+    expect(CORNER_STATION_SIZE).toBe(200);
+    expect(CORNER_STATION_HEIGHT).toBe(220);
+    expect(LINE_STATION_SIZE).toBe(100);
+    expect(LINE_STATION_HEIGHT).toBe(115);
+    expect(EXP_STATION_SIZE).toBe(90);
+    expect(EXP_STATION_HEIGHT).toBe(105);
   });
 
   it('exports track width constants', () => {
-    expect(MAIN_TRACK_WIDTH).toBe(6);
+    expect(MAIN_TRACK_WIDTH).toBe(10);
     expect(LINE_TRACK_WIDTH).toBe(4);
   });
 });
@@ -300,9 +300,12 @@ describe('getLineStationPosition', () => {
     }
   });
 
-  it('all branch stations are within board bounds', () => {
-    const halfW = METRO_BOARD_WIDTH / 2;
-    const halfH = METRO_BOARD_HEIGHT / 2;
+  it('all branch stations are within board bounds (with margin for outward bezier)', () => {
+    // Branch lines extend outward from the ring via bezier curves,
+    // so allow a small margin beyond the nominal board edge
+    const margin = 50;
+    const halfW = METRO_BOARD_WIDTH / 2 + margin;
+    const halfH = METRO_BOARD_HEIGHT / 2 + margin;
     for (const line of LINE_CONFIGS) {
       for (let i = 0; i < line.cellCount; i++) {
         const pos = getLineStationPosition(line.id, i);

@@ -61,6 +61,22 @@ const SHORT_NAME_MAP: Record<string, string> = {
   '鼓楼线入口': '鼓楼线',
   '食堂线入口': '食堂线',
   '蒋公的面子': '蒋公面子',
+  // 支线长名称缩短
+  '野猪学长和狐獴学弟': '野猪与狐獴',
+  '图书馆空调没有开放': '图书馆空调',
+  '带高中同学游览仙林': '同学游仙林',
+  '带同学游览鼓楼': '同学游鼓楼',
+  '违反校规开办考研辅导': '考研辅导',
+  '半壁江山竟仍是工地': '半壁工地',
+  '培养计划套娃盲盒': '套娃盲盒',
+  '北大楼草坪集体婚礼': '草坪婚礼',
+  '摄像头麦克风事故': '摄像头事故',
+  '录取通知盒流水线': '录取流水线',
+  '快递寄到车大成贤': '快递寄错',
+  '被子被鸟屎污染': '被子鸟屎',
+  '室内雪世界的饼': '雪世界饼',
+  '吃出高质量蛋白质': '高质量蛋白',
+  '课没修够两地奔波': '两地奔波',
 };
 
 const EMOJI_BY_ID: Record<string, string> = {
@@ -232,7 +248,7 @@ export class StationLayer implements RenderLayer {
 
   /** Update level-of-detail based on current zoom scale. */
   updateLOD(zoom: number): void {
-    const newLOD = zoom > 2.0 ? 'near' : zoom > 1.0 ? 'mid' : 'far';
+    const newLOD = zoom > 1.2 ? 'near' : zoom > 0.6 ? 'mid' : 'far';
     if (newLOD !== this.currentLOD) {
       this.currentLOD = newLOD;
       this.applyLOD();
@@ -540,22 +556,22 @@ export class StationLayer implements RenderLayer {
         const stationName = lineData?.cells?.[i]?.name ?? `站点`;
 
         // --- Station name with background bar for readability ---
-        const nameBgH = 18;
+        const nameBgH = 26;
         const branchNameBg = new Graphics();
-        branchNameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, 4);
-        branchNameBg.fill({ color: 0x000000, alpha: 0.7 });
+        branchNameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, 5);
+        branchNameBg.fill({ color: 0x000000, alpha: 0.75 });
         card.addChild(branchNameBg);
 
         const nameText = new Text({
           text: this.getShortName(stationName),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: 9,
+            fontSize: 13,
             fill: 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
             wordWrap: true,
-            wordWrapWidth: cardW - 12,
+            wordWrapWidth: cardW - 14,
             dropShadow: { alpha: 0.9, blur: 2, color: 0x000000, distance: 1 },
           }),
         });

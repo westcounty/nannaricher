@@ -46,8 +46,8 @@ export const MAIN_STATION_HEIGHT = 150;
 export const CORNER_STATION_SIZE = 200;
 export const CORNER_STATION_HEIGHT = 220;
 // Branch line stations — sized for readable Chinese text
-export const LINE_STATION_SIZE = 70;
-export const LINE_STATION_HEIGHT = 82;
+export const LINE_STATION_SIZE = 100;
+export const LINE_STATION_HEIGHT = 115;
 export const EXP_STATION_SIZE = 90;
 export const EXP_STATION_HEIGHT = 105;
 
@@ -178,7 +178,7 @@ export function bezierArcLength(
 // ============================================
 
 // Minimum spacing between adjacent branch stations (px)
-const MIN_CELL_SPACING = 120;
+const MIN_CELL_SPACING = 170;
 
 /**
  * Get the outward direction for a branch based on which side of the ring it's on.
