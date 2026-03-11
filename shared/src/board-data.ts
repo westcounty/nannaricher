@@ -26,7 +26,7 @@ export interface LineConfig {
   id: string;
   name: string;
   entryIndex: number;    // main board entry cell index
-  cellCount: number;     // total cells in line (including experience card)
+  cellCount: number;     // total cells in line (including entrance, excluding experience card)
   forceEntry: boolean;
   entryFee: number;
   direction: 'up' | 'down' | 'left' | 'right';

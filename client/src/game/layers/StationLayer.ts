@@ -22,10 +22,8 @@ import {
   CORNER_STATION_HEIGHT,
   LINE_STATION_SIZE,
   LINE_STATION_HEIGHT,
-  EXP_STATION_SIZE,
-  EXP_STATION_HEIGHT,
 } from '../layout/MetroLayout';
-import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
+import { DESIGN_TOKENS } from '../../styles/tokens';
 import type { TweenEngine } from '../animations/TweenEngine';
 import { AnimationConfig } from '../animations/AnimationConfig';
 
@@ -221,9 +219,7 @@ export class StationLayer implements RenderLayer {
   // Whether hi-res images have been triggered
   private hiResTriggered = false;
   // Loading pulse animation frame id
-  private pulseAnimFrame: number | null = null;
   // Sprites currently pulsing (loading)
-  private pulsingSprites: Set<Sprite> = new Set();
 
   constructor(options: StationLayerOptions = {}) {
     this.options = options;
@@ -336,11 +332,6 @@ export class StationLayer implements RenderLayer {
     this.badges.clear();
     this.branchTexts = [];
     this.hiResState.clear();
-    this.pulsingSprites.clear();
-    if (this.pulseAnimFrame !== null) {
-      cancelAnimationFrame(this.pulseAnimFrame);
-      this.pulseAnimFrame = null;
-    }
     if (this.container) {
       if (this.container.parent) {
         this.container.parent.removeChild(this.container);
@@ -509,10 +500,9 @@ export class StationLayer implements RenderLayer {
 
       for (let i = 0; i < line.cellCount; i++) {
         const pos = getLineStationPosition(line.id, i);
-        const isExperience = i === line.cellCount - 1;
 
-        const cardW = isExperience ? EXP_STATION_SIZE : LINE_STATION_SIZE;
-        const cardH = isExperience ? EXP_STATION_HEIGHT : LINE_STATION_HEIGHT;
+        const cardW = LINE_STATION_SIZE;
+        const cardH = LINE_STATION_HEIGHT;
         const cornerRadius = 8;
 
         const card = new Container();
@@ -530,20 +520,13 @@ export class StationLayer implements RenderLayer {
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
         bg.fill({ color: 0x1A1230, alpha: 0.82 });
 
-        // Border (gold for experience, line color for regular)
+        // Border
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.stroke({ width: isExperience ? 2.5 : 2, color: isExperience ? 0xE8CC6E : colorLight, alpha: isExperience ? 0.8 : 0.6 });
-
-        // Experience card gold star marker
-        if (isExperience) {
-          bg.circle(0, -cardH / 2 + 18, 11);
-          bg.fill({ color: 0xE8CC6E, alpha: 0.5 });
-        }
+        bg.stroke({ width: 2, color: colorLight, alpha: 0.6 });
 
         // Line color indicator bar (left edge)
-        const barColor = isExperience ? 0xE8CC6E : colorLight;
         bg.roundRect(-cardW / 2, -cardH / 2 + 5, 5, cardH - 10, 3);
-        bg.fill({ color: barColor, alpha: 0.8 });
+        bg.fill({ color: colorLight, alpha: 0.8 });
 
         card.addChild(bg);
 
@@ -554,12 +537,10 @@ export class StationLayer implements RenderLayer {
 
         // --- Resolve station name from boardData ---
         const lineData = boardData.lines[line.id];
-        const stationName = isExperience
-          ? lineData?.experienceCard?.name ?? '体验卡'
-          : lineData?.cells?.[i]?.name ?? `站点`;
+        const stationName = lineData?.cells?.[i]?.name ?? `站点`;
 
         // --- Station name with background bar for readability ---
-        const nameBgH = isExperience ? 22 : 18;
+        const nameBgH = 18;
         const branchNameBg = new Graphics();
         branchNameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, 4);
         branchNameBg.fill({ color: 0x000000, alpha: 0.7 });
@@ -569,8 +550,8 @@ export class StationLayer implements RenderLayer {
           text: this.getShortName(stationName),
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
-            fontSize: isExperience ? 11 : 9,
-            fill: isExperience ? 0xE8CC6E : 0xFFFFFF,
+            fontSize: 9,
+            fill: 0xFFFFFF,
             fontWeight: 'bold',
             align: 'center',
             wordWrap: true,
@@ -661,8 +642,8 @@ export class StationLayer implements RenderLayer {
       const isMain = key.startsWith('main:');
       const mainIndex = isMain ? parseInt(key.split(':')[1]) : -1;
       const isCorner = isMain && CORNER_INDICES.includes(mainIndex);
-      const cardW = isCorner ? CORNER_STATION_SIZE : isMain ? MAIN_STATION_SIZE : key.includes('exp') ? EXP_STATION_SIZE : LINE_STATION_SIZE;
-      const cardH = isCorner ? CORNER_STATION_HEIGHT : isMain ? MAIN_STATION_HEIGHT : key.includes('exp') ? EXP_STATION_HEIGHT : LINE_STATION_HEIGHT;
+      const cardW = isCorner ? CORNER_STATION_SIZE : isMain ? MAIN_STATION_SIZE : LINE_STATION_SIZE;
+      const cardH = isCorner ? CORNER_STATION_HEIGHT : isMain ? MAIN_STATION_HEIGHT : LINE_STATION_HEIGHT;
       const cr = isCorner ? 16 : isMain ? 10 : 8;
 
       const glow = new Graphics();
@@ -690,10 +671,7 @@ export class StationLayer implements RenderLayer {
     return SHORT_NAME_MAP[name] || name;
   }
 
-  private getShortDesc(desc: string): string {
-    if (desc.length <= 20) return desc;
-    return desc.substring(0, 18) + '...';
-  }
+
 
   private getCellEmoji(id: string, type: string): string {
     if (EMOJI_BY_ID[id]) return EMOJI_BY_ID[id];
@@ -901,37 +879,7 @@ export class StationLayer implements RenderLayer {
     });
   }
 
-  /** Start a subtle pulsing alpha animation on a sprite to indicate loading. */
-  private startPulse(sprite: Sprite): void {
-    this.pulsingSprites.add(sprite);
-    if (this.pulseAnimFrame === null) {
-      const pulse = () => {
-        const t = performance.now() / 600; // ~1.7 Hz
-        const alpha = 0.6 + 0.4 * Math.abs(Math.sin(t));
-        for (const s of this.pulsingSprites) {
-          if (s.parent) {
-            s.alpha = alpha;
-          }
-        }
-        if (this.pulsingSprites.size > 0) {
-          this.pulseAnimFrame = requestAnimationFrame(pulse);
-        } else {
-          this.pulseAnimFrame = null;
-        }
-      };
-      this.pulseAnimFrame = requestAnimationFrame(pulse);
-    }
-  }
 
-  /** Stop pulsing on a sprite and reset alpha. */
-  private stopPulse(sprite: Sprite): void {
-    this.pulsingSprites.delete(sprite);
-    sprite.alpha = 1;
-    if (this.pulsingSprites.size === 0 && this.pulseAnimFrame !== null) {
-      cancelAnimationFrame(this.pulseAnimFrame);
-      this.pulseAnimFrame = null;
-    }
-  }
 
   /** Returns transfer line info for a main ring station (entry or exit point). */
   private getTransferLines(mainIndex: number): Array<{ lineId: string; symbol: string; isEntry: boolean }> {

@@ -578,12 +578,6 @@ export class PlayerLayer implements RenderLayer {
       } else if (cell.type === 'line_entry') {
         playLandingEffect(effectLayer, center.x, center.y, 'line_entry', tweenEngine, undefined, cell.id, cell.type);
       }
-    } else {
-      // Branch line: check if this is the experience card (last station)
-      const line = LINE_CONFIGS.find(l => l.id === pos.lineId);
-      if (line && pos.index === line.cellCount - 1) {
-        playLandingEffect(effectLayer, center.x, center.y, 'experience', tweenEngine);
-      }
     }
   }
 
