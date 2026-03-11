@@ -18,14 +18,14 @@ import type { Point } from '../layout/MetroLayout';
 
 const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
 
-/** Map player color hex values to whale piece sprite images */
+/** Map player color hex values to whale piece sprite images (128px webp, ~5KB each) */
 const PIECE_IMAGE_MAP: Record<number, string> = {
-  0xE53935: '/art/whale-piece-red/best.png',
-  0x1E88E5: '/art/whale-piece-blue/best.png',
-  0x43A047: '/art/whale-piece-green/best.png',
-  0xFB8C00: '/art/whale-piece-orange/best.png',
-  0x8E24AA: '/art/whale-piece-purple/best.png',
-  0x00897B: '/art/whale-piece-teal/best.png',
+  0xE53935: '/art/whale-piece-red/best.webp',
+  0x1E88E5: '/art/whale-piece-blue/best.webp',
+  0x43A047: '/art/whale-piece-green/best.webp',
+  0xFB8C00: '/art/whale-piece-orange/best.webp',
+  0x8E24AA: '/art/whale-piece-purple/best.webp',
+  0x00897B: '/art/whale-piece-teal/best.webp',
 };
 
 import type { TweenEngine } from '../animations/TweenEngine';
