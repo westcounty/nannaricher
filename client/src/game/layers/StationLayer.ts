@@ -883,11 +883,7 @@ export class StationLayer implements RenderLayer {
 
     const { sprite, hiResUrl, cardW, cardH, isCorner } = state;
 
-    // Start pulsing animation on the sprite to indicate loading
-    this.startPulse(sprite);
-
     loadCellTexture(hiResUrl).then(texture => {
-      this.stopPulse(sprite);
 
       if (!texture || !sprite.parent) return;
 
@@ -901,7 +897,6 @@ export class StationLayer implements RenderLayer {
       state.sprite = newSprite;
       state.loaded = true;
     }).catch(() => {
-      this.stopPulse(sprite);
       // Keep showing thumbnail — it's already visible as fallback
     });
   }
