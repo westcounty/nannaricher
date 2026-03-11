@@ -713,7 +713,12 @@
   }
 
   .room-code {
-    font-size: 2rem;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+  }
+
+  .room-code-display {
+    flex-wrap: wrap;
   }
 
   .dice-options {

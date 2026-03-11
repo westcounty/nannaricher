@@ -76,6 +76,11 @@ export function registerRoomHandlers(
           socket.data.roomId = data.roomId;
           socket.data.playerId = disconnectedPlayer.id;
 
+          // Update hostSocketId if this player is the host
+          if (room.players[0]?.id === disconnectedPlayer.id) {
+            room.hostSocketId = socket.id;
+          }
+
           const coordinator = roomManager.getCoordinator(data.roomId);
           if (coordinator) {
             const state = coordinator.getState();
@@ -305,6 +310,11 @@ export function registerRoomHandlers(
     socket.join(data.roomId);
     socket.data.roomId = data.roomId;
     socket.data.playerId = data.playerId;
+
+    // Update hostSocketId if this player is the host (first player)
+    if (room.players[0]?.id === data.playerId) {
+      room.hostSocketId = socket.id;
+    }
 
     const coordinator = roomManager.getCoordinator(data.roomId);
     if (coordinator) {
