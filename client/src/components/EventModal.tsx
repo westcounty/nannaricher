@@ -5,32 +5,32 @@ import { MAIN_BOARD_CELLS } from '@nannaricher/shared';
 import { PlanSelectionPanel } from './PlanSelectionPanel';
 import './EventModal.css';
 
-// Cell illustration map — mirrors StationLayer's CELL_IMAGE_MAP
+// Cell illustration map — uses webp thumbnails (~5-20KB vs 1-2MB originals)
 const CELL_IMAGE_MAP: Record<string, string> = {
-  start: '/art/cells/start_gen.png',
-  hospital: '/art/cells/hospital.jpg',
-  ding: '/art/cells/ding.jpg',
-  waiting_room: '/art/cells/waiting_room.jpg',
-  tuition: '/art/cells/tuition.jpg',
-  zijing: '/art/cells/zijing.jpg',
-  qingong: '/art/cells/qingong.jpg',
-  retake: '/art/cells/retake.png',
-  jiang_gong: '/art/cells/jiang_gong.png',
-  society: '/art/cells/society.png',
-  kechuang: '/art/cells/kechuang.png',
-  nanna_cp: '/art/cells/nanna_cp.jpg',
-  chuangmen: '/art/cells/chuangmen.jpg',
+  start: '/art/thumb/start_gen.webp',
+  hospital: '/art/thumb/hospital.webp',
+  ding: '/art/thumb/ding.webp',
+  waiting_room: '/art/thumb/waiting_room.webp',
+  tuition: '/art/thumb/tuition.webp',
+  zijing: '/art/thumb/zijing.webp',
+  qingong: '/art/thumb/qingong.webp',
+  retake: '/art/thumb/retake.webp',
+  jiang_gong: '/art/thumb/jiang_gong.webp',
+  society: '/art/thumb/society.webp',
+  kechuang: '/art/thumb/kechuang.webp',
+  nanna_cp: '/art/thumb/nanna_cp.webp',
+  chuangmen: '/art/thumb/chuangmen.webp',
 };
 
 const LINE_IMAGE_MAP: Record<string, string> = {
-  study: '/art/cells/line_study.jpg',
-  money: '/art/cells/line_money.jpg',
-  pukou: '/art/cells/line_pukou.jpg',
-  suzhou: '/art/cells/line_suzhou.png',
-  explore: '/art/cells/line_explore_gen.png',
-  xianlin: '/art/cells/line_xianlin.jpg',
-  gulou: '/art/cells/line_gulou.jpg',
-  food: '/art/cells/line_food.jpg',
+  study: '/art/thumb/line_study.webp',
+  money: '/art/thumb/line_money.webp',
+  pukou: '/art/thumb/line_pukou.webp',
+  suzhou: '/art/thumb/line_suzhou.webp',
+  explore: '/art/thumb/line_explore_gen.webp',
+  xianlin: '/art/thumb/line_xianlin.webp',
+  gulou: '/art/thumb/line_gulou.webp',
+  food: '/art/thumb/line_food.webp',
 };
 
 interface EffectPreview {

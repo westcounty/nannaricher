@@ -315,7 +315,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     this.container!.addChild(this.phaseText);
 
     // Load emblem watermark
-    Assets.load<Texture>('/art/nanna-emblem/best.png').then((texture) => {
+    Assets.load<Texture>('/art/nanna-emblem/best.webp').then((texture) => {
       if (texture && this.container) {
         const emblem = new Sprite(texture);
         emblem.anchor.set(0.5);

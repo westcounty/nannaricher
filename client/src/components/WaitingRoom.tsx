@@ -5,10 +5,10 @@ import { useGameStore } from '../stores/gameStore';
 import { Player, MIN_PLAYERS, MAX_PLAYERS } from '@nannaricher/shared';
 
 const PLAYER_AVATARS = [
-  '/art/whale-piece-green/best.png',
-  '/art/whale-piece-orange/best.png',
-  '/art/whale-piece-purple/best.png',
-  '/art/whale-piece-teal/best.png',
+  '/art/whale-piece-green/best.webp',
+  '/art/whale-piece-orange/best.webp',
+  '/art/whale-piece-purple/best.webp',
+  '/art/whale-piece-teal/best.webp',
 ];
 
 interface WaitingRoomProps {
