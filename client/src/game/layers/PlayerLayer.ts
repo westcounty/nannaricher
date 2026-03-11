@@ -246,7 +246,7 @@ export class PlayerLayer implements RenderLayer {
             const center = this.calculatePosition(player);
             const offset = getStackOffset(stackIndex, stackTotal);
             existing.container.x = center.x + offset.x;
-            const newBaseY = center.y + offset.y;
+            const newBaseY = center.y + offset.y + (center.inLine ? 8 : 0);
             existing.baseY = newBaseY;
             // Don't set container.y directly; the ticker bob loop will apply it
           }

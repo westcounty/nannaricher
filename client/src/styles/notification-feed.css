@@ -95,18 +95,16 @@
   }
 }
 
-/* Mobile: narrower toasts for better screen efficiency */
+/* Mobile */
 @media (max-width: 768px) {
   .notification-feed {
     top: 50px;
-    width: auto;
-    max-width: calc(100% - 48px);
-    min-width: 200px;
+    width: calc(100% - 16px);
+    max-width: none;
   }
 
   .notif-item {
     padding: 8px 12px;
     font-size: 0.82rem;
-    border-radius: 8px;
   }
 }
