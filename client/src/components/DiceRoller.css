@@ -62,17 +62,17 @@
 }
 
 .dice-face.rolling {
-  filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4)) blur(0.5px);
+  filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .dice-body {
-  fill: var(--c-surface);
-  stroke: var(--c-elevated);
-  stroke-width: 2;
+  fill: #F5F0E8;
+  stroke: #D4AF37;
+  stroke-width: 3;
 }
 
 .dice-dot {
-  fill: var(--c-text);
+  fill: #1A1230;
 }
 
 .rolling-indicator {
@@ -142,15 +142,15 @@
   margin-left: 4px;
 }
 
-/* 3D-ish enhancement */
+/* 3D-ish enhancement — subtle, avoid covering dots */
 .dice-wrapper::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(0, 0, 0, 0.1) 100%
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(0, 0, 0, 0.05) 100%
   );
   border-radius: 15px;
   pointer-events: none;

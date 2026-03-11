@@ -432,7 +432,7 @@ export class StationLayer implements RenderLayer {
       nameBg.fill({ color: 0x000000, alpha: 0.7 });
       card.addChild(nameBg);
 
-      const nameColor = isCorner ? 0xE8CC6E : (cell.type === 'event') ? 0x1A1230 : 0xFFFFFF;
+      const nameColor = isCorner ? 0xE8CC6E : 0xFFFFFF;
       const nameText = new Text({
         text: displayName,
         style: new TextStyle({
@@ -547,13 +547,26 @@ export class StationLayer implements RenderLayer {
 
         card.addChild(bg);
 
+        // --- Branch cell illustration (use line's shared image) ---
+        const branchImgUrl = LINE_IMAGE_MAP[line.id];
+        if (branchImgUrl) {
+          const cardKey = `line:${line.id}:${i}`;
+          this.loadBranchImage(card, branchImgUrl, cardW, cardH, cardKey);
+        }
+
         // --- Resolve station name from boardData ---
         const lineData = boardData.lines[line.id];
         const stationName = isExperience
           ? lineData?.experienceCard?.name ?? '体验卡'
           : lineData?.cells?.[i]?.name ?? `站点`;
 
-        // --- Station name (centered vertically, no image for branch cells) ---
+        // --- Station name with background bar for readability ---
+        const nameBgH = isExperience ? 22 : 18;
+        const branchNameBg = new Graphics();
+        branchNameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, 4);
+        branchNameBg.fill({ color: 0x000000, alpha: 0.7 });
+        card.addChild(branchNameBg);
+
         const nameText = new Text({
           text: this.getShortName(stationName),
           style: new TextStyle({
@@ -564,10 +577,11 @@ export class StationLayer implements RenderLayer {
             align: 'center',
             wordWrap: true,
             wordWrapWidth: cardW - 12,
+            dropShadow: { alpha: 0.9, blur: 2, color: 0x000000, distance: 1 },
           }),
         });
         nameText.anchor.set(0.5);
-        nameText.y = 0; // centered vertically
+        nameText.y = cardH / 2 - nameBgH / 2 - 2;
         card.addChild(nameText);
 
         // Track branch text for LOD visibility
@@ -755,6 +769,40 @@ export class StationLayer implements RenderLayer {
       }).catch(() => {
         // Both failed — cell shows just its colored background (default behavior)
       });
+    });
+  }
+
+  /** Load and add image for branch cells (cover-fill style). */
+  private loadBranchImage(card: Container, url: string, cardW: number, cardH: number, cardKey: string): void {
+    const thumbUrl = toThumbUrl(url);
+
+    loadCellTexture(thumbUrl).then(texture => {
+      if (!texture || !card.parent) return;
+
+      const sprite = new Sprite(texture);
+      // Cover-fill: scale to fill the card area
+      const scaleX = cardW / texture.width;
+      const scaleY = cardH / texture.height;
+      const scale = Math.max(scaleX, scaleY);
+      sprite.width = texture.width * scale;
+      sprite.height = texture.height * scale;
+      sprite.anchor.set(0.5);
+      sprite.alpha = 0.35; // subtle background, don't overpower the name
+
+      // Insert after bg (index 1) but before name
+      card.addChildAt(sprite, 1);
+
+      // Track for hi-res upgrade
+      this.hiResState.set(cardKey, {
+        sprite,
+        hiResUrl: url,
+        loaded: false,
+        cardW,
+        cardH,
+        isCorner: false,
+      });
+    }).catch(() => {
+      // Fail silently — cell shows just its colored background
     });
   }
 
