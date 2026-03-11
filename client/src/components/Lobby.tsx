@@ -172,20 +172,20 @@ export function Lobby() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
       >
+        <img src="/art/nanna-emblem/best.webp" alt="菜根人生" style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'block', borderRadius: '24px' }} />
         <h1>菜根人生</h1>
-        <img src="/art/nanna-emblem/best.png" alt="" style={{ width: 64, height: 64, opacity: 0.4, margin: '8px auto', display: 'block' }} />
         <p className="subtitle">南大版大富翁</p>
       </motion.div>
 
       {/* Floating background decoration */}
       <img
-        src="/art/nanna-emblem/best.png"
+        src="/art/nanna-emblem/best.webp"
         alt=""
         className="lobby-bg-decoration"
         style={{ width: 200, height: 200, top: '10%', left: '5%' }}
       />
       <img
-        src="/art/nanna-emblem/best.png"
+        src="/art/nanna-emblem/best.webp"
         alt=""
         className="lobby-bg-decoration"
         style={{ width: 150, height: 150, bottom: '15%', right: '8%', animationDelay: '3s' }}

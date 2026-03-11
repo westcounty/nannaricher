@@ -25,6 +25,7 @@ export function AuthScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
       >
+        <img src="/art/nanna-emblem/best.webp" alt="菜根人生" style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'block', borderRadius: '24px' }} />
         <h1>菜根人生</h1>
         <p className="subtitle">南大版大富翁</p>
       </motion.div>
