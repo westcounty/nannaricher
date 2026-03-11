@@ -449,29 +449,29 @@ export class PlayerLayer implements RenderLayer {
     const pieceSize = inLine ? 28 : 40;
 
     if (whaleUrl) {
-      // Create fallback circle immediately (will be replaced when sprite loads)
-      const fallbackPiece = new Graphics();
-      fallbackPiece.circle(0, 0, pieceRadius);
-      fallbackPiece.fill({ color });
-      fallbackPiece.circle(0, 0, pieceRadius);
-      fallbackPiece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
-      group.addChild(fallbackPiece);
+      // White circle background with colored border
+      const bgCircle = new Graphics();
+      bgCircle.circle(0, 0, pieceRadius);
+      bgCircle.fill({ color: 0xffffff });
+      bgCircle.circle(0, 0, pieceRadius);
+      bgCircle.stroke({ width: 2.5, color, alpha: 0.9 });
+      group.addChild(bgCircle);
 
-      // Load whale sprite async and replace fallback
+      // Load whale sprite on top of the colored circle
       Assets.load<Texture>(whaleUrl).then((texture) => {
         if (texture && group.parent) {
           const whale = new Sprite(texture);
           whale.anchor.set(0.5);
-          whale.width = pieceSize;
-          whale.height = pieceSize;
-          // Replace fallback circle with whale sprite (PNG has transparent bg)
-          const fbIndex = group.getChildIndex(fallbackPiece);
-          group.removeChild(fallbackPiece);
-          fallbackPiece.destroy();
-          group.addChildAt(whale, fbIndex);
+          // Whale slightly smaller than circle so the color ring shows
+          const whaleSize = pieceSize * 0.85;
+          whale.width = whaleSize;
+          whale.height = whaleSize;
+          // Add on top of bgCircle
+          const insertIdx = group.getChildIndex(bgCircle) + 1;
+          group.addChildAt(whale, insertIdx);
         }
       }).catch(() => {
-        // Keep fallback circle on error
+        // Keep colored circle on error
       });
     } else {
       // No whale image available — use original colored circle
