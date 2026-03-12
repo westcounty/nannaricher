@@ -18,6 +18,7 @@ import {
   SALARY_STOP,
   getRoundName,
   getPlayerPlanIds,
+  GameSessionStats,
 } from '@nannaricher/shared';
 import { GameEngine } from './GameEngine.js';
 import { getCornerEventSeverity } from './corner-event-severity.js';
@@ -69,6 +70,8 @@ export class GameCoordinator {
   private _wonEmitted = false;
   private _winCondition = '';
   private botManager: BotManager = new BotManager();
+  private sessionStatsMap = new Map<string, GameSessionStats>();
+  private _knownBankruptIds = new Set<string>();
 
   constructor(engine: GameEngine, io: GameServer, roomId: string) {
     this.engine = engine;
@@ -79,6 +82,24 @@ export class GameCoordinator {
     // Wire up dice broadcast so event handlers can emit dice results
     this.engine.setDiceResultCallback((pid, vals, total) => {
       this.io.to(this.roomId).emit('game:dice-result', { playerId: pid, values: vals, total });
+
+      // Track session stats: dice rolls and consecutive high/low
+      const ss = this.sessionStatsMap.get(pid);
+      if (ss) {
+        ss.diceRolls.push(...vals);
+        for (const v of vals) {
+          if (v >= 5) {
+            ss.consecutiveHighDice++;
+            ss.consecutiveLowDice = 0;
+          } else if (v <= 2) {
+            ss.consecutiveLowDice++;
+            ss.consecutiveHighDice = 0;
+          } else {
+            ss.consecutiveHighDice = 0;
+            ss.consecutiveLowDice = 0;
+          }
+        }
+      }
     });
 
     // Wire up card draw broadcast so clients can show card reveal
@@ -89,6 +110,16 @@ export class GameCoordinator {
         deckType: data.card.deckType,
         addedToHand: data.addedToHand,
       });
+
+      // Track session stats: cards drawn and max hand size
+      const ss = this.sessionStatsMap.get(data.playerId);
+      if (ss) {
+        ss.cardsDrawn.push(data.card.id);
+        const player = this.engine.getState().players.find(p => p.id === data.playerId);
+        if (player) {
+          ss.maxHandSize = Math.max(ss.maxHandSize, player.heldCards.length);
+        }
+      }
     });
 
     // Wire up resource change broadcast for prominent stat change notifications
@@ -103,6 +134,18 @@ export class GameCoordinator {
         message: `${data.playerName} ${data.stat} ${data.delta >= 0 ? '+' : ''}${data.delta} → ${data.current}`,
         data: { stat: data.stat, delta: data.delta, current: data.current },
       });
+
+      // Track session stats: lowestMoney and startPassCount
+      if (data.stat === 'money') {
+        const ss = this.sessionStatsMap.get(data.playerId);
+        if (ss) {
+          ss.lowestMoney = Math.min(ss.lowestMoney, data.current);
+          // Count passing/stopping at start corner (salary received)
+          if ((data.source === 'corner:start') && data.delta > 0) {
+            ss.startPassCount++;
+          }
+        }
+      }
     });
 
     // Wire up plan ability trigger broadcast
@@ -124,6 +167,9 @@ export class GameCoordinator {
         round: state.roundNumber,
       });
     });
+
+    // Initialize per-player session stats
+    this.initSessionStats();
   }
 
   // --------------------------------------------------
@@ -156,6 +202,79 @@ export class GameCoordinator {
   /** Get the BotManager instance */
   getBotManager(): BotManager {
     return this.botManager;
+  }
+
+  // --------------------------------------------------
+  // Session Stats
+  // --------------------------------------------------
+
+  private createDefaultSessionStats(): GameSessionStats {
+    return {
+      lowestMoney: Infinity,
+      diceRolls: [],
+      cardsDrawn: [],
+      defenseCardsUsed: 0,
+      maxHandSize: 0,
+      turnsSkipped: 0,
+      dingPenalties: 0,
+      waitingRoomTeleports: 0,
+      nannaCPGifts: 0,
+      votesMajoritySide: 0,
+      chanceCardsTargetedBy: 0,
+      offensiveCardsUsed: 0,
+      chainCardParticipated: false,
+      chainCardPositive: false,
+      usedDelayedGratification: false,
+      usedPlanSwap: false,
+      samePlanOpponentWin: false,
+      compositeScoreAtYear1End: 0,
+      wasLowestAtYear3End: false,
+      consecutiveLowDice: 0,
+      consecutiveHighDice: 0,
+      reverseOrderBenefit: false,
+      startPassCount: 0,
+      foodLineAllPositive: true,
+      othersWentBankrupt: false,
+      cafeteriaNoNegativeStreak: 0,
+      foodLineCompleted: false,
+      usedMaimenShield: false,
+      hospitalVisits: 0,
+      totalTuitionPaid: 0,
+      linesVisited: [],
+      allPositiveChanceCards: true,
+      consecutiveRedraws: 0,
+    };
+  }
+
+  private initSessionStats(): void {
+    const state = this.engine.getState();
+    for (const player of state.players) {
+      const stats = this.createDefaultSessionStats();
+      stats.lowestMoney = player.money;
+      this.sessionStatsMap.set(player.id, stats);
+    }
+  }
+
+  /** Get merged session stats for a player (includes data from Player fields). */
+  getSessionStats(playerId: string): GameSessionStats {
+    const ss = this.sessionStatsMap.get(playerId);
+    const player = this.engine.getState().players.find(p => p.id === playerId);
+    if (!ss) return this.createDefaultSessionStats();
+    if (!player) return ss;
+
+    // Merge stats already tracked on Player object
+    ss.hospitalVisits = player.hospitalVisits;
+    ss.totalTuitionPaid = player.totalTuitionPaid;
+    ss.linesVisited = [...(player.linesVisited || [])];
+    ss.cafeteriaNoNegativeStreak = Math.max(ss.cafeteriaNoNegativeStreak, player.cafeteriaNoNegativeStreak);
+    ss.maxHandSize = Math.max(ss.maxHandSize, player.heldCards?.length || 0);
+
+    return ss;
+  }
+
+  /** Expose the sessionStatsMap for GameHandlers access. */
+  get sessionStats(): Map<string, GameSessionStats> {
+    return this.sessionStatsMap;
   }
 
   /** Clean up timers and callbacks before this coordinator is replaced. */
@@ -200,6 +319,20 @@ export class GameCoordinator {
 
   broadcastState(): void {
     const state = this.engine.getState();
+
+    // Detect newly bankrupt players and update othersWentBankrupt for all other players
+    for (const player of state.players) {
+      if (player.isBankrupt && !this._knownBankruptIds.has(player.id)) {
+        this._knownBankruptIds.add(player.id);
+        // Mark othersWentBankrupt for all other players
+        for (const other of state.players) {
+          if (other.id !== player.id) {
+            const ss = this.sessionStatsMap.get(other.id);
+            if (ss) ss.othersWentBankrupt = true;
+          }
+        }
+      }
+    }
 
     // Diagnostic: detect states where game is playing but no pendingAction
     // Use setTimeout to check AFTER the current call stack completes
@@ -539,6 +672,10 @@ export class GameCoordinator {
       const negateCardDef = NEGATE_CARD_DEFS[cardId];
       const cardDeckType = negateCardDef?.cardDeckType || card.deckType;
 
+      // Track session stats: defense card used
+      const negSS = this.sessionStatsMap.get(playerId);
+      if (negSS) negSS.defenseCardsUsed++;
+
       // Push to negate stack
       this.negateWindow.negateStack.push({
         playerId,
@@ -832,6 +969,11 @@ export class GameCoordinator {
           message: `${nextPlayer.name} 本回合被跳过`,
           type: 'warning' as const,
         });
+
+        // Track session stats: turns skipped
+        const skipSS = this.sessionStatsMap.get(nextPlayer.id);
+        if (skipSS) skipSS.turnsSkipped++;
+
         continue;
       }
 
@@ -858,6 +1000,30 @@ export class GameCoordinator {
     // Check if a round (学年) just ended: every TURNS_PER_ROUND turns
     if (nextIndex === 0 && state.turnNumber > 0 && state.turnNumber % TURNS_PER_ROUND === 0) {
       state.roundNumber++;
+
+      // Track year-end session stats
+      if (state.roundNumber === 2) {
+        // Year 1 (大一) just ended → record compositeScoreAtYear1End for all players
+        for (const p of state.players) {
+          const ss = this.sessionStatsMap.get(p.id);
+          if (ss) {
+            ss.compositeScoreAtYear1End = p.gpa * 10 + p.exploration;
+          }
+        }
+      } else if (state.roundNumber === 4) {
+        // Year 3 (大三) just ended → find player with lowest composite score
+        const activePlayers = state.players.filter(p => !p.isBankrupt && !p.isDisconnected);
+        if (activePlayers.length > 0) {
+          const scores = activePlayers.map(p => ({ id: p.id, score: p.gpa * 10 + p.exploration }));
+          const minScore = Math.min(...scores.map(s => s.score));
+          for (const s of scores) {
+            if (s.score === minScore) {
+              const ss = this.sessionStatsMap.get(s.id);
+              if (ss) ss.wasLowestAtYear3End = true;
+            }
+          }
+        }
+      }
 
       // If all rounds are done → force end game
       if (state.roundNumber > TOTAL_ROUNDS) {
