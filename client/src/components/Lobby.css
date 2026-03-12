@@ -240,6 +240,7 @@
   flex-direction: column;
   width: 100%;
   max-width: 440px;
+  margin: 0 auto;
   background: var(--c-surface);
   border: 1px solid var(--c-brand-a10);
   border-radius: 20px;
@@ -475,6 +476,7 @@
   position: relative;
   width: 100%;
   max-width: 480px;
+  margin: 0 auto;
   background: var(--c-surface);
   border: 1px solid var(--c-brand-a10);
   border-radius: 20px;
@@ -727,11 +729,11 @@
     display: none;
   }
 
-  /* Remove lobby padding when showing form panels — let them take full width */
+  /* Reduce lobby padding when showing form panels — keep small side margins */
   .lobby:has(.create-room),
   .lobby:has(.join-room),
   .lobby:has(.waiting-room) {
-    padding: 56px 0 0;
+    padding: 56px 10px 16px;
   }
 
   /* Also hide background decorations in form view */
@@ -761,10 +763,7 @@
   .waiting-room {
     max-width: 100%;
     padding: 24px 16px 24px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    box-shadow: none;
+    border-radius: 16px;
   }
 
   .room-code {
