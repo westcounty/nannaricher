@@ -41,7 +41,7 @@
 
 .mobile-bottom-nav {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   padding: 6px 8px;
   padding-bottom: max(6px, env(safe-area-inset-bottom));
   background: var(--c-elevated);

@@ -233,7 +233,7 @@
   }
 
   .game-screen.layout-mobile {
-    padding-bottom: 56px;
+    padding-bottom: 0;
   }
 
   .game-main {
