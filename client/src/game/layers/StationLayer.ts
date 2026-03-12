@@ -534,7 +534,7 @@ export class StationLayer implements RenderLayer {
 
         // Glass overlay (higher opacity for readability)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.fill({ color: 0x1A1230, alpha: 0.82 });
+        bg.fill({ color: 0x241C18, alpha: 0.82 });
 
         // Border
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
