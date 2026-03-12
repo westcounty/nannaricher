@@ -41,6 +41,50 @@ export function initDatabase(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id);
     CREATE INDEX IF NOT EXISTS idx_game_results_played ON game_results(played_at);
+
+    -- Player unlocked achievements
+    CREATE TABLE IF NOT EXISTS player_achievements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      achievement_id TEXT NOT NULL,
+      unlocked_at TEXT DEFAULT (datetime('now')),
+      game_id TEXT,
+      UNIQUE(user_id, achievement_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_player_achievements_user ON player_achievements(user_id);
+
+    -- Player cumulative stats for cross-game achievement tracking
+    CREATE TABLE IF NOT EXISTS player_stats (
+      user_id TEXT PRIMARY KEY,
+      total_games INTEGER DEFAULT 0,
+      total_wins INTEGER DEFAULT 0,
+      total_bankruptcies INTEGER DEFAULT 0,
+      last_game_bankrupt INTEGER DEFAULT 0,
+      current_win_streak INTEGER DEFAULT 0,
+      max_win_streak INTEGER DEFAULT 0,
+      current_loss_streak INTEGER DEFAULT 0,
+      total_money_earned INTEGER DEFAULT 0,
+      total_gpa_sum REAL DEFAULT 0,
+      total_cards_drawn INTEGER DEFAULT 0,
+      total_defense_cards_used INTEGER DEFAULT 0,
+      total_dice_rolls INTEGER DEFAULT 0,
+      total_dice_six_count INTEGER DEFAULT 0,
+      total_hospital_escapes INTEGER DEFAULT 0,
+      total_votes_participated INTEGER DEFAULT 0,
+      total_redistribution_cards INTEGER DEFAULT 0,
+      total_steal_cards INTEGER DEFAULT 0,
+      total_start_passes INTEGER DEFAULT 0,
+      lines_ever_visited TEXT DEFAULT '[]',
+      plans_ever_used TEXT DEFAULT '[]',
+      opponents_played TEXT DEFAULT '[]',
+      line_visit_counts TEXT DEFAULT '{}',
+      food_events_triggered TEXT DEFAULT '[]',
+      consecutive_gpa_above_3 INTEGER DEFAULT 0,
+      best_gpa REAL DEFAULT 0,
+      max_money INTEGER DEFAULT 0,
+      max_exploration INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   console.log('[DB] SQLite database initialized');
