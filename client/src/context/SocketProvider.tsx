@@ -7,6 +7,7 @@ import { useSocket } from './SocketContext';
 import { useGameStore } from '../stores/gameStore';
 import type { GameState, PendingAction } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
+import { useAchievementStore } from '../stores/achievementStore';
 import { AnimationGate } from '../game/AnimationGate';
 import { movementEventGate } from '../game/MovementEventGate';
 import {
@@ -544,6 +545,12 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
     };
     socket.on('room:spectator-update', handleSpectatorUpdate);
 
+    // Achievement unlock handler
+    const handleAchievementsUnlocked = (data: { achievements: string[] }) => {
+      useAchievementStore.getState().handleUnlocked(data.achievements);
+    };
+    socket.on('achievements:unlocked', handleAchievementsUnlocked);
+
     // ------ Cleanup ------
     return () => {
       if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
@@ -566,6 +573,7 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       socket.off('game:restarting', handleRestarting);
       socket.off('game:ready-state', handleReadyState);
       socket.off('room:spectator-update', handleSpectatorUpdate);
+      socket.off('achievements:unlocked', handleAchievementsUnlocked);
     };
   }, [socket]);
 
