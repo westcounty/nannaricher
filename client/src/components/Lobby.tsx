@@ -50,8 +50,9 @@ export function Lobby() {
   });
 
   // Sync with context when we get room info (including reconnection)
+  // Don't override history/achievements views — only auto-redirect from select/create/join
   useEffect(() => {
-    if (contextRoomId && contextPlayerId && state.mode !== 'waiting') {
+    if (contextRoomId && contextPlayerId && !['waiting', 'history', 'achievements'].includes(state.mode)) {
       // Recover playerName from gameState players list during reconnection
       const currentPlayer = gameState?.players?.find((p) => p.id === contextPlayerId);
       const recoveredName = currentPlayer?.name || getDisplayName();
@@ -146,7 +147,7 @@ export function Lobby() {
 
   if (state.mode === 'achievements') {
     return (
-      <div className="lobby">
+      <div className="lobby lobby--fullscreen">
         <motion.div
           className="lobby-user-bar"
           initial={{ opacity: 0, y: -10 }}

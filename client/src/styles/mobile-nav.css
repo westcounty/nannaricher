@@ -42,11 +42,11 @@
 .mobile-bottom-nav {
   display: flex;
   align-items: stretch;
-  padding: 6px 8px;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  padding: 4px 4px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
   background: var(--c-elevated);
   border-top: 1px solid var(--game-border);
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
   backdrop-filter: blur(12px);
   z-index: 90;

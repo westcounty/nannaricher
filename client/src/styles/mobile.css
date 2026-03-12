@@ -242,15 +242,15 @@
     overflow: hidden;
   }
 
-  /* Mobile: full-width board */
+  /* Mobile: full-width board — minimize padding to maximize map area */
   .board-area {
     flex: 1;
-    padding: var(--spacing-xs);
+    padding: 0;
     min-height: 0;
   }
 
   .board-canvas-container {
-    border-radius: var(--radius);
+    border-radius: 0;
   }
 
   /* Mobile: hide desktop side panel / sidebar and bottom bar */
@@ -587,7 +587,7 @@
   }
 
   .board-area {
-    padding: 4px;
+    padding: 0;
   }
 
   .status-bar {

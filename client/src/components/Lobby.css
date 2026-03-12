@@ -731,3 +731,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Fullscreen mode (achievements, etc.) ── */
+.lobby.lobby--fullscreen {
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.lobby.lobby--fullscreen .lobby-user-bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: auto;
+  z-index: 10;
+}
