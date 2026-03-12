@@ -260,6 +260,7 @@ export interface ServerToClientEvents {
   'game:ready-state': (data: { readyPlayerIds: string[] }) => void;
   'game:restarting': () => void;
   'room:spectator-update': (data: { spectators: SpectatorInfo[] }) => void;
+  'achievements:unlocked': (data: { achievements: string[] }) => void;
 }
 
 // === Player History Tracking ===

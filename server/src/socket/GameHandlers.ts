@@ -6,6 +6,7 @@ import { GameEngine } from '../game/GameEngine.js';
 import { GameCoordinator } from '../game/GameCoordinator.js';
 import { MIN_PLAYERS, MAX_PLAYERS, INITIAL_TRAINING_DRAW, PLAYER_COLORS } from '@nannaricher/shared';
 import { saveGameResults } from '../db/gameResults.js';
+import { updatePlayerStats, checkAchievements } from '../services/achievementService.js';
 
 /** Shared helper: create fresh engine+coordinator, start a new game for room.players */
 function initAndStartNewGame(
@@ -26,6 +27,24 @@ function initAndStartNewGame(
     room.lastActivity = Date.now();
     const s = coordinator.getState();
     saveGameResults(roomId, s.players, s.winner, s.roundNumber);
+
+    // Check achievements for authenticated players
+    for (const player of s.players) {
+      if (!player.userId || !player.authVerified) continue;
+      try {
+        const isWinner = player.id === s.winner;
+        updatePlayerStats(player.userId, player, isWinner, s);
+        const newAchievements = checkAchievements(player.userId, player, isWinner, s, undefined);
+        if (newAchievements.length > 0) {
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket) {
+            playerSocket.emit('achievements:unlocked', { achievements: newAchievements });
+          }
+        }
+      } catch (err) {
+        console.error(`[Achievements] Error processing achievements for user ${player.userId}:`, err);
+      }
+    }
   });
   roomManager.setCoordinator(roomId, coordinator);
 
