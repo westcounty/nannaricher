@@ -10,7 +10,7 @@ export function showFloatingText(
   x: number,
   y: number,
   text: string,
-  color: string = '#FFD700',
+  color: string = '#D4AF37',
   tweenEngine?: TweenEngine,
 ): void {
   const duration = AnimationConfig.scaleDuration(1500);

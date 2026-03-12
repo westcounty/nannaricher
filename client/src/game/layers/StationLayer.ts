@@ -849,7 +849,7 @@ export class StationLayer implements RenderLayer {
     const imgAreaH = cardH - nameBgH - 6;
     const padding = 4;
     const imgY = -cardH / 2 + padding;
-    const blendColor = cellBgColor ?? 0x1A1230;
+    const blendColor = cellBgColor ?? 0x241C18;
 
     const overlayH = imgAreaH * 0.4;
     const bottomOverlay = new Graphics();

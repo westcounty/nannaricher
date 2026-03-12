@@ -109,7 +109,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     outerBg.fill({ color: 0x0D0A06 });
     this.container!.addChild(outerBg);
 
-    // Concentric rounded rects blending from outer (0x080515) to inner (0x16102A)
+    // Concentric rounded rects blending from outer (0x0D0A06) to inner (0x1E1610)
     const steps = 6;
     const outerColor = { r: 0x0D, g: 0x0A, b: 0x06 };
     const innerColor = { r: 0x1E, g: 0x16, b: 0x10 };

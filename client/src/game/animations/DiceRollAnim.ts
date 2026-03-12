@@ -19,7 +19,7 @@ export async function animateDiceResult(
   // Background circle
   const bg = new Graphics();
   bg.circle(0, 0, 30);
-  bg.fill({ color: 0x5e3a8d, alpha: 0.9 });
+  bg.fill({ color: 0x5B2D8E, alpha: 0.9 });
   bg.stroke({ color: 0xc9a227, width: 2 });
   bg.x = centerX;
   bg.y = centerY;
@@ -30,7 +30,7 @@ export async function animateDiceResult(
   const style = new TextStyle({
     fontSize: 28,
     fontWeight: 'bold',
-    fill: '#FFD700',
+    fill: '#D4AF37',
   });
   const text = new Text({ text: String(total), style });
   text.anchor.set(0.5);

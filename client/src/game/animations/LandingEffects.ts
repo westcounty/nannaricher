@@ -5,6 +5,9 @@
 import { Container, Graphics } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
+
+const PLAYER_COLORS_PIXI = DESIGN_TOKENS.color.player.map(c => hexToPixi(c));
 
 type EffectType = 'corner' | 'experience' | 'line_entry';
 
@@ -61,7 +64,7 @@ function spawnConfetti(
   duration: number, tweenEngine: TweenEngine, baseColor: number,
 ): void {
   const count = 10;
-  const colors = [baseColor, 0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00];
+  const colors = [baseColor, ...PLAYER_COLORS_PIXI.slice(0, 4)];
   for (let i = 0; i < count; i++) {
     const particle = new Graphics();
     const size = 3 + Math.random() * 3;
