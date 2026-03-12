@@ -713,6 +713,7 @@
   .create-room,
   .join-room,
   .waiting-room {
+    max-width: 100%;
     padding: 24px 20px 24px;
     border-radius: 16px;
   }
