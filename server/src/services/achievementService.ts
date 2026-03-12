@@ -49,6 +49,7 @@ interface EvaluationContext {
   isWinner: boolean;
   gameState: GameState;
   stats: PlayerStatsRow;
+  preUpdateStats: PlayerStatsRow; // stats BEFORE this game's update (for streak checks)
   sessionStats: Partial<GameSessionStats>;
 }
 
@@ -63,9 +64,9 @@ function parseJSON<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
-/** Compute a simple composite score: money/100 + gpa*10 + exploration */
+/** Compute composite score: GPA×10 + exploration (matches game's base win condition) */
 function compositeScore(player: Player): number {
-  return player.money / 100 + player.gpa * 10 + player.exploration;
+  return player.gpa * 10 + player.exploration;
 }
 
 // ─── Function 1: ensurePlayerStats ───────────────────────────────────────────
@@ -86,9 +87,11 @@ export function updatePlayerStats(
   player: Player,
   isWinner: boolean,
   gameState: GameState,
-): PlayerStatsRow {
+): { stats: PlayerStatsRow; preUpdateStats: PlayerStatsRow } {
   const db = getDatabase();
   const existing = ensurePlayerStats(userId);
+  // Snapshot pre-update stats for streak-based achievements (surv_05, surv_14)
+  const preUpdateStats = { ...existing };
 
   // Merge lines_ever_visited
   const linesEver = new Set<string>(parseJSON<string[]>(existing.lines_ever_visited, []));
@@ -184,7 +187,8 @@ export function updatePlayerStats(
     userId,
   );
 
-  return db.prepare('SELECT * FROM player_stats WHERE user_id = ?').get(userId) as PlayerStatsRow;
+  const updatedStats = db.prepare('SELECT * FROM player_stats WHERE user_id = ?').get(userId) as PlayerStatsRow;
+  return { stats: updatedStats, preUpdateStats };
 }
 
 // ─── Achievement Evaluator ────────────────────────────────────────────────────
@@ -285,7 +289,7 @@ function evaluateAchievement(
     case 'line_05':
       return (visitCounts['pukou'] ?? 0) >= 10;
     case 'line_06':
-      return (visitCounts['food'] ?? visitCounts['shizai'] ?? 0) >= 10;
+      return (visitCounts['food'] ?? 0) >= 10;
     case 'line_07':
       return (visitCounts['gulou'] ?? 0) >= 10;
     case 'line_08':
@@ -375,7 +379,7 @@ function evaluateAchievement(
     case 'surv_04':
       return sessionStats?.wasLowestAtYear3End === true && isWinner;
     case 'surv_05':
-      return isWinner && stats.current_loss_streak >= 3; // was >=3 before this game updated
+      return isWinner && ctx.preUpdateStats.current_loss_streak >= 3;
     case 'surv_06':
       return (sessionStats?.totalTuitionPaid ?? player.totalTuitionPaid ?? 0) >= 500;
     case 'surv_07':
@@ -396,8 +400,8 @@ function evaluateAchievement(
     case 'surv_13':
       return stats.total_bankruptcies >= 10;
     case 'surv_14':
-      // Previous game was bankrupt, this game won
-      return stats.last_game_bankrupt === 1 && isWinner;
+      // Previous game was bankrupt, this game won (use pre-update last_game_bankrupt)
+      return ctx.preUpdateStats.last_game_bankrupt === 1 && isWinner;
 
     // ── Social ────────────────────────────────────────────────────────────────
     case 'social_01':
@@ -420,7 +424,7 @@ function evaluateAchievement(
     // ── Food ──────────────────────────────────────────────────────────────────
     case 'food_01':
       // First time visiting food line
-      return (player.linesVisited ?? []).some(l => l === 'food' || l.includes('food') || l.includes('shizai'));
+      return (player.linesVisited ?? []).includes('food');
     case 'food_02':
       return (sessionStats?.cafeteriaNoNegativeStreak ?? player.cafeteriaNoNegativeStreak ?? 0) >= 3;
     case 'food_03':
@@ -442,9 +446,11 @@ function evaluateAchievement(
     case 'comp_03':
       return player.gpa >= 4.0 && player.money >= 5000 && player.exploration >= 18;
     case 'comp_04':
-      return isWinner && gameState.roundNumber < 12;
+      // 大二结束 = round 2, turnNumber ≤ 12
+      return isWinner && gameState.turnNumber <= 12;
     case 'comp_05':
-      return isWinner && gameState.roundNumber < 6;
+      // 大一结束 = round 1, turnNumber ≤ 6
+      return isWinner && gameState.turnNumber <= 6;
     case 'comp_06': {
       const score = compositeScore(player);
       return score >= 70;
@@ -518,6 +524,7 @@ export function checkAchievements(
   isWinner: boolean,
   gameState: GameState,
   sessionStats: Partial<GameSessionStats> | undefined,
+  preUpdateStats?: PlayerStatsRow,
 ): string[] {
   const db = getDatabase();
 
@@ -535,6 +542,7 @@ export function checkAchievements(
     isWinner,
     gameState,
     stats,
+    preUpdateStats: preUpdateStats ?? stats,
     sessionStats: sessionStats ?? {},
   };
 
@@ -598,7 +606,7 @@ export function getPlayerAchievements(userId: string): PlayerAchievementSummary 
     unlocked,
     progress,
     totalPoints,
-    rank: rank.name,
+    rank: rank.title,
     rankIcon: rank.icon,
   };
 }
@@ -645,7 +653,7 @@ function computeProgress(stats: PlayerStatsRow, unlockedSet: Set<string>): Achie
       case 'money_07': current = stats.total_start_passes; break;
       case 'money_10': current = stats.total_money_earned; break;
       case 'line_05': current = visitCounts['pukou'] ?? 0; break;
-      case 'line_06': current = visitCounts['food'] ?? visitCounts['shizai'] ?? 0; break;
+      case 'line_06': current = visitCounts['food'] ?? 0; break;
       case 'line_07': current = visitCounts['gulou'] ?? 0; break;
       case 'line_08': current = linesEver.length; break;
       case 'card_01': current = stats.total_cards_drawn; break;
