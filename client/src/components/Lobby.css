@@ -258,6 +258,38 @@
   color: var(--c-text);
 }
 
+.waiting-room-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.waiting-room-header h2 {
+  flex: 1;
+  margin-bottom: 0;
+  padding-right: 60px; /* balance the back button width */
+}
+
+.waiting-room-back {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-family: var(--font-main);
+  color: var(--c-dim-a80);
+  background: var(--c-brand-a04);
+  border: 1px solid var(--c-brand-a08);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.waiting-room-back:hover {
+  color: var(--c-text);
+  background: var(--c-brand-a08);
+  border-color: var(--c-brand-a15);
+}
+
 /* Back button — minimal pill, in normal flow */
 .back-button {
   align-self: flex-start;

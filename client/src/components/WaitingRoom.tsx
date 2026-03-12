@@ -77,9 +77,24 @@ export function WaitingRoom({
     }
   };
 
+  const handleLeaveRoom = () => {
+    if (!socket) return;
+    socket.emit(isHost && players.length <= 1 ? 'room:dissolve' : 'room:leave');
+    sessionStorage.removeItem('nannaricher_roomId');
+    sessionStorage.removeItem('nannaricher_playerId');
+    localStorage.removeItem('nannaricher_roomId');
+    localStorage.removeItem('nannaricher_playerId');
+    useGameStore.getState().resetToLobby();
+  };
+
   return (
     <div className="waiting-room">
-      <h2>等待室</h2>
+      <div className="waiting-room-header">
+        <button className="waiting-room-back" onClick={handleLeaveRoom}>
+          ← 返回
+        </button>
+        <h2>等待室</h2>
+      </div>
 
       <motion.div
         className="room-code-section"
@@ -210,18 +225,7 @@ export function WaitingRoom({
             解散房间
           </button>
         )}
-        <button
-          className="leave-room-button"
-          onClick={() => {
-            if (!socket) return;
-            socket.emit(isHost && players.length <= 1 ? 'room:dissolve' : 'room:leave');
-            sessionStorage.removeItem('nannaricher_roomId');
-            sessionStorage.removeItem('nannaricher_playerId');
-            localStorage.removeItem('nannaricher_roomId');
-            localStorage.removeItem('nannaricher_playerId');
-            useGameStore.getState().resetToLobby();
-          }}
-        >
+        <button className="leave-room-button" onClick={handleLeaveRoom}>
           {isHost && players.length <= 1 ? '解散房间' : '退出房间'}
         </button>
       </div>
