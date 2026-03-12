@@ -101,7 +101,9 @@ function AchievementCard({ def, unlockedAt, progressCurrent, progressMax }: Achi
   // For hidden locked, mask everything
   const displayIcon = isHiddenLocked ? '🔮' : def.icon;
   const displayName = isHiddenLocked ? '???' : def.name;
-  const displayDesc = isHiddenLocked ? '达成条件: 隐藏' : def.description;
+  const displayDesc = isHiddenLocked
+    ? '达成条件: 隐藏'
+    : (def.hidden && isUnlocked && def.revealedDescription) ? def.revealedDescription : def.description;
 
   const showProgress =
     !isUnlocked &&

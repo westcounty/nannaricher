@@ -474,6 +474,8 @@ export function ZustandBridge({ children }: { children: React.ReactNode }) {
       // Clear stale notifications from previous game
       store.setState({ notifications: [] });
       store.getState().setMovementUiBlocked(false);
+      // Clear achievement unlock notifications from previous game
+      useAchievementStore.getState().clearNewlyUnlocked();
     };
 
     const handleReadyState = (data: { readyPlayerIds: string[] }) => {

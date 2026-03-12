@@ -62,7 +62,8 @@ export const useAchievementStore = create<AchievementState>((set, get) => ({
 
   handleUnlocked: (achievementIds: string[]) => {
     if (achievementIds.length === 0) return;
-    set({ newlyUnlocked: achievementIds });
+    // Append to existing (in case of rapid successive events)
+    set(s => ({ newlyUnlocked: [...s.newlyUnlocked, ...achievementIds] }));
     // Refresh summary to get updated data
     get().fetchSummary();
   },

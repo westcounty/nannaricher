@@ -33,8 +33,8 @@ function initAndStartNewGame(
       if (!player.userId || !player.authVerified) continue;
       try {
         const isWinner = player.id === s.winner;
-        const { preUpdateStats } = updatePlayerStats(player.userId, player, isWinner, s);
         const sessionStats = coordinator.getSessionStats(player.id);
+        const { preUpdateStats } = updatePlayerStats(player.userId, player, isWinner, s, sessionStats);
         const newAchievements = checkAchievements(player.userId, player, isWinner, s, sessionStats, preUpdateStats);
         if (newAchievements.length > 0) {
           const playerSocket = io.sockets.sockets.get(player.socketId);
