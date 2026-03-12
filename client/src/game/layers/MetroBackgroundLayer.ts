@@ -47,7 +47,7 @@ export class MetroBackgroundLayer implements RenderLayer {
         this.turnOverlay.fill({ color: 0xD4AF37, alpha: 0.05 });
       } else {
         // Waiting: cool blue-gray
-        this.turnOverlay.fill({ color: 0x1E1E32, alpha: 0.15 });
+        this.turnOverlay.fill({ color: 0x241C18, alpha: 0.15 });
       }
     }
     if (this.roundText) {
@@ -106,13 +106,13 @@ export class MetroBackgroundLayer implements RenderLayer {
     // Outermost dark rect
     const outerBg = new Graphics();
     outerBg.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
-    outerBg.fill({ color: 0x080515 });
+    outerBg.fill({ color: 0x0D0A06 });
     this.container!.addChild(outerBg);
 
     // Concentric rounded rects blending from outer (0x080515) to inner (0x16102A)
     const steps = 6;
-    const outerColor = { r: 0x08, g: 0x05, b: 0x15 };
-    const innerColor = { r: 0x16, g: 0x10, b: 0x2A };
+    const outerColor = { r: 0x0D, g: 0x0A, b: 0x06 };
+    const innerColor = { r: 0x1E, g: 0x16, b: 0x10 };
 
     for (let i = 0; i < steps; i++) {
       const t = (i + 1) / steps;
@@ -225,7 +225,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     const hh = METRO_BOARD_HEIGHT / 2;
     this.turnOverlay = new Graphics();
     this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
-    this.turnOverlay.fill({ color: 0x1E1E32, alpha: 0.15 }); // default: waiting
+    this.turnOverlay.fill({ color: 0x241C18, alpha: 0.15 }); // default: waiting
     this.container!.addChild(this.turnOverlay);
   }
 
@@ -237,7 +237,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     // Panel background
     const panel = new Graphics();
     panel.roundRect(-panelW / 2, -panelH / 2, panelW, panelH, 12);
-    panel.fill({ color: 0x1A1230, alpha: 0.7 });
+    panel.fill({ color: 0x241C18, alpha: 0.7 });
     panel.stroke({ width: 1.5, color: 0xD4AF37, alpha: 0.4 });
     this.container!.addChild(panel);
 
@@ -260,7 +260,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '南哪大富翁',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB0B0B0,
+        fill: 0xB8AA98,
         fontFamily,
       }),
     });
@@ -280,7 +280,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '第 1/20 回合',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB0B0B0,
+        fill: 0xB8AA98,
         fontFamily,
       }),
     });
@@ -293,7 +293,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '🎲 —',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB0B0B0,
+        fill: 0xB8AA98,
         fontFamily,
       }),
     });
@@ -306,7 +306,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '',
       style: new TextStyle({
         fontSize: 14,
-        fill: 0x8B8B8B,
+        fill: 0x7A6E60,
         fontFamily,
       }),
     });
