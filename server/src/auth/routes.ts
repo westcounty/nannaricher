@@ -1,7 +1,9 @@
-// server/src/auth/routes.ts — REST API routes for auth and game history
+// server/src/auth/routes.ts — REST API routes for auth, game history, and achievements
 import { Router, Request, Response } from 'express';
 import { verifyToken } from './jwt.js';
 import { getDatabase } from '../db/database.js';
+import { ACHIEVEMENTS } from '@nannaricher/shared';
+import { getPlayerAchievements } from '../services/achievementService.js';
 
 const router = Router();
 
@@ -91,6 +93,23 @@ router.get('/history/stats', authenticateToken, (req: Request, res: Response) =>
     avg_money: 0,
     avg_exploration: 0,
   });
+});
+
+// GET /api/achievements — get all achievement definitions (public)
+router.get('/achievements', (_req: Request, res: Response) => {
+  res.json(ACHIEVEMENTS);
+});
+
+// GET /api/achievements/me — get current user's achievement summary
+router.get('/achievements/me', authenticateToken, (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  try {
+    const summary = getPlayerAchievements(userId);
+    res.json(summary);
+  } catch (err) {
+    console.error('[API] Error fetching achievements:', err);
+    res.status(500).json({ error: 'Failed to fetch achievements' });
+  }
 });
 
 export { router as authRoutes, authenticateToken };
