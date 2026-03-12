@@ -4,6 +4,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { BoardCell, BoardLine } from '@nannaricher/shared';
 import '../styles/cell-detail-drawer.css';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 interface CellDetailDrawerProps {
   cell: BoardCell | null;
@@ -151,7 +152,7 @@ export function CellDetailDrawer({ cell, lineData, imageUrl, onClose }: CellDeta
               {cell.type === 'line_entry' && (
                 <div className="cell-detail-drawer__entry-info">
                   {lineData && (
-                    <p style={{ color: '#ccc' }}>
+                    <p style={{ color: DESIGN_TOKENS.color.text.secondary }}>
                       <strong>路线:</strong> {lineData.name}
                     </p>
                   )}

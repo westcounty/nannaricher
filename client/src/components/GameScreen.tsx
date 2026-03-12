@@ -47,6 +47,7 @@ import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
 import '../styles/training-plan.css';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 // Mobile panel definitions
 type PanelId = 'hand' | 'players' | 'more';
@@ -330,7 +331,7 @@ export function GameScreen() {
       {!isConnected && (
         <div style={{
           background: 'rgba(220, 50, 50, 0.9)',
-          color: '#fff',
+          color: DESIGN_TOKENS.color.text.primary,
           padding: '8px 16px',
           display: 'flex',
           alignItems: 'center',
@@ -343,7 +344,7 @@ export function GameScreen() {
           <button
             onClick={reconnect}
             style={{
-              background: '#fff',
+              background: DESIGN_TOKENS.color.text.primary,
               color: '#c00',
               border: 'none',
               borderRadius: '4px',
@@ -387,9 +388,9 @@ export function GameScreen() {
                   height: 36,
                   borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(15,10,26,0.8)',
+                  background: 'rgba(24,18,14,0.8)',
                   backdropFilter: 'blur(8px)',
-                  color: '#e2e8f0',
+                  color: DESIGN_TOKENS.color.text.primary,
                   fontSize: 18,
                   cursor: 'pointer',
                   display: 'flex',

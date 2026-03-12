@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PendingAction, Player } from '@nannaricher/shared';
 import { playSound } from '../audio/AudioManager';
 import '../styles/vote-panel.css';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 // ============================================
 // Types
@@ -121,22 +122,22 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
                 <div className="vote-panel__option-content">
                   <span className="vote-panel__option-label">{option.label}</span>
                   {option.description && (
-                    <span className="vote-panel__option-desc" style={{ fontSize: '12px', color: '#aaa', display: 'block', marginTop: '2px' }}>{option.description}</span>
+                    <span className="vote-panel__option-desc" style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.muted, display: 'block', marginTop: '2px' }}>{option.description}</span>
                   )}
                   {option.effectPreview && (
                     <div className="vote-panel__option-effects" style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '12px' }}>
                       {option.effectPreview.money !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.money === 'number' ? (option.effectPreview.money > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                        <span style={{ color: typeof option.effectPreview.money === 'number' ? (option.effectPreview.money > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
                           💰{typeof option.effectPreview.money === 'number' ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}` : option.effectPreview.money}
                         </span>
                       )}
                       {option.effectPreview.gpa !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.gpa === 'number' ? (option.effectPreview.gpa > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                        <span style={{ color: typeof option.effectPreview.gpa === 'number' ? (option.effectPreview.gpa > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
                           📚{typeof option.effectPreview.gpa === 'number' ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}` : option.effectPreview.gpa}
                         </span>
                       )}
                       {option.effectPreview.exploration !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.exploration === 'number' ? (option.effectPreview.exploration > 0 ? '#4caf50' : '#f44336') : '#aaa' }}>
+                        <span style={{ color: typeof option.effectPreview.exploration === 'number' ? (option.effectPreview.exploration > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
                           🗺️{typeof option.effectPreview.exploration === 'number' ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}` : option.effectPreview.exploration}
                         </span>
                       )}

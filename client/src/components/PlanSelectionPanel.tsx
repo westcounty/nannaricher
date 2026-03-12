@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import type { PendingAction } from '@nannaricher/shared';
 import '../styles/plan-selection.css';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 interface Props {
   action: PendingAction;
@@ -174,7 +175,7 @@ export function PlanSelectionPanel({ action }: Props) {
                     <span className="plan-selection__name">{plan.name}</span>
                     <span className="plan-selection__desc">{plan.winCondition}</span>
                     {plan.passiveAbility && (
-                      <div style={{ fontSize: '12px', color: '#adb5bd', marginTop: '4px' }}>
+                      <div style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.secondary, marginTop: '4px' }}>
                         ⚡ 被动: {plan.passiveAbility}
                       </div>
                     )}

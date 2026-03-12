@@ -8,6 +8,7 @@ import type { GameState, Player, SpectatorInfo } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
 import '../styles/settlement.css';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 interface SettlementScreenProps {
   winner: WinnerInfo;
@@ -243,9 +244,9 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
 
           {spectators.length > 0 && (
             <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: 4 }}>观战中</div>
+              <div style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.muted, marginBottom: 4 }}>观战中</div>
               {spectators.map((s, i) => (
-                <span key={i} style={{ fontSize: '13px', color: '#cbd5e1', marginRight: 8 }}>{s.name}</span>
+                <span key={i} style={{ fontSize: '13px', color: DESIGN_TOKENS.color.text.secondary, marginRight: 8 }}>{s.name}</span>
               ))}
             </div>
           )}

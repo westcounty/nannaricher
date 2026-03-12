@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 export function VoteResultModal() {
   const voteResult = useGameStore((s) => s.voteResult);
@@ -27,14 +28,14 @@ export function VoteResultModal() {
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      background: 'rgba(20, 20, 30, 0.95)',
+      background: 'rgba(36, 28, 24, 0.95)',
       borderRadius: '12px',
       padding: '20px 24px',
       zIndex: 1100,
       pointerEvents: 'none' as const,
       minWidth: '280px',
       maxWidth: '400px',
-      color: '#fff',
+      color: DESIGN_TOKENS.color.text.primary,
       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
       animation: 'fadeIn 0.3s ease',
     }}>
@@ -60,7 +61,7 @@ export function VoteResultModal() {
               {voteResult.optionLabels?.[option] || option}
               {option === voteResult.winnerOption && (voteResult.isTie ? ' (平局)' : ' (多数)')}
             </span>
-            <span style={{ fontSize: '12px', color: '#aaa' }}>
+            <span style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.muted }}>
               {(playerIds as string[]).map(getPlayerName).join(', ')}
             </span>
           </div>

@@ -439,7 +439,7 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
       style={{
         width: '100%',
         height: '100%',
-        backgroundColor: '#0F0A1A',
+        backgroundColor: DESIGN_TOKENS.color.bg.main,
         borderRadius: DESIGN_TOKENS.radius.lg,
         overflow: 'hidden',
       }}

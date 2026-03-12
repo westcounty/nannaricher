@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { getPlayerPlanIds } from '@nannaricher/shared';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 interface TrainingPlanViewProps {
   player: Player;
@@ -112,7 +113,7 @@ export function TrainingPlanView({
         <p className="no-plans">暂无培养计划</p>
       )}
       {!hasPlan && isFreshman && player.trainingPlans.length === 0 && (
-        <p className="no-plans" style={{ color: '#999', fontSize: '12px' }}>
+        <p className="no-plans" style={{ color: DESIGN_TOKENS.color.text.muted, fontSize: '12px' }}>
           大一阶段无培养计划抽取，大二起开始选择
         </p>
       )}
@@ -172,7 +173,7 @@ export function TrainingPlanView({
                     <div className="plan-ability" style={{ opacity: 0.5 }}>
                       <span className="plan-label">被动能力:</span>
                       <span className="plan-value" style={{ textDecoration: 'line-through' }}>{plan.passiveAbility}</span>
-                      <span style={{ fontSize: '10px', color: '#999' }}> (仅主修生效)</span>
+                      <span style={{ fontSize: '10px', color: DESIGN_TOKENS.color.text.muted }}> (仅主修生效)</span>
                     </div>
                   )}
                 </div>

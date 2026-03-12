@@ -1,6 +1,7 @@
 // client/src/components/CellTooltip.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BoardCell, BoardLine } from '@nannaricher/shared';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 interface CellTooltipProps {
   cell: BoardCell | null;
@@ -103,8 +104,8 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
     top,
     zIndex: 1000,
     pointerEvents: 'none',
-    backgroundColor: 'rgba(30, 30, 40, 0.95)',
-    color: '#fff',
+    backgroundColor: 'rgba(36, 28, 24, 0.95)',
+    color: DESIGN_TOKENS.color.text.primary,
     padding: '0',
     borderRadius: '10px',
     boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
@@ -142,7 +143,7 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
           margin: '0 0 8px 0',
           fontSize: '16px',
           fontWeight: 600,
-          color: '#fff',
+          color: DESIGN_TOKENS.color.text.primary,
           borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
           paddingBottom: '8px',
         }}>
@@ -163,7 +164,7 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
         {cell.type === 'line_entry' && (
           <div style={{ marginTop: '8px' }}>
             {lineData && (
-              <p style={{ margin: '4px 0', color: '#ccc' }}>
+              <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.text.secondary }}>
                 <strong>路线:</strong> {lineData.name}
               </p>
             )}
@@ -209,7 +210,7 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
               </p>
             )}
             {lineData.cells.find(c => c.id === cell.id)?.description && (
-              <p style={{ margin: '4px 0', color: '#ccc', fontSize: '12px' }}>
+              <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.text.secondary, fontSize: '12px' }}>
                 {lineData.cells.find(c => c.id === cell.id)!.description}
               </p>
             )}

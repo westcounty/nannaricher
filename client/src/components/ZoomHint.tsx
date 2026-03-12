@@ -2,6 +2,7 @@
 // One-time hint overlay for mobile users about pinch-zoom and drag.
 
 import { useEffect, useState } from 'react';
+import { DESIGN_TOKENS } from '../styles/tokens';
 
 const STORAGE_KEY = 'nannaricher_zoom_hint_shown';
 
@@ -43,7 +44,7 @@ export function ZoomHint() {
         zIndex: 20,
         background: 'rgba(0, 0, 0, 0.7)',
         backdropFilter: 'blur(4px)',
-        color: '#e2e8f0',
+        color: DESIGN_TOKENS.color.text.primary,
         padding: '12px 20px',
         borderRadius: '12px',
         fontSize: '0.9rem',
