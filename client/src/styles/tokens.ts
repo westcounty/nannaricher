@@ -9,11 +9,11 @@ export const DESIGN_TOKENS = {
       accentLight: '#E8CC6E',
     },
     bg: {
-      main: '#0F0A1A',          // 深紫黑主背景
-      surface: '#1A1230',       // 面板背景
-      elevated: '#252040',      // 悬浮元素
-      board: '#16102A',         // 棋盘区域
-      overlay: 'rgba(0,0,0,0.6)',
+      main: '#18120E',          // 暖棕主背景
+      surface: '#241C18',       // 面板背景
+      elevated: '#332822',      // 悬浮元素
+      board: '#1E1610',         // 棋盘区域
+      overlay: 'rgba(10,5,2,0.6)',
     },
     cell: {
       corner: {
@@ -42,9 +42,9 @@ export const DESIGN_TOKENS = {
     },
     player: ['#E53935', '#3498DB', '#2ECC71', '#F39C12', '#8E24AA', '#00897B'] as const,
     text: {
-      primary: '#FFFFFF',
-      secondary: '#B0B0B0',
-      muted: '#707070',
+      primary: '#F5EFE0',
+      secondary: '#B8AA98',
+      muted: '#7A6E60',
       danger: '#EF5350',
       success: '#66BB6A',
     },
@@ -52,10 +52,9 @@ export const DESIGN_TOKENS = {
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 },
   radius: { sm: 4, md: 8, lg: 12, xl: 16, pill: 9999 },
   shadow: {
-    sm: '0 2px 4px rgba(0,0,0,0.3)',
-    md: '0 4px 12px rgba(0,0,0,0.4)',
-    lg: '0 8px 24px rgba(0,0,0,0.5)',
-    glow: (color: string) => `0 0 12px ${color}40, 0 0 24px ${color}20`,
+    sm: '0 2px 4px rgba(10,5,2,0.4)',
+    md: '0 4px 12px rgba(10,5,2,0.5)',
+    lg: '0 8px 24px rgba(10,5,2,0.6)',
   },
   typography: {
     fontFamily: "'Noto Sans SC', system-ui, sans-serif",
