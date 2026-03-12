@@ -110,7 +110,7 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
     app.init({
       width: rect.width,
       height: rect.height,
-      backgroundColor: 0x0F0A1A,
+      backgroundColor: 0x18120E,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,

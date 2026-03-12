@@ -187,12 +187,12 @@ function getVariantStyle(variant: StatusMessage['variant']): React.CSSProperties
     case 'waiting':
       return {
         background: 'rgba(37, 32, 64, 0.9)',
-        borderColor: 'rgba(139, 95, 191, 0.3)',
+        borderColor: 'rgba(212, 175, 55, 0.2)',
       };
     case 'info':
       return {
         background: 'rgba(26, 18, 48, 0.9)',
-        borderColor: 'rgba(139, 95, 191, 0.2)',
+        borderColor: 'rgba(212, 175, 55, 0.12)',
       };
   }
 }

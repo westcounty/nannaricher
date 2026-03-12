@@ -59,7 +59,7 @@ export class BackgroundLayer implements RenderLayer {
     const inner = new Graphics();
     const innerSize = BOARD_SIZE - CORNER_SIZE * 2;
 
-    // Dark inner area (design token: bg.surface #1A1230)
+    // Dark inner area (design token: bg.surface #241C18)
     inner.roundRect(-innerSize / 2, -innerSize / 2, innerSize, innerSize, 12);
     inner.fill({ color: 0x241C18 });
 
