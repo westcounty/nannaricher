@@ -4,13 +4,14 @@ import { CreateRoom } from './CreateRoom';
 import { JoinRoom } from './JoinRoom';
 import { WaitingRoom } from './WaitingRoom';
 import { BattleHistory } from './BattleHistory';
+import { AchievementWall } from './AchievementWall';
 import { useSocket } from '../context/SocketContext';
 import { useGameStore } from '../stores/gameStore';
 import { useAuthStore } from '../stores/authStore';
 import { Player } from '@nannaricher/shared';
 import './Lobby.css';
 
-type LobbyMode = 'select' | 'create' | 'join' | 'waiting' | 'history';
+type LobbyMode = 'select' | 'create' | 'join' | 'waiting' | 'history' | 'achievements';
 
 interface LobbyState {
   mode: LobbyMode;
@@ -143,6 +144,27 @@ export function Lobby() {
     return <BattleHistory onBack={() => setState({ ...state, mode: 'select' })} />;
   }
 
+  if (state.mode === 'achievements') {
+    return (
+      <div className="lobby">
+        <motion.div
+          className="lobby-user-bar"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <button
+            className="user-action-btn"
+            onClick={() => setState({ ...state, mode: 'select' })}
+          >
+            ← 返回
+          </button>
+        </motion.div>
+        <AchievementWall />
+      </div>
+    );
+  }
+
   return (
     <div className="lobby">
       {/* User menu bar */}
@@ -159,6 +181,12 @@ export function Lobby() {
             onClick={() => setState({ ...state, mode: 'history' })}
           >
             战绩
+          </button>
+          <button
+            className="user-action-btn"
+            onClick={() => setState({ ...state, mode: 'achievements' })}
+          >
+            成就
           </button>
           <button className="user-action-btn user-logout" onClick={logout}>
             登出
