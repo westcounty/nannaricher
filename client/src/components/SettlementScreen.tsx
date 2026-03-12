@@ -3,10 +3,11 @@
 // Displays winner, all-player rankings, game stats, and navigation buttons.
 
 import { useState } from 'react';
-import { getRoundName, MAX_PLAYERS } from '@nannaricher/shared';
+import { getRoundName, MAX_PLAYERS, getAchievementById } from '@nannaricher/shared';
 import type { GameState, Player, SpectatorInfo } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
+import { useAchievementStore } from '../stores/achievementStore';
 import '../styles/settlement.css';
 import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
@@ -36,9 +37,17 @@ function rankPlayers(players: Player[], winnerId: string): Player[] {
   return sorted;
 }
 
+const RARITY_STARS: Record<string, string> = {
+  common: '⭐',
+  rare: '⭐⭐',
+  epic: '⭐⭐⭐',
+  legendary: '⭐⭐⭐⭐',
+};
+
 export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost, spectators, isSpectator }: SettlementScreenProps) {
   const { socket } = useSocket();
   const [visible, setVisible] = useState(true);
+  const newlyUnlocked = useAchievementStore(s => s.newlyUnlocked);
 
   // Derive ready state from server-synced readyPlayerIds (survives page refresh)
   const isReady = playerId ? readyPlayerIds.includes(playerId) : false;
@@ -169,6 +178,34 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
         <div className="settlement-footer">
           {getRoundName(gameState.roundNumber)} · 共 {gameState.turnNumber} 回合
         </div>
+
+        {/* Achievement unlock notification */}
+        {newlyUnlocked.length > 0 && (
+          <div className="settlement-achievements">
+            <div className="settlement-achievements__title">🎉 成就解锁！</div>
+            {newlyUnlocked.map(id => {
+              const def = getAchievementById(id);
+              if (!def) return null;
+              return (
+                <div key={id} className="settlement-achievement-card">
+                  <span className="settlement-achievement-card__icon">{def.icon}</span>
+                  <div className="settlement-achievement-card__info">
+                    <div className="settlement-achievement-card__name">
+                      {def.hidden ? (def.revealedDescription?.split('—')[0]?.trim() || def.name) : def.name}
+                    </div>
+                    <div className="settlement-achievement-card__desc">
+                      {def.hidden ? def.revealedDescription : def.description}
+                    </div>
+                  </div>
+                  <div className="settlement-achievement-card__meta">
+                    <span className="settlement-achievement-card__stars">{RARITY_STARS[def.rarity] || '⭐'}</span>
+                    <span className="settlement-achievement-card__points">+{def.points}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Ready-up section for new game */}
         <div className="settlement-ready">

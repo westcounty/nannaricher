@@ -477,3 +477,80 @@
     padding: 6px 12px;
   }
 }
+
+/* ============================================
+   Achievement Unlock Section
+   ============================================ */
+
+.settlement-achievements {
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-radius: 12px;
+}
+
+.settlement-achievements__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #a855f7;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.settlement-achievement-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.settlement-achievement-card:last-child {
+  margin-bottom: 0;
+}
+
+.settlement-achievement-card__icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.settlement-achievement-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.settlement-achievement-card__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.settlement-achievement-card__desc {
+  font-size: 0.7rem;
+  color: var(--c-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settlement-achievement-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.settlement-achievement-card__stars {
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.settlement-achievement-card__points {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f59e0b;
+}

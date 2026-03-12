@@ -1,7 +1,8 @@
-// client/src/components/BattleHistory.tsx — Game history viewer
+// client/src/components/BattleHistory.tsx — Game history viewer + Achievement wall
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
+import { AchievementWall } from './AchievementWall';
 import './BattleHistory.css';
 
 const GAME_API = import.meta.env.VITE_API_URL || '';
@@ -34,11 +35,14 @@ interface Stats {
   max_exploration: number;
 }
 
+type TabId = 'history' | 'achievements';
+
 export function BattleHistory({ onBack }: { onBack: () => void }) {
   const { accessToken, getDisplayName } = useAuthStore();
   const [results, setResults] = useState<GameResult[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabId>('history');
 
   useEffect(() => {
     if (!accessToken) return;
@@ -70,9 +74,28 @@ export function BattleHistory({ onBack }: { onBack: () => void }) {
           ← 返回
         </button>
 
-        <h2>战绩记录</h2>
-        <p className="history-username">{getDisplayName()}</p>
+        <h2 style={{ marginBottom: 4 }}>{getDisplayName()}</h2>
 
+        {/* Tab switcher */}
+        <div className="history-tabs">
+          <button
+            className={`history-tab ${activeTab === 'history' ? 'history-tab--active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            📊 战绩
+          </button>
+          <button
+            className={`history-tab ${activeTab === 'achievements' ? 'history-tab--active' : ''}`}
+            onClick={() => setActiveTab('achievements')}
+          >
+            🏆 成就
+          </button>
+        </div>
+
+        {activeTab === 'achievements' ? (
+          <AchievementWall />
+        ) : (
+        <>
         {/* Stats summary */}
         {stats && stats.total_games > 0 && (
           <motion.div
@@ -158,6 +181,8 @@ export function BattleHistory({ onBack }: { onBack: () => void }) {
             </AnimatePresence>
           )}
         </div>
+        </>
+        )}
       </motion.div>
     </div>
   );

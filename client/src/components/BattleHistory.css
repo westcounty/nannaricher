@@ -17,6 +17,39 @@
   overflow: auto;
 }
 
+/* Tab switcher */
+.history-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--c-surface);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.history-tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--c-text-dim);
+  transition: all 0.15s ease;
+}
+
+.history-tab--active {
+  background: var(--c-elevated);
+  color: var(--c-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.history-tab:hover:not(.history-tab--active) {
+  background: var(--c-brand-a06);
+}
+
 /* Same atmospheric bg */
 .history-screen::before {
   content: '';
