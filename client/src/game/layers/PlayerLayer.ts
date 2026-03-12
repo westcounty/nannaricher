@@ -15,8 +15,7 @@ import {
   getMainRingPath,
 } from '../layout/MetroLayout';
 import type { Point } from '../layout/MetroLayout';
-
-const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
+import { PLAYER_COLORS_HEX } from '../layout/BoardLayout';
 
 /** Map player color hex values to whale piece sprite images (128px webp, ~5KB each) */
 const PIECE_IMAGE_MAP: Record<number, string> = {
