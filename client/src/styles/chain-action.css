@@ -20,7 +20,7 @@
   padding: 24px;
   max-width: 480px;
   width: 92%;
-  border: 1px solid rgba(139, 95, 191, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.2);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
@@ -44,7 +44,7 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  background-color: rgba(94, 58, 141, 0.6);
+  background-color: rgba(10, 5, 2, 0.6);
   transition: background-color 0.3s ease;
 }
 
@@ -196,7 +196,7 @@
   text-align: center;
   padding: 12px;
   border-radius: var(--radius);
-  background: rgba(94, 58, 141, 0.15);
+  background: rgba(10, 5, 2, 0.15);
   color: var(--color-text-secondary);
   font-size: 0.875rem;
 }

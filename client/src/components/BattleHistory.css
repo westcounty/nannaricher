@@ -11,7 +11,7 @@
   justify-content: flex-start;
   padding: 24px;
   padding-top: 48px;
-  background: var(--color-bg-main, #0F0A1A);
+  background: var(--color-bg-main, #18120E);
   color: #fff;
   position: relative;
   overflow: auto;
@@ -23,7 +23,7 @@
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(94, 58, 141, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(10, 5, 2, 0.25) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 90%, rgba(201, 162, 39, 0.08) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
@@ -65,8 +65,8 @@
   gap: 10px;
   margin-bottom: 28px;
   padding: 20px;
-  background: var(--color-bg-surface, #1A1230);
-  border: 1px solid rgba(139, 95, 191, 0.12);
+  background: var(--color-bg-surface, #241C18);
+  border: 1px solid rgba(212, 175, 55, 0.08);
   border-radius: 14px;
 }
 
@@ -120,15 +120,15 @@
 
 .history-item {
   padding: 16px 18px;
-  background: var(--color-bg-surface, #1A1230);
-  border: 1px solid rgba(139, 95, 191, 0.08);
+  background: var(--color-bg-surface, #241C18);
+  border: 1px solid rgba(212, 175, 55, 0.06);
   border-radius: 12px;
   transition: border-color 0.2s ease;
 }
 
 .history-item.is-winner {
   border-color: rgba(201, 162, 39, 0.25);
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.04) 0%, var(--color-bg-surface, #1A1230) 50%);
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.04) 0%, var(--color-bg-surface, #241C18) 50%);
 }
 
 .history-item-header {
@@ -196,8 +196,8 @@
   padding: 3px 10px;
   border-radius: 20px;
   color: var(--color-nju-purple-light, #7B4DB8);
-  background: rgba(139, 95, 191, 0.1);
-  border: 1px solid rgba(139, 95, 191, 0.15);
+  background: rgba(212, 175, 55, 0.067);
+  border: 1px solid rgba(212, 175, 55, 0.1);
 }
 
 /* ============================================

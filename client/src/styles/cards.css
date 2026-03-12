@@ -61,8 +61,8 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
   /* Card face base */
-  background: linear-gradient(170deg, #1e1840 0%, #0f0a1a 100%);
-  border: 1.5px solid rgba(139, 95, 191, 0.25);
+  background: linear-gradient(170deg, #241C18 0%, #18120E 100%);
+  border: 1.5px solid rgba(212, 175, 55, 0.15);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
@@ -86,7 +86,7 @@
 /* Hover / active */
 .card-thumbnail:hover {
   transform: translateY(-6px) scale(1.05);
-  box-shadow: 0 8px 20px rgba(94, 58, 141, 0.4);
+  box-shadow: 0 8px 20px rgba(10, 5, 2, 0.4);
   border-color: rgba(201, 162, 39, 0.5);
 }
 .card-thumbnail:active {
@@ -194,11 +194,11 @@
   position: relative;
   animation: cardSlideIn 0.3s ease;
   /* Card face */
-  background: linear-gradient(175deg, #1e1840 0%, #110c22 100%);
-  border: 1.5px solid rgba(139, 95, 191, 0.3);
+  background: linear-gradient(175deg, #241C18 0%, #18120E 100%);
+  border: 1.5px solid rgba(212, 175, 55, 0.2);
   box-shadow:
     0 20px 60px rgba(0,0,0,0.5),
-    0 0 40px rgba(94, 58, 141, 0.15);
+    0 0 40px rgba(10, 5, 2, 0.15);
 }
 
 @keyframes cardSlideIn {
@@ -343,7 +343,7 @@
 /* Separator line */
 .card-detail .card-divider {
   height: 1px;
-  background: rgba(139, 95, 191, 0.2);
+  background: rgba(212, 175, 55, 0.12);
   border: none;
   margin: 0;
 }
@@ -469,7 +469,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-top: 1px solid rgba(139, 95, 191, 0.15);
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
   background: rgba(0,0,0,0.15);
 }
 
@@ -485,7 +485,7 @@
   letter-spacing: 0.5px;
   /* Gold gradient */
   background: linear-gradient(135deg, #B8941E 0%, #D4AF37 50%, #D4AF37 100%);
-  color: #1a1230;
+  color: #241C18;
   box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
 }
 .card-detail .use-card-btn:hover:not(:disabled) {

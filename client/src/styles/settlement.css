@@ -114,7 +114,7 @@
 }
 
 .settlement-rankings__row:hover {
-  background: rgba(139, 95, 191, 0.08);
+  background: rgba(212, 175, 55, 0.06);
 }
 
 .settlement-rankings__row td {
@@ -138,11 +138,11 @@
 
 /* Local player row highlight */
 .settlement-rankings__row--local {
-  background: rgba(94, 58, 141, 0.12);
+  background: rgba(10, 5, 2, 0.12);
 }
 
 .settlement-rankings__row--local:hover {
-  background: rgba(94, 58, 141, 0.18);
+  background: rgba(10, 5, 2, 0.18);
 }
 
 /* Winner + local (same player) */
@@ -265,12 +265,12 @@
 .settlement-btn--primary {
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
   color: var(--color-text-primary);
-  box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4);
+  box-shadow: 0 4px 15px rgba(10, 5, 2, 0.4);
 }
 
 .settlement-btn--primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(94, 58, 141, 0.5);
+  box-shadow: 0 6px 20px rgba(10, 5, 2, 0.5);
 }
 
 .settlement-btn--secondary {
@@ -280,7 +280,7 @@
 }
 
 .settlement-btn--secondary:hover {
-  background: rgba(139, 95, 191, 0.15);
+  background: rgba(212, 175, 55, 0.1);
   border-color: var(--color-primary-light);
   transform: translateY(-1px);
 }
@@ -340,8 +340,8 @@
   margin-bottom: 20px;
   padding: 16px;
   border-radius: var(--radius);
-  border: 1px solid rgba(139, 95, 191, 0.2);
-  background: rgba(139, 95, 191, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  background: rgba(212, 175, 55, 0.033);
 }
 
 .settlement-ready__title {
@@ -415,7 +415,7 @@
 .settlement-btn--ready {
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
   color: var(--color-text-primary);
-  box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4);
+  box-shadow: 0 4px 15px rgba(10, 5, 2, 0.4);
 }
 
 .settlement-btn--ready:hover {

@@ -92,7 +92,7 @@
 }
 
 .compact-header__status--waiting {
-  background: rgba(139, 95, 191, 0.15);
+  background: rgba(212, 175, 55, 0.1);
   color: var(--color-text-secondary);
 }
 

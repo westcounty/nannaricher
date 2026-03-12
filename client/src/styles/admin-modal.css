@@ -40,7 +40,7 @@
 }
 
 .admin-modal__player {
-  background: rgba(139, 95, 191, 0.08);
+  background: rgba(212, 175, 55, 0.06);
   border-radius: var(--radius, 8px);
   padding: 12px;
 }
@@ -85,7 +85,7 @@
 .admin-modal__input {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid rgba(139, 95, 191, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: var(--radius-sm, 4px);
   background: rgba(0, 0, 0, 0.3);
   color: var(--color-text-primary, #e2e8f0);

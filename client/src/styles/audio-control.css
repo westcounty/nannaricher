@@ -18,7 +18,7 @@
   top: 100%;
   right: 0;
   background: var(--color-bg-elevated, #1e1533);
-  border: 1px solid rgba(139, 95, 191, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: var(--radius-lg, 12px);
   padding: 16px;
   min-width: 200px;
@@ -41,7 +41,7 @@
 }
 
 .audio-control__mute-btn--unmuted {
-  background: rgba(94, 58, 141, 0.3);
+  background: rgba(10, 5, 2, 0.3);
 }
 
 .audio-control__mute-wrapper {

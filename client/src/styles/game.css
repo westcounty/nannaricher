@@ -127,7 +127,7 @@
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
+  box-shadow: 0 4px 15px rgba(10, 5, 2, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
   transition: all 0.2s ease;
   min-height: 52px;
   letter-spacing: 0.5px;
@@ -140,18 +140,18 @@
 
 .roll-dice-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(94, 58, 141, 0.5), 0 0 30px rgba(201, 162, 39, 0.25);
+  box-shadow: 0 6px 20px rgba(10, 5, 2, 0.5), 0 0 30px rgba(201, 162, 39, 0.25);
 }
 
 .roll-dice-btn:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
-  box-shadow: 0 2px 10px rgba(94, 58, 141, 0.3);
+  box-shadow: 0 2px 10px rgba(10, 5, 2, 0.3);
 }
 
 .roll-dice-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background: rgba(94, 58, 141, 0.3);
+  background: rgba(10, 5, 2, 0.3);
   box-shadow: none;
 }
 
@@ -161,10 +161,10 @@
 
 @keyframes dice-btn-glow {
   0%, 100% {
-    box-shadow: 0 4px 15px rgba(94, 58, 141, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
+    box-shadow: 0 4px 15px rgba(10, 5, 2, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(94, 58, 141, 0.6), 0 0 35px rgba(201, 162, 39, 0.3);
+    box-shadow: 0 4px 20px rgba(10, 5, 2, 0.6), 0 0 35px rgba(201, 162, 39, 0.3);
   }
 }
 
@@ -476,8 +476,8 @@
   transform: translateY(-50%);
   width: 32px;
   height: 48px;
-  background: rgba(26, 18, 48, 0.95);
-  border: 1px solid rgba(123, 77, 184, 0.3);
+  background: rgba(36, 28, 24, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: 8px 0 0 8px;
   color: #E8CC6E;
   font-size: 16px;
@@ -493,7 +493,7 @@
 }
 
 .panel-collapse-btn:hover {
-  background: rgba(91, 45, 142, 0.6);
+  background: rgba(10, 5, 2, 0.6);
 }
 
 .game-sidebar__section {
@@ -767,7 +767,7 @@
 }
 
 .zoom-btn:hover {
-  background: rgba(139, 95, 191, 0.3);
+  background: rgba(212, 175, 55, 0.2);
   border-color: var(--color-primary-light);
 }
 
@@ -829,16 +829,16 @@
 .action-btn-primary {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   color: var(--color-text-primary);
-  box-shadow: 0 0 12px rgba(94, 58, 141, 0.3);
+  box-shadow: 0 0 12px rgba(10, 5, 2, 0.3);
 }
 
 .action-btn-primary:hover {
   background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
-  box-shadow: 0 0 20px rgba(94, 58, 141, 0.5);
+  box-shadow: 0 0 20px rgba(10, 5, 2, 0.5);
 }
 
 .action-btn-primary:disabled {
-  background: rgba(94, 58, 141, 0.4);
+  background: rgba(10, 5, 2, 0.4);
   box-shadow: none;
   cursor: not-allowed;
 }
@@ -850,7 +850,7 @@
 }
 
 .action-btn-secondary:hover {
-  background: rgba(139, 95, 191, 0.15);
+  background: rgba(212, 175, 55, 0.1);
   border-color: var(--color-primary-light);
 }
 
@@ -901,7 +901,7 @@
     box-shadow: var(--shadow-md);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(94, 58, 141, 0.3);
+    box-shadow: 0 0 0 8px rgba(10, 5, 2, 0.3);
   }
 }
 
@@ -1086,7 +1086,7 @@
   width: 100%;
   height: 100%;
   position: relative;
-  background: radial-gradient(ellipse at center, #1A1230 0%, #0F0A1A 100%);
+  background: radial-gradient(ellipse at center, #241C18 0%, #18120E 100%);
   border-radius: var(--radius-lg);
 }
 
@@ -1145,7 +1145,7 @@
 }
 
 .board-control-btn:hover {
-  background: rgba(139, 95, 191, 0.4);
+  background: rgba(212, 175, 55, 0.27);
   border-color: var(--color-primary-light);
   transform: scale(1.05);
 }
@@ -1179,7 +1179,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed rgba(139, 95, 191, 0.2);
+  border: 2px dashed rgba(212, 175, 55, 0.12);
 }
 
 .placeholder-content {
@@ -1289,9 +1289,9 @@
 }
 
 .announcement-toast.info {
-  background: rgba(94, 58, 141, 0.9);
+  background: rgba(10, 5, 2, 0.9);
   color: var(--color-text-primary);
-  border: 1px solid rgba(139, 95, 191, 0.5);
+  border: 1px solid rgba(212, 175, 55, 0.33);
 }
 
 .announcement-toast.warning {
@@ -1384,7 +1384,7 @@
 
 .winner-close-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 20px rgba(94, 58, 141, 0.4);
+  box-shadow: 0 4px 20px rgba(10, 5, 2, 0.4);
 }
 
 .winner-close-btn:active {

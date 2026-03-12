@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--color-bg-main, #0F0A1A);
+  background: var(--color-bg-main, #18120E);
   color: #fff;
   position: relative;
   overflow: hidden;
@@ -23,9 +23,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(94, 58, 141, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(10, 5, 2, 0.25) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 90%, rgba(201, 162, 39, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 50% at 10% 70%, rgba(94, 58, 141, 0.1) 0%, transparent 50%);
+    radial-gradient(ellipse 50% 50% at 10% 70%, rgba(10, 5, 2, 0.1) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -35,7 +35,7 @@
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(139, 95, 191, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 20% 30%, rgba(212, 175, 55, 0.027) 1px, transparent 1px),
     radial-gradient(circle at 70% 60%, rgba(201, 162, 39, 0.03) 1px, transparent 1px);
   background-size: 60px 60px, 80px 80px;
   pointer-events: none;
@@ -90,13 +90,13 @@
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: var(--color-bg-surface, #1A1230);
-  border: 1px solid rgba(139, 95, 191, 0.15);
+  background: var(--color-bg-surface, #241C18);
+  border: 1px solid rgba(212, 175, 55, 0.1);
   border-radius: 20px;
   padding: 0;
   box-shadow:
     0 16px 48px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(139, 95, 191, 0.05) inset;
+    0 0 0 1px rgba(212, 175, 55, 0.033) inset;
   overflow: hidden;
 }
 
@@ -108,8 +108,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   position: relative;
-  background: rgba(15, 10, 26, 0.5);
-  border-bottom: 1px solid rgba(139, 95, 191, 0.1);
+  background: rgba(24, 18, 14, 0.5);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.067);
 }
 
 .auth-tab {
@@ -174,8 +174,8 @@
   font-size: 1rem;
   font-family: inherit;
   color: #fff;
-  background: rgba(15, 10, 26, 0.6);
-  border: 1px solid rgba(139, 95, 191, 0.2);
+  background: rgba(24, 18, 14, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.12);
   border-radius: 10px;
   outline: none;
   transition: all 0.25s ease;
@@ -187,8 +187,8 @@
 
 .auth-field input:focus {
   border-color: var(--color-nju-purple-light, #7B4DB8);
-  background: rgba(15, 10, 26, 0.8);
-  box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
+  background: rgba(24, 18, 14, 0.8);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.067);
 }
 
 .auth-field input:disabled {
@@ -261,7 +261,7 @@
   font-weight: 700;
   font-family: inherit;
   letter-spacing: 0.06em;
-  color: #0F0A1A;
+  color: #18120E;
   background: linear-gradient(135deg, #D4AF37 0%, #E8CC6E 100%);
   border: none;
   border-radius: 12px;
@@ -296,8 +296,8 @@
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 2.5px solid rgba(15, 10, 26, 0.2);
-  border-top-color: #0F0A1A;
+  border: 2.5px solid rgba(24, 18, 14, 0.2);
+  border-top-color: #18120E;
   border-radius: 50%;
   animation: auth-spin 0.7s linear infinite;
 }
@@ -317,7 +317,7 @@
   padding: 8px;
   font-size: 0.88rem;
   font-family: inherit;
-  color: rgba(139, 95, 191, 0.8);
+  color: rgba(212, 175, 55, 0.53);
   background: transparent;
   border: none;
   cursor: pointer;
