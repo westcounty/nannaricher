@@ -49,7 +49,7 @@ export class BackgroundLayer implements RenderLayer {
       BOARD_SIZE + 40,
       16,
     );
-    bg.fill({ color: 0x16102A });
+    bg.fill({ color: 0x1E1610 });
     bg.stroke({ width: 2, color: 0x5B2D8E, alpha: 0.4 });
 
     this.container!.addChild(bg);
@@ -61,7 +61,7 @@ export class BackgroundLayer implements RenderLayer {
 
     // Dark inner area (design token: bg.surface #1A1230)
     inner.roundRect(-innerSize / 2, -innerSize / 2, innerSize, innerSize, 12);
-    inner.fill({ color: 0x1A1230 });
+    inner.fill({ color: 0x241C18 });
 
     this.container!.addChild(inner);
   }
@@ -97,7 +97,7 @@ export class BackgroundLayer implements RenderLayer {
       text: '南哪大富翁',
       style: new TextStyle({
         fontSize: 12,
-        fill: 0xB0B0B0,
+        fill: 0xB8AA98,
       }),
     });
     subtitleText.anchor.set(0.5);
