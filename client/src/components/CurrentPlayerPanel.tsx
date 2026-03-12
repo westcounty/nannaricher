@@ -3,6 +3,7 @@ import type { Player } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { getPlayerPlanIds } from '@nannaricher/shared';
 import { boardData } from '../data/board';
+import { DESIGN_TOKENS } from '../styles/tokens';
 import { describeEffect } from '../utils/effectDescriptions';
 
 interface CurrentPlayerPanelProps {
@@ -122,13 +123,13 @@ export function CurrentPlayerPanel({
                   className={`plan-item ${isMajor ? 'confirmed' : isMinor ? 'confirmed' : ''}`}
                   style={{
                     opacity: (isMajor || isMinor) ? 1 : 0.6,
-                    borderLeft: isMajor ? '3px solid #2196F3' : isMinor ? '3px solid #9E9E9E' : undefined,
+                    borderLeft: isMajor ? `3px solid ${DESIGN_TOKENS.color.semantic.info}` : isMinor ? `3px solid ${DESIGN_TOKENS.color.text.muted}` : undefined,
                   }}
                 >
                   <div className="plan-header">
                     <span className="plan-name">{plan.name}</span>
-                    {isMajor && <span className="confirmed-badge" style={{ background: '#2196F3', color: 'white' }}>主修</span>}
-                    {isMinor && <span className="confirmed-badge" style={{ background: '#9E9E9E', color: 'white' }}>辅修</span>}
+                    {isMajor && <span className="confirmed-badge" style={{ background: DESIGN_TOKENS.color.semantic.info, color: DESIGN_TOKENS.color.white }}>主修</span>}
+                    {isMinor && <span className="confirmed-badge" style={{ background: DESIGN_TOKENS.color.text.muted, color: DESIGN_TOKENS.color.white }}>辅修</span>}
                   </div>
                   <div className="plan-details">
                     <span className="plan-condition">胜利条件: {plan.winCondition}</span>

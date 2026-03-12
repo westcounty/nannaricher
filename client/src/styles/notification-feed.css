@@ -1,4 +1,5 @@
 /* NotificationFeed — stacked notification toasts (top-center) */
+/* 奶油紫金主题：白底 + 紫色边框 + 深色文字 */
 
 .notification-feed {
   position: fixed;
@@ -22,45 +23,46 @@
   border-radius: 10px;
   font-size: 0.85rem;
   line-height: 1.3;
-  color: #fff;
+  color: var(--c-text);
   pointer-events: auto;
   animation: toast-slide-in 0.3s ease-out;
-  background: rgba(40, 30, 70, 0.97);
+  background: var(--c-surface-a95);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(139, 105, 200, 0.35);
-  border-left: 4px solid #9B7DD4;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 105, 200, 0.1);
+  border: 1px solid var(--c-border);
+  border-left: 4px solid var(--c-brand-light);
+  box-shadow: var(--shadow-md);
 }
 
 .notif-item--info {
-  border-left-color: #9B7DD4;
+  border-left-color: var(--c-brand-light);
 }
 
 .notif-item--success {
-  border-left-color: #66BB6A;
-  background: rgba(30, 50, 35, 0.97);
-  border-color: rgba(102, 187, 106, 0.3);
+  border-left-color: var(--c-success);
+  background: rgba(46, 125, 80, 0.08);
+  border-color: rgba(46, 125, 80, 0.2);
+  color: var(--c-text);
 }
 
 .notif-item--warning {
-  border-left-color: #E8CC6E;
-  background: rgba(50, 42, 25, 0.97);
-  border-color: rgba(212, 175, 55, 0.3);
-  color: #F5E6B8;
+  border-left-color: var(--c-accent);
+  background: rgba(255, 179, 0, 0.08);
+  border-color: rgba(255, 179, 0, 0.2);
+  color: var(--c-text);
 }
 
 .notif-item--error {
-  border-left-color: #EF5350;
-  background: rgba(55, 25, 30, 0.97);
-  border-color: rgba(239, 83, 80, 0.3);
-  color: #ffb0ae;
+  border-left-color: var(--c-danger);
+  background: rgba(242, 0, 115, 0.06);
+  border-color: rgba(242, 0, 115, 0.2);
+  color: var(--c-text);
 }
 
 .notif-item--collapsed {
-  background: rgba(40, 30, 70, 0.9);
-  border-left-color: rgba(139, 105, 200, 0.5);
+  background: var(--c-surface-a90);
+  border-left-color: var(--c-brand-a25);
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--c-text-muted);
   padding: 6px 14px;
 }
 

@@ -15,13 +15,13 @@
 }
 
 .chain-action__panel {
-  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-elevated) 100%);
+  background: linear-gradient(135deg, var(--c-surface) 0%, var(--c-elevated) 100%);
   border-radius: 16px;
   padding: 24px;
   max-width: 480px;
   width: 92%;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--c-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .chain-action__header {
@@ -35,7 +35,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .chain-action__timer-badge {
@@ -43,19 +43,19 @@
   border-radius: var(--radius-full);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  background-color: rgba(10, 5, 2, 0.6);
+  color: var(--c-text);
+  background-color: var(--c-brand-a15);
   transition: background-color 0.3s ease;
 }
 
 .chain-action__timer-badge--urgent {
-  background-color: var(--color-danger);
+  background-color: var(--c-danger);
 }
 
 .chain-action__prompt {
   margin: 0 0 20px 0;
   font-size: 1rem;
-  color: var(--color-text-secondary);
+  color: var(--c-text-dim);
   line-height: 1.5;
 }
 
@@ -87,22 +87,22 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  background-color: var(--color-bg-elevated);
+  background-color: var(--c-elevated);
 }
 
 .chain-action__chain-node--current {
   transform: scale(1.15);
-  background-color: rgba(201, 162, 39, 0.3);
+  background-color: var(--c-brand-a15);
 }
 
 .chain-action__chain-node-text {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .chain-action__chain-node-text--completed {
-  color: #000;
+  color: var(--c-text);
 }
 
 .chain-action__completed-mark {
@@ -112,8 +112,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-success);
-  color: #000;
+  background: var(--c-success);
+  color: var(--c-text);
   font-size: 10px;
   display: flex;
   align-items: center;
@@ -129,7 +129,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--c-accent);
   animation: pulse 1.5s infinite;
 }
 
@@ -140,28 +140,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: center;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .chain-action__chain-node-name--current {
-  color: var(--color-accent);
+  color: var(--c-accent);
   font-weight: 700;
 }
 
 .chain-action__chain-node-name--pending {
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
 }
 
 .chain-action__arrow {
   font-size: 1.2rem;
   font-weight: 700;
   margin: 0 2px;
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
   transition: color 0.3s ease;
 }
 
 .chain-action__arrow--completed {
-  color: var(--color-success);
+  color: var(--c-success);
 }
 
 .chain-action__actions {
@@ -173,10 +173,10 @@
 .chain-action__action-btn {
   width: 100%;
   padding: 12px 16px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: linear-gradient(135deg, var(--c-brand), var(--c-brand-light));
   border: none;
   border-radius: var(--radius);
-  color: var(--color-text-primary);
+  color: var(--c-text);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -196,8 +196,8 @@
   text-align: center;
   padding: 12px;
   border-radius: var(--radius);
-  background: rgba(10, 5, 2, 0.15);
-  color: var(--color-text-secondary);
+  background: var(--c-brand-a06);
+  color: var(--c-text-dim);
   font-size: 0.875rem;
 }
 

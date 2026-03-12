@@ -1,6 +1,7 @@
 // client/src/components/GameLog.tsx
 import React, { useState, useMemo } from 'react';
 import type { GameLogEntry, Player } from '@nannaricher/shared';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 // ── Severity types ──────────────────────────────────────────────
 type Severity = 'info' | 'important' | 'critical';
@@ -43,22 +44,22 @@ const SEVERITY_STYLES: Record<Severity, {
   glow: string;
 }> = {
   info: {
-    borderColor: 'var(--color-text-muted, #707070)',
+    borderColor: DESIGN_TOKENS.color.text.muted,
     fontWeight: 'normal',
     background: 'transparent',
     glow: 'none',
   },
   important: {
-    borderColor: 'var(--color-accent, #D4AF37)',
+    borderColor: DESIGN_TOKENS.color.brand.accent,
     fontWeight: '500',
-    background: 'rgba(201, 162, 39, 0.05)',
+    background: hexToRgba(DESIGN_TOKENS.color.brand.accent, 0.05),
     glow: 'none',
   },
   critical: {
-    borderColor: 'var(--color-danger, #EF5350)',
+    borderColor: DESIGN_TOKENS.color.semantic.danger,
     fontWeight: '700',
-    background: 'rgba(239, 83, 80, 0.08)',
-    glow: '0 0 6px rgba(239, 83, 80, 0.3)',
+    background: hexToRgba(DESIGN_TOKENS.color.semantic.danger, 0.08),
+    glow: `0 0 6px ${hexToRgba(DESIGN_TOKENS.color.semantic.danger, 0.3)}`,
   },
 };
 

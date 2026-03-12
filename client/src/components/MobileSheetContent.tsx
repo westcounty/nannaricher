@@ -5,10 +5,12 @@ import { CompactPlayerCard } from './CompactPlayerCard';
 import { CardHand } from './CardHand';
 import { TrainingPlanView } from './TrainingPlanView';
 import { MorePanel } from './MorePanel';
+import { ChatPanel } from './ChatPanel';
+import { GameLog } from './GameLog';
 import type { Player } from '@nannaricher/shared';
 import type { useGameStore } from '../stores/gameStore';
 
-type PanelId = 'hand' | 'players' | 'more';
+type PanelId = 'hand' | 'players' | 'more' | 'chat' | 'log';
 
 export interface MobileSheetContentProps {
   activePanel: PanelId | null;
@@ -85,6 +87,16 @@ export function MobileSheetContent({
           gameState={gameState}
           onClose={onClose}
         />
+      );
+
+    case 'chat':
+      return (
+        <ChatPanel messages={chatMessages} onSend={sendChatMessage} alwaysExpanded />
+      );
+
+    case 'log':
+      return (
+        <GameLog entries={gameState.log} players={gameState.players} alwaysExpanded />
       );
 
     default:

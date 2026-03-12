@@ -5,9 +5,9 @@
   height: 100%;
   min-height: 0;
   flex: 1;
-  background: var(--color-bg-surface, #241C18);
+  background: var(--c-surface);
   border-radius: 8px;
-  border: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  border: 1px solid var(--c-border);
   overflow: hidden;
 }
 
@@ -26,7 +26,7 @@
   align-items: center;
   padding: 12px 16px;
   background: var(--g-brand);
-  color: white;
+  color: var(--c-text-on-brand);
 }
 
 .chat-header--clickable {
@@ -68,7 +68,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--color-text-muted, #707070);
+  color: var(--c-text-muted);
 }
 
 .empty-icon {
@@ -85,7 +85,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--c-text-a06);
 }
 
 .chat-message:last-child {
@@ -94,7 +94,7 @@
 
 .message-time {
   font-size: 11px;
-  color: var(--color-text-muted, #707070);
+  color: var(--c-text-muted);
   margin-right: 8px;
   min-width: 40px;
 }
@@ -107,12 +107,12 @@
 
 .message-colon {
   margin-right: 6px;
-  color: var(--color-text-secondary, #B0B0B0);
+  color: var(--c-text-dim);
 }
 
 .message-text {
   font-size: 14px;
-  color: var(--color-text-primary, #fff);
+  color: var(--c-text);
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -121,8 +121,8 @@
 .chat-input-form {
   display: flex;
   padding: 12px;
-  background: var(--color-bg-elevated, #332822);
-  border-top: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  background: var(--c-elevated);
+  border-top: 1px solid var(--c-border);
   gap: 8px;
 }
 
@@ -130,23 +130,23 @@
   flex: 1;
   padding: 10px 14px;
   min-height: 44px;
-  border: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  border: 1px solid var(--c-border);
   border-radius: 20px;
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
-  background: var(--color-bg-surface, #241C18);
-  color: var(--color-text-primary, #fff);
+  background: var(--c-surface);
+  color: var(--c-text);
 }
 
 .chat-input:focus {
-  border-color: var(--c-brand, #5B2D8E);
-  box-shadow: 0 0 0 2px rgba(10, 5, 2, 0.2);
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 2px var(--c-brand-a10);
 }
 
 .chat-input::placeholder {
-  color: var(--color-text-muted, #707070);
+  color: var(--c-text-muted);
 }
 
 .chat-send-button {
@@ -154,7 +154,7 @@
   min-height: 44px;
   min-width: 44px;
   background: var(--g-brand);
-  color: white;
+  color: var(--c-text-on-brand);
   border: none;
   border-radius: 20px;
   font-size: 14px;
@@ -183,9 +183,9 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(--color-bg-surface, #241C18);
+  background: var(--c-surface);
   border-radius: 8px;
-  border: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  border: 1px solid var(--c-border);
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -199,11 +199,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: linear-gradient(135deg, var(--c-brand, #5B2D8E), var(--c-brand-light, #7B4DB8));
-  color: white;
+  background: linear-gradient(135deg, var(--c-brand), var(--c-brand-light));
+  color: var(--c-text-on-brand);
   cursor: pointer;
   user-select: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--c-border-light);
 }
 
 .log-header:hover {
@@ -230,7 +230,7 @@
 .log-toggle-button {
   padding: 4px 12px;
   background: rgba(255, 255, 255, 0.2);
-  color: white;
+  color: var(--c-text-on-brand);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
   font-size: 12px;
@@ -246,31 +246,31 @@
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  background: var(--color-bg-elevated, #332822);
-  border-bottom: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  background: var(--c-elevated);
+  border-bottom: 1px solid var(--c-border);
   gap: 8px;
 }
 
 .filter-label {
   font-size: 13px;
-  color: var(--color-text-secondary, #B0B0B0);
+  color: var(--c-text-dim);
 }
 
 .filter-select {
   flex: 1;
   max-width: 200px;
   padding: 6px 10px;
-  border: 1px solid var(--game-border, rgba(212,175,55,0.13));
+  border: 1px solid var(--c-border);
   border-radius: 4px;
   font-size: 13px;
   outline: none;
-  background: var(--color-bg-surface, #241C18);
-  color: var(--color-text-primary, #fff);
+  background: var(--c-surface);
+  color: var(--c-text);
   cursor: pointer;
 }
 
 .filter-select:focus {
-  border-color: var(--c-brand, #5B2D8E);
+  border-color: var(--c-brand);
 }
 
 .log-entries {
@@ -285,19 +285,19 @@
   align-items: center;
   justify-content: center;
   padding: 40px;
-  color: var(--color-text-muted, #707070);
+  color: var(--c-text-muted);
 }
 
 .log-entry {
   padding: 10px 12px;
   border-radius: 6px;
-  background: rgba(255,255,255,0.03);
+  background: var(--c-brand-a02);
   margin-bottom: 8px;
   transition: background 0.2s;
 }
 
 .log-entry:hover {
-  background: rgba(255,255,255,0.06);
+  background: var(--c-brand-a04);
 }
 
 .log-entry:last-child {
@@ -314,15 +314,15 @@
 .entry-turn {
   font-size: 11px;
   font-weight: 600;
-  color: var(--c-accent, #D4AF37);
-  background: rgba(212,175,55,0.1);
+  color: var(--c-accent);
+  background: var(--c-accent-a10);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
 .entry-time {
   font-size: 11px;
-  color: var(--color-text-muted, #707070);
+  color: var(--c-text-muted);
 }
 
 .entry-content {
@@ -339,13 +339,13 @@
 
 .entry-player::after {
   content: ':';
-  color: var(--color-text-secondary, #B0B0B0);
+  color: var(--c-text-dim);
   margin-left: 2px;
 }
 
 .entry-message {
   font-size: 13px;
-  color: var(--color-text-primary, #fff);
+  color: var(--c-text);
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -364,11 +364,11 @@
 
 .chat-messages::-webkit-scrollbar-thumb,
 .log-entries::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: var(--c-brand-a15);
   border-radius: 3px;
 }
 
 .chat-messages::-webkit-scrollbar-thumb:hover,
 .log-entries::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.35);
+  background: var(--c-brand-a25);
 }

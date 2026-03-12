@@ -5,13 +5,14 @@ import { Container, Graphics } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
 import { playSound } from '../../audio/AudioManager';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 export async function animatePieceMove(
   piece: Container,
   path: { x: number; y: number }[],
   tweenEngine: TweenEngine,
   effectLayer: Container,
-  trailColor: number = 0xffffff,
+  trailColor: number = hexToPixi(DESIGN_TOKENS.color.white),
 ): Promise<void> {
   const baseStep = 450;
   // Progressive acceleration: longer paths move faster per step
@@ -149,7 +150,7 @@ function createRipple(layer: Container, x: number, y: number, tweenEngine: Tween
   const duration = AnimationConfig.scaleDuration(333); // ~20 frames at 60fps
   const ripple = new Graphics();
   ripple.circle(0, 0, 5);
-  ripple.fill({ color: 0xffffff, alpha: 0.5 });
+  ripple.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.5 });
   ripple.x = x;
   ripple.y = y;
   layer.addChild(ripple);

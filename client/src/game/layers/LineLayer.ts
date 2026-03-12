@@ -6,6 +6,7 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameState } from '@nannaricher/shared';
 import { LINE_CONFIGS, LINE_EXIT_MAP } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 import {
   BOARD_SIZE,
   CENTER_AREA_SIZE,
@@ -160,7 +161,7 @@ export class LineLayer implements RenderLayer {
     // "出口" label near exit marker
     const label = new Text({
       text: '出',
-      style: new TextStyle({ fontSize: 8, fill: 0xffffff, fontWeight: 'bold' }),
+      style: new TextStyle({ fontSize: 8, fill: hexToPixi(DESIGN_TOKENS.color.white), fontWeight: 'bold' }),
     });
     label.anchor.set(0.5);
     label.x = toX;

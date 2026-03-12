@@ -1,7 +1,7 @@
 // client/src/components/CellTooltip.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BoardCell, BoardLine } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba, getCellTypeTokenColor } from '../styles/tokens';
 
 interface CellTooltipProps {
   cell: BoardCell | null;
@@ -42,18 +42,7 @@ function getCellTypeLabel(type: string): string {
 }
 
 function getCellTypeColor(type: string): string {
-  switch (type) {
-    case 'corner':
-      return '#f59e0b'; // amber
-    case 'event':
-      return '#8b5cf6'; // purple
-    case 'chance':
-      return '#06b6d4'; // cyan
-    case 'line_entry':
-      return '#10b981'; // emerald
-    default:
-      return '#6b7280'; // gray
-  }
+  return getCellTypeTokenColor(type);
 }
 
 export function CellTooltip({ cell, lineData, position, visible, imageUrl }: CellTooltipProps) {
@@ -104,16 +93,16 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
     top,
     zIndex: 1000,
     pointerEvents: 'none',
-    backgroundColor: 'rgba(36, 28, 24, 0.95)',
+    backgroundColor: hexToRgba(DESIGN_TOKENS.color.white, 0.95),
     color: DESIGN_TOKENS.color.text.primary,
     padding: '0',
     borderRadius: '10px',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+    boxShadow: `0 4px 24px ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.15)}`,
     maxWidth: '260px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: '14px',
     lineHeight: '1.5',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
+    border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.12)}`,
     backdropFilter: 'blur(10px)',
     overflow: 'hidden',
   };
@@ -144,7 +133,7 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
           fontSize: '16px',
           fontWeight: 600,
           color: DESIGN_TOKENS.color.text.primary,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          borderBottom: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.15)}`,
           paddingBottom: '8px',
         }}>
           {cell.name}
@@ -168,11 +157,11 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
                 <strong>路线:</strong> {lineData.name}
               </p>
             )}
-            <p style={{ margin: '4px 0', color: '#4ade80' }}>
+            <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.semantic.successLight }}>
               <strong>入场费:</strong> ${cell.entryFee || 0}
             </p>
             {cell.forceEntry && (
-              <p style={{ margin: '4px 0', color: '#f87171' }}>
+              <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.semantic.dangerLight }}>
                 <strong>强制进入</strong>
               </p>
             )}
@@ -181,31 +170,31 @@ export function CellTooltip({ cell, lineData, position, visible, imageUrl }: Cel
 
         {cell.cornerType && (
           <div style={{ marginTop: '8px' }}>
-            <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '13px' }}>
+            <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.brand.accent, fontSize: '13px' }}>
               {getCornerDescription(cell.cornerType)}
             </p>
           </div>
         )}
 
         {cell.type === 'event' && (
-          <p style={{ margin: '8px 0 0 0', color: '#a78bfa', fontSize: '13px' }}>
+          <p style={{ margin: '8px 0 0 0', color: DESIGN_TOKENS.color.brand.primaryLight, fontSize: '13px' }}>
             停留时触发事件
           </p>
         )}
 
         {cell.type === 'chance' && (
-          <p style={{ margin: '8px 0 0 0', color: '#67e8f9', fontSize: '13px' }}>
+          <p style={{ margin: '8px 0 0 0', color: DESIGN_TOKENS.color.semantic.info, fontSize: '13px' }}>
             停留时抽取机会卡
           </p>
         )}
 
         {lineData && lineData.cells && (
-          <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
-            <p style={{ margin: '0 0 4px 0', color: '#a78bfa', fontSize: '12px', fontWeight: 600 }}>
+          <div style={{ marginTop: '8px', borderTop: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.1)}`, paddingTop: '6px' }}>
+            <p style={{ margin: '0 0 4px 0', color: DESIGN_TOKENS.color.brand.primaryLight, fontSize: '12px', fontWeight: 600 }}>
               {lineData.name}
             </p>
             {lineData.experienceCard && cell.id === lineData.experienceCard.id && (
-              <p style={{ margin: '4px 0', color: '#fbbf24', fontSize: '12px' }}>
+              <p style={{ margin: '4px 0', color: DESIGN_TOKENS.color.brand.accent, fontSize: '12px' }}>
                 {lineData.experienceCard.description}
               </p>
             )}

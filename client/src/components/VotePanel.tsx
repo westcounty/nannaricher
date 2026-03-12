@@ -127,17 +127,17 @@ export function VotePanel({ pendingAction, players, playerId, onVote }: VotePane
                   {option.effectPreview && (
                     <div className="vote-panel__option-effects" style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '12px' }}>
                       {option.effectPreview.money !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.money === 'number' ? (option.effectPreview.money > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
+                        <span style={{ color: typeof option.effectPreview.money === 'number' ? (option.effectPreview.money > 0 ? DESIGN_TOKENS.color.semantic.success : DESIGN_TOKENS.color.semantic.danger) : DESIGN_TOKENS.color.text.muted }}>
                           💰{typeof option.effectPreview.money === 'number' ? `${option.effectPreview.money > 0 ? '+' : ''}${option.effectPreview.money}` : option.effectPreview.money}
                         </span>
                       )}
                       {option.effectPreview.gpa !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.gpa === 'number' ? (option.effectPreview.gpa > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
+                        <span style={{ color: typeof option.effectPreview.gpa === 'number' ? (option.effectPreview.gpa > 0 ? DESIGN_TOKENS.color.semantic.success : DESIGN_TOKENS.color.semantic.danger) : DESIGN_TOKENS.color.text.muted }}>
                           📚{typeof option.effectPreview.gpa === 'number' ? `${option.effectPreview.gpa > 0 ? '+' : ''}${option.effectPreview.gpa}` : option.effectPreview.gpa}
                         </span>
                       )}
                       {option.effectPreview.exploration !== undefined && (
-                        <span style={{ color: typeof option.effectPreview.exploration === 'number' ? (option.effectPreview.exploration > 0 ? '#4caf50' : '#f44336') : DESIGN_TOKENS.color.text.muted }}>
+                        <span style={{ color: typeof option.effectPreview.exploration === 'number' ? (option.effectPreview.exploration > 0 ? DESIGN_TOKENS.color.semantic.success : DESIGN_TOKENS.color.semantic.danger) : DESIGN_TOKENS.color.text.muted }}>
                           🗺️{typeof option.effectPreview.exploration === 'number' ? `${option.effectPreview.exploration > 0 ? '+' : ''}${option.effectPreview.exploration}` : option.effectPreview.exploration}
                         </span>
                       )}

@@ -21,7 +21,7 @@ export function MorePanel({
   gameState,
   onClose,
 }: MorePanelProps) {
-  const [tab, setTab] = useState<MoreTab>('chat');
+  const [tab, setTab] = useState<MoreTab>('log');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -30,13 +30,13 @@ export function MorePanel({
           className={`more-panel-tab ${tab === 'chat' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('chat')}
         >
-          聊天
+          💬 聊天
         </button>
         <button
           className={`more-panel-tab ${tab === 'log' ? 'more-panel-tab--active' : ''}`}
           onClick={() => setTab('log')}
         >
-          日志
+          📜 日志
         </button>
         {onClose && (
           <button className="mobile-sheet-close more-panel-close" onClick={onClose}>

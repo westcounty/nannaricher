@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Player, TrainingPlan } from '@nannaricher/shared';
 import { useGameStore } from '../stores/gameStore';
 import { getPlayerPlanIds } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 interface TrainingPlanViewProps {
   player: Player;
@@ -86,22 +86,22 @@ export function TrainingPlanView({
           display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap'
         }}>
           <div className="buff-card" style={{
-            background: 'rgba(76, 175, 80, 0.15)',
-            border: '1px solid rgba(76, 175, 80, 0.3)',
+            background: hexToRgba(DESIGN_TOKENS.color.semantic.success, 0.1),
+            border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.semantic.success, 0.3)}`,
             borderRadius: '6px',
             padding: '4px 8px',
             fontSize: '12px',
-            color: '#4CAF50',
+            color: DESIGN_TOKENS.color.semantic.success,
           }}>
             GPA增加翻倍
           </div>
           <div className="buff-card" style={{
-            background: 'rgba(255, 152, 0, 0.15)',
-            border: '1px solid rgba(255, 152, 0, 0.3)',
+            background: hexToRgba(DESIGN_TOKENS.color.resource.exploration, 0.15),
+            border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.resource.exploration, 0.3)}`,
             borderRadius: '6px',
             padding: '4px 8px',
             fontSize: '12px',
-            color: '#FF9800',
+            color: DESIGN_TOKENS.color.resource.exploration,
           }}>
             鼓楼线收益翻倍
           </div>
@@ -132,15 +132,15 @@ export function TrainingPlanView({
                 className={`plan-item ${isMajor ? 'confirmed major' : isMinor ? 'confirmed minor' : 'unconfirmed'}`}
                 style={{
                   opacity: isInPlan ? 1 : 0.6,
-                  borderLeft: isMajor ? '3px solid #2196F3' : isMinor ? '3px solid #9E9E9E' : undefined,
+                  borderLeft: isMajor ? `3px solid ${DESIGN_TOKENS.color.semantic.info}` : isMinor ? `3px solid ${DESIGN_TOKENS.color.text.muted}` : undefined,
                 }}
               >
                 <div className="plan-header">
                   <h4 className="plan-name">{plan.name}</h4>
                   {isMajor && (
                     <span className="confirmed-badge" style={{
-                      background: '#2196F3',
-                      color: 'white',
+                      background: DESIGN_TOKENS.color.semantic.info,
+                      color: DESIGN_TOKENS.color.white,
                       padding: '1px 6px',
                       borderRadius: '4px',
                       fontSize: '10px',
@@ -148,8 +148,8 @@ export function TrainingPlanView({
                   )}
                   {isMinor && (
                     <span className="confirmed-badge" style={{
-                      background: '#9E9E9E',
-                      color: 'white',
+                      background: DESIGN_TOKENS.color.text.muted,
+                      color: DESIGN_TOKENS.color.white,
                       padding: '1px 6px',
                       borderRadius: '4px',
                       fontSize: '10px',

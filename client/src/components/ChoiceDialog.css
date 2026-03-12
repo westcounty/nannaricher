@@ -15,13 +15,13 @@
 }
 
 .choice-dialog {
-  background: rgba(36, 28, 24, 0.92);
+  background: var(--c-surface-a95);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid var(--c-border);
   box-shadow:
-    0 25px 50px rgba(0, 0, 0, 0.5),
-    0 0 40px rgba(10, 5, 2, 0.3);
+    0 25px 50px rgba(0, 0, 0, 0.12),
+    0 0 40px var(--c-brand-a06);
   max-width: 500px;
   width: 90%;
   max-height: 85vh;
@@ -41,16 +41,16 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid var(--c-border);
   background: var(--g-brand);
-  color: white;
+  color: var(--c-text-on-brand);
 }
 
 .dialog-title {
   font-size: 1.3rem;
   font-weight: 600;
   margin: 0;
-  color: white;
+  color: var(--c-text-on-brand);
 }
 
 .timeout-badge {
@@ -66,7 +66,7 @@
 
 .timeout-badge.urgent {
   background: var(--c-danger);
-  color: white;
+  color: var(--c-text-on-brand);
   animation: pulse-urgent 0.5s ease-in-out infinite;
 }
 
@@ -88,15 +88,15 @@
 .dialog-prompt {
   font-size: 1.05rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--c-text-a85);
   margin: 0 0 20px 0;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.12);
+  border-bottom: 1px solid var(--c-brand-a08);
 }
 
 .timeout-message {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--c-danger-a15);
+  border: 1px solid var(--c-danger-a30);
   border-radius: 8px;
   padding: 12px 16px;
   color: var(--c-danger);
@@ -116,13 +116,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: rgba(212, 175, 55, 0.08);
-  border: 2px solid rgba(212, 175, 55, 0.15);
+  background: var(--c-brand-a04);
+  border: 2px solid var(--c-brand-a10);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--c-text-a85);
   animation: slide-in 0.3s ease-out backwards;
 }
 
@@ -138,32 +138,32 @@
 }
 
 .option-button:hover:not(:disabled) {
-  background: rgba(212, 175, 55, 0.15);
-  border-color: rgba(212, 175, 55, 0.33);
-  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.12);
+  background: var(--c-brand-a08);
+  border-color: var(--c-brand-a25);
+  box-shadow: 0 4px 15px var(--c-brand-a06);
   transform: translateX(4px);
 }
 
 .option-button.hovered {
-  background: rgba(212, 175, 55, 0.12);
-  border-color: rgba(212, 175, 55, 0.27);
+  background: var(--c-brand-a06);
+  border-color: var(--c-brand-a20);
 }
 
 .option-button.selected {
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.3) 0%, rgba(224, 197, 94, 0.2) 100%);
-  border-color: #D4AF37;
-  color: white;
+  background: linear-gradient(135deg, var(--c-border) 0%, var(--c-brand-a08) 100%);
+  border-color: var(--c-brand);
+  color: var(--c-text);
 }
 
 .option-button.selected .option-description {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--c-text-a60);
 }
 
 .option-button.disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--c-brand-a02);
+  border-color: var(--c-brand-a06);
 }
 
 .option-content {
@@ -181,13 +181,13 @@
 
 .option-description {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--c-text-a50);
   line-height: 1.4;
 }
 
 .option-checkmark {
   font-size: 1.3rem;
-  color: #D4AF37;
+  color: var(--c-brand);
   margin-left: 12px;
   animation: pop-in 0.2s ease-out;
 }
@@ -206,7 +206,7 @@
 
 .dialog-footer {
   padding: 16px 24px;
-  border-top: 1px solid rgba(212, 175, 55, 0.12);
+  border-top: 1px solid var(--c-brand-a08);
   display: flex;
   justify-content: center;
 }
@@ -215,17 +215,17 @@
   padding: 10px 32px;
   font-size: 0.95rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--c-text-a60);
+  background: var(--c-brand-a06);
+  border: 1px solid var(--c-brand-a10);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .cancel-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--c-brand-a10);
+  color: var(--c-text-a80);
 }
 
 .cancel-button:disabled {
@@ -275,7 +275,7 @@
   padding: 10px 32px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: white;
+  color: var(--c-text-on-brand);
   background: var(--g-brand);
   border: none;
   border-radius: 8px;
@@ -285,7 +285,7 @@
 
 .confirm-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(10, 5, 2, 0.4);
+  box-shadow: 0 4px 12px var(--c-brand-a20);
 }
 
 .confirm-button:disabled {
@@ -297,10 +297,10 @@
 
 .selection-hint {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--c-text-a50);
   margin: -12px 0 16px 0;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--c-brand-a04);
   border-radius: 8px;
   text-align: center;
 }
@@ -325,7 +325,7 @@
 
 .multi-select .option-description {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--c-text-a50);
   line-height: 1.5;
   margin-top: 4px;
   padding-left: 32px;

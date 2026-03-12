@@ -47,10 +47,10 @@ import './ChatPanel.css';
 import '../styles/game.css';
 import '../styles/mobile.css';
 import '../styles/training-plan.css';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 // Mobile panel definitions
-type PanelId = 'hand' | 'players' | 'more';
+type PanelId = 'hand' | 'players' | 'more' | 'chat' | 'log';
 
 // Sidebar tab for desktop
 type SidebarTab = 'chat' | 'log';
@@ -113,7 +113,7 @@ export function GameScreen() {
   const lastSeenChatCountRef = useRef(0);
   const hasUnreadChat =
     (layout === 'mobile' || layout === 'tablet') &&
-    activePanel !== 'more' &&
+    activePanel !== 'more' && activePanel !== 'chat' &&
     chatMessages.length > lastSeenChatCountRef.current;
 
   // Dice overlay state — visible to ALL players
@@ -243,7 +243,7 @@ export function GameScreen() {
   };
 
   // Cell click handler — opens the detail drawer on both desktop and mobile
-  const handleCellClick = useCallback((cellId: string, position: Position) => {
+  const handleCellClick = useCallback((_cellId: string, position: Position) => {
     if (position.type === 'main') {
       const cell = boardData.mainBoard[position.index];
       if (cell) {
@@ -272,7 +272,7 @@ export function GameScreen() {
   // Mobile panel toggle
   const handlePanelToggle = (panelId: PanelId) => {
     playSound('tab_switch');
-    if (panelId === 'more') {
+    if (panelId === 'more' || panelId === 'chat') {
       lastSeenChatCountRef.current = chatMessages.length;
     }
     setActivePanel((prev) => (prev === panelId ? null : panelId));
@@ -330,7 +330,7 @@ export function GameScreen() {
       {/* Connection lost banner */}
       {!isConnected && (
         <div style={{
-          background: 'rgba(220, 50, 50, 0.9)',
+          background: hexToRgba(DESIGN_TOKENS.color.semantic.danger, 0.9),
           color: DESIGN_TOKENS.color.text.primary,
           padding: '8px 16px',
           display: 'flex',
@@ -345,7 +345,7 @@ export function GameScreen() {
             onClick={reconnect}
             style={{
               background: DESIGN_TOKENS.color.text.primary,
-              color: '#c00',
+              color: DESIGN_TOKENS.color.semantic.danger,
               border: 'none',
               borderRadius: '4px',
               padding: '4px 12px',
@@ -387,8 +387,8 @@ export function GameScreen() {
                   width: 36,
                   height: 36,
                   borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(24,18,14,0.8)',
+                  border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.2)}`,
+                  background: hexToRgba(DESIGN_TOKENS.color.white, 0.8),
                   backdropFilter: 'blur(8px)',
                   color: DESIGN_TOKENS.color.text.primary,
                   fontSize: 18,
@@ -513,10 +513,10 @@ export function GameScreen() {
                 width: 36,
                 height: 36,
                 borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'rgba(15,10,26,0.8)',
+                border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.2)}`,
+                background: hexToRgba(DESIGN_TOKENS.color.white, 0.8),
                 backdropFilter: 'blur(8px)',
-                color: '#e2e8f0',
+                color: DESIGN_TOKENS.color.text.primary,
                 fontSize: 18,
                 cursor: 'pointer',
                 display: 'flex',
@@ -556,10 +556,10 @@ export function GameScreen() {
 
           {/* Bottom sheet for panels */}
           <div className={`mobile-sheet ${activePanel ? 'mobile-sheet--open' : ''}`}>
-            {activePanel !== 'more' && (
+            {activePanel !== 'more' && activePanel !== null && (
               <div className="mobile-sheet-header">
                 <h3 className="mobile-sheet-title">
-                  {activePanel === 'hand' ? '手牌' : activePanel === 'players' ? '玩家' : '聊天'}
+                  {activePanel === 'hand' ? '手牌' : activePanel === 'players' ? '玩家' : activePanel === 'chat' ? '聊天' : activePanel === 'log' ? '日志' : ''}
                 </h3>
                 <button className="mobile-sheet-close" onClick={closePanel}>
                   ✕
@@ -594,7 +594,8 @@ export function GameScreen() {
             onRollDice={handleMobileRollDice}
             onOpenCards={() => handlePanelToggle('hand')}
             onOpenPlayers={() => handlePanelToggle('players')}
-            onOpenMore={() => handlePanelToggle('more')}
+            onOpenChat={() => handlePanelToggle('chat')}
+            onOpenLog={() => handlePanelToggle('log')}
             activePanel={activePanel}
             hasUnreadChat={hasUnreadChat}
           />
@@ -668,7 +669,7 @@ export function GameScreen() {
             key={gameState.pendingAction.id}
             title="选择培养计划"
             prompt={gameState.pendingAction.prompt}
-            options={gameState.pendingAction.options.map(opt => ({
+            options={(gameState.pendingAction.options ?? []).map(opt => ({
               label: opt.label,
               value: opt.value,
               description: opt.description,

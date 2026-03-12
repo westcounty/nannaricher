@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 // ============================================
 // Types
@@ -186,13 +186,13 @@ function getVariantStyle(variant: StatusMessage['variant']): React.CSSProperties
       };
     case 'waiting':
       return {
-        background: 'rgba(37, 32, 64, 0.9)',
-        borderColor: 'rgba(212, 175, 55, 0.2)',
+        background: hexToRgba(DESIGN_TOKENS.color.white, 0.9),
+        borderColor: hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.2),
       };
     case 'info':
       return {
-        background: 'rgba(26, 18, 48, 0.9)',
-        borderColor: 'rgba(212, 175, 55, 0.12)',
+        background: hexToRgba(DESIGN_TOKENS.color.white, 0.9),
+        borderColor: hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.12),
       };
   }
 }

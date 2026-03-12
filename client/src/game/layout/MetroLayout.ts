@@ -345,7 +345,7 @@ export function getLineSmoothPath(lineId: string): PathSegment[] {
  */
 export function getStationColor(index: number): number {
   const cell = MAIN_BOARD_CELLS[index];
-  if (!cell) return 0xffffff;
+  if (!cell) return hexToPixi(DESIGN_TOKENS.color.white); // fallback
 
   const ct = DESIGN_TOKENS.color.cell;
 
@@ -370,7 +370,7 @@ export function getStationColor(index: number): number {
     }
   }
 
-  return 0xffffff;
+  return hexToPixi(DESIGN_TOKENS.color.white); // fallback
 }
 
 /**
@@ -378,7 +378,7 @@ export function getStationColor(index: number): number {
  */
 export function getStationColorDark(index: number): number {
   const cell = MAIN_BOARD_CELLS[index];
-  if (!cell) return 0xcccccc;
+  if (!cell) return 0xcccccc; // fallback gray — no matching token
 
   const ct = DESIGN_TOKENS.color.cell;
 
@@ -403,7 +403,7 @@ export function getStationColorDark(index: number): number {
     }
   }
 
-  return 0xcccccc;
+  return 0xcccccc; // fallback gray — no matching token
 }
 
 /**

@@ -7,7 +7,7 @@
   --color-nju-purple: #5B2D8E;
   --color-nju-purple-light: #7B4DB8;
   --color-nju-purple-dark: #3D1F66;
-  --color-nju-gold: #D4AF37;
+  --color-nju-gold: #FFB300;
 
   --color-cell-corner-start: #4DB870;
   --color-cell-corner-hospital: #E85070;
@@ -16,7 +16,7 @@
   --color-cell-event: #B85C1A;
   --color-cell-chance: #B88DE8;
 
-  --color-resource-money: #D4AF37;
+  --color-resource-money: #FFB300;
   --color-resource-gpa: #4DB870;
   --color-resource-exploration: #E8842A;
 
@@ -52,101 +52,6 @@
   100% { opacity: 0; transform: translateY(-60px); }
 }
 
-/* Custom base styles */
-:root {
-  --color-nju-purple: #5B2D8E;
-  --color-nju-gold: #D4AF37;
-  --font-main: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
-  --color-primary: #5B2D8E;
-  --color-primary-light: #7B4DB8;
-  --color-accent: #D4AF37;
-  --color-accent-light: #E8CC6E;
-  --color-bg-main: #18120E;
-  --color-bg-surface: #241C18;
-  --color-bg-elevated: #332822;
-  --color-text-primary: #F5EFE0;
-  --color-text-secondary: #B8AA98;
-  --color-text-muted-design: #7A6E60;
-  --color-money: #D4AF37;
-  --color-gpa: #4DB870;
-  --color-exploration: #E8842A;
-  --shadow-sm: 0 2px 4px rgba(10,5,2,0.4);
-  --shadow-md-design: 0 4px 12px rgba(10,5,2,0.5);
-  --shadow-lg-design: 0 8px 24px rgba(10,5,2,0.6);
-  --radius-sm-design: 4px;
-  --radius-md-design: 8px;
-  --radius-lg-design: 12px;
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-  /* ---- Design Tokens ---- */
-  /* Brand */
-  --c-brand: #5B2D8E;
-  --c-brand-light: #7B4DB8;
-  --c-brand-dark: #3D1F66;
-  --c-accent: #D4AF37;
-  --c-accent-light: #E8CC6E;
-
-  /* Backgrounds */
-  --c-bg: #18120E;
-  --c-surface: #241C18;
-  --c-elevated: #332822;
-
-  /* Text */
-  --c-text: #F5EFE0;
-  --c-text-dim: #B8AA98;
-  --c-text-muted: #7A6E60;
-
-  /* Semantic */
-  --c-success: #66BB6A;
-  --c-danger: #EF5350;
-  --c-warning: #FFB300;
-  --c-info: #3380FF;
-
-  /* Gradients */
-  --g-brand: linear-gradient(135deg, #5B2D8E, #7B4DB8);
-  --g-positive: linear-gradient(135deg, #2E7D50, #4DB870);
-  --g-negative: linear-gradient(135deg, #C62848, #E85070);
-}
-
-body {
-  font-family: var(--font-main);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: var(--color-bg-main);
-  color: var(--color-text-primary);
-}
-
-/* Custom components */
-.btn-primary {
-  padding: 0.5rem 1rem;
-  background-color: var(--color-nju-purple);
-  color: white;
-  border-radius: 0.5rem;
-  transition: background-color 0.15s ease;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-nju-purple-dark);
-}
-
-.card-container {
-  background-color: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 1rem;
-}
-
-.resource-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
 /* CSS Reset and Base Styles */
 * {
   margin: 0;
@@ -155,64 +60,135 @@ body {
 }
 
 /* ============================================
-   CSS VARIABLES
+   DESIGN TOKENS — 奶油紫金主题
+   Single source of truth for all CSS colors.
+   Change values here to switch themes.
    ============================================ */
 
 :root {
-  /* Colors — design token aligned */
-  --color-primary: #5B2D8E;
-  --color-secondary: #7B4DB8;
-  --color-success: #66BB6A;
-  --color-warning: #FFB300;
-  --color-danger: #EF5350;
-  --color-bg: #18120E;
-  --color-text: #F5EFE0;
-  --color-text-muted: #7A6E60;
-
-  /* Unified design tokens (aliases) */
+  /* ---- Brand ---- */
   --c-brand: #5B2D8E;
   --c-brand-light: #7B4DB8;
   --c-brand-dark: #3D1F66;
-  --c-accent: #D4AF37;
-  --c-accent-light: #E8CC6E;
-  --c-bg: #18120E;
-  --c-surface: #241C18;
-  --c-elevated: #332822;
-  --c-text: #F5EFE0;
-  --c-text-dim: #B8AA98;
-  --c-text-muted: #7A6E60;
-  --c-success: #66BB6A;
-  --c-danger: #EF5350;
+  --c-accent: #FFB300;
+  --c-accent-light: #FFD54F;
+
+  /* ---- NJU Standard Auxiliary Colors ---- */
+  --c-nju-red: #F20073;
+  --c-nju-blue: #3380FF;
+  --c-nju-yellow: #FFB300;
+  --c-nju-gold: #D4AF37;
+  --c-nju-pine: #2E7D50;
+
+  /* ---- Backgrounds ---- */
+  --c-bg: #F5EDE0;
+  --c-surface: #FFFFFF;
+  --c-elevated: #EBE0D0;
+  --c-board: #EDE4D4;
+  --c-overlay: rgba(42,32,24,0.6);
+
+  /* ---- Text ---- */
+  --c-text: #2A2018;
+  --c-text-dim: #5A5040;
+  --c-text-muted: #8A7E6E;
+  --c-text-on-dark: #F5EFE0;
+  --c-text-on-brand: #FFFFFF;
+
+  /* ---- Semantic ---- */
+  --c-success: #2E7D50;
+  --c-success-light: #4DB870;
+  --c-danger: #F20073;
+  --c-danger-light: #FF4D94;
   --c-warning: #FFB300;
+  --c-warning-light: #FFD54F;
   --c-info: #3380FF;
+  --c-info-light: #5CA0FF;
+
+  /* ---- Resources ---- */
+  --c-money: #FFB300;
+  --c-gpa: #4DB870;
+  --c-exploration: #E8842A;
+
+  /* ---- Brand Alpha (opacity variants for borders/bg tints) ---- */
+  --c-brand-a02: rgba(91,45,142,0.02);
+  --c-brand-a04: rgba(91,45,142,0.04);
+  --c-brand-a06: rgba(91,45,142,0.06);
+  --c-brand-a08: rgba(91,45,142,0.08);
+  --c-brand-a10: rgba(91,45,142,0.10);
+  --c-brand-a12: rgba(91,45,142,0.12);
+  --c-brand-a15: rgba(91,45,142,0.15);
+  --c-brand-a20: rgba(91,45,142,0.20);
+  --c-brand-a25: rgba(91,45,142,0.25);
+  --c-brand-a30: rgba(91,45,142,0.30);
+  --c-brand-a50: rgba(91,45,142,0.50);
+  --c-brand-a80: rgba(91,45,142,0.80);
+
+  /* ---- Text Alpha ---- */
+  --c-text-a50: rgba(42,32,24,0.5);
+  --c-text-a60: rgba(42,32,24,0.6);
+  --c-text-a70: rgba(42,32,24,0.7);
+  --c-text-a80: rgba(42,32,24,0.8);
+  --c-text-a85: rgba(42,32,24,0.85);
+
+  /* ---- Text Dim Alpha ---- */
+  --c-dim-a35: rgba(90,80,64,0.35);
+  --c-dim-a40: rgba(90,80,64,0.4);
+  --c-dim-a50: rgba(90,80,64,0.5);
+  --c-dim-a60: rgba(90,80,64,0.6);
+  --c-dim-a70: rgba(90,80,64,0.7);
+  --c-dim-a80: rgba(90,80,64,0.8);
+
+  /* ---- Surface Alpha ---- */
+  --c-surface-a90: rgba(255,255,255,0.90);
+  --c-surface-a95: rgba(255,255,255,0.95);
+  --c-surface-a80: rgba(255,255,255,0.80);
+  --c-surface-a50: rgba(255,255,255,0.50);
+  --c-surface-a25: rgba(255,255,255,0.25);
+
+  /* ---- Bg Alpha ---- */
+  --c-bg-a40: rgba(245,237,224,0.4);
+  --c-bg-a50: rgba(245,237,224,0.5);
+  --c-bg-a80: rgba(245,237,224,0.8);
+
+  /* ---- Borders ---- */
+  --c-border-light: rgba(91,45,142,0.08);
+  --c-border: rgba(91,45,142,0.12);
+  --c-border-strong: rgba(91,45,142,0.20);
+  --c-border-accent: rgba(91,45,142,0.25);
+
+  /* ---- Gradients ---- */
   --g-brand: linear-gradient(135deg, #5B2D8E, #7B4DB8);
   --g-positive: linear-gradient(135deg, #2E7D50, #4DB870);
-  --g-negative: linear-gradient(135deg, #C62848, #E85070);
+  --g-negative: linear-gradient(135deg, #F20073, #FF4D94);
 
-  /* Spacing */
+  /* ---- Shadows ---- */
+  --shadow: 0 2px 4px rgba(91,45,142,0.08);
+  --shadow-md: 0 4px 12px rgba(91,45,142,0.10);
+  --shadow-lg: 0 8px 24px rgba(91,45,142,0.12);
+  --shadow-overlay: 0 8px 32px rgba(91,45,142,0.15);
+
+  /* ---- Spacing ---- */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  /* Border radius */
-  --radius: 8px;
+  /* ---- Border radius ---- */
   --radius-sm: 4px;
+  --radius: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Shadows — deeper for dark theme */
-  --shadow: 0 2px 4px rgba(10,5,2,0.4);
-  --shadow-md: 0 4px 12px rgba(10,5,2,0.5);
-  --shadow-lg: 0 8px 24px rgba(10,5,2,0.6);
-
-  /* Transitions */
+  /* ---- Transitions ---- */
   --transition-fast: 0.15s cubic-bezier(0, 0, 0.2, 1);
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-  /* Z-index layers */
+  /* ---- Z-index layers ---- */
   --z-base: 0;
   --z-dropdown: 100;
   --z-sticky: 200;
@@ -222,7 +198,8 @@ body {
   --z-popover: 600;
   --z-tooltip: 700;
 
-  /* Typography */
+  /* ---- Typography ---- */
+  --font-main: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
   --font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -231,11 +208,41 @@ body {
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
 
-  /* Game-specific colors — design token aligned */
-  --game-bg: #18120E;
-  --game-panel-bg: #241C18;
-  --game-border: rgba(212, 175, 55, 0.12);
-  --game-highlight: rgba(212, 175, 55, 0.06);
+  /* ---- Legacy aliases (for backward compat, maps to tokens above) ---- */
+  --color-primary: var(--c-brand);
+  --color-primary-light: var(--c-brand-light);
+  --color-secondary: var(--c-brand-light);
+  --color-accent: var(--c-accent);
+  --color-accent-light: var(--c-accent-light);
+  --color-bg: var(--c-bg);
+  --color-bg-main: var(--c-bg);
+  --color-bg-surface: var(--c-surface);
+  --color-bg-elevated: var(--c-elevated);
+  --color-text: var(--c-text);
+  --color-text-primary: var(--c-text);
+  --color-text-secondary: var(--c-text-dim);
+  --color-text-muted: var(--c-text-muted);
+  --color-text-muted-design: var(--c-text-muted);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-danger: var(--c-danger);
+  --color-nju-purple: var(--c-brand);
+  --color-nju-gold: var(--c-accent);
+  --color-money: var(--c-money);
+  --color-gpa: var(--c-gpa);
+  --color-exploration: var(--c-exploration);
+  --shadow-sm: var(--shadow);
+  --shadow-md-design: var(--shadow-md);
+  --shadow-lg-design: var(--shadow-lg);
+  --radius-sm-design: var(--radius-sm);
+  --radius-md-design: var(--radius);
+  --radius-lg-design: var(--radius-lg);
+
+  /* ---- Game-specific ---- */
+  --game-bg: var(--c-bg);
+  --game-panel-bg: var(--c-surface);
+  --game-border: var(--c-border);
+  --game-highlight: var(--c-brand-a06);
 }
 
 html {
@@ -250,8 +257,8 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   min-height: 100dvh; /* Dynamic viewport height for mobile */
-  background: var(--color-bg-main);
-  color: var(--color-text-primary);
+  background: var(--c-bg);
+  color: var(--c-text);
 }
 
 #root {
@@ -293,7 +300,7 @@ body {
 
 /* Focus styles for accessibility */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -330,16 +337,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(184, 170, 152, 0.3);
+  background: rgba(91, 45, 142, 0.2);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(184, 170, 152, 0.5);
+  background: rgba(91, 45, 142, 0.35);
 }
 
 /* Mobile: Hide scrollbars but allow scrolling */

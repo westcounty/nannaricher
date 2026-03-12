@@ -6,6 +6,7 @@ import { Container, Graphics } from 'pixi.js';
 import type { GameState } from '@nannaricher/shared';
 import { LINE_CONFIGS } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 import {
   METRO_BOARD_WIDTH,
   METRO_BOARD_HEIGHT,
@@ -52,11 +53,12 @@ export class TrackLayer implements RenderLayer {
     const ringPath = getRingPath(12);
 
     // 4-layer neon tube effect
+    // Track decorative colors: intentional custom shades for neon tube visual effect
     const layers: { width: number; color: number; alpha: number }[] = [
-      { width: MAIN_TRACK_WIDTH + 10, color: 0x4A4238, alpha: 0.15 },
-      { width: MAIN_TRACK_WIDTH + 4, color: 0x2A2420, alpha: 0.9 },
-      { width: MAIN_TRACK_WIDTH, color: 0x5A5248, alpha: 0.9 },
-      { width: 2, color: 0xffffff, alpha: 0.15 },
+      { width: MAIN_TRACK_WIDTH + 10, color: 0xC8BCA8, alpha: 0.15 }, // track shadow — intentional decorative
+      { width: MAIN_TRACK_WIDTH + 4, color: 0xD8D0C0, alpha: 0.9 },  // track mid — intentional decorative
+      { width: MAIN_TRACK_WIDTH, color: 0xB8AE9E, alpha: 0.9 },      // track core — intentional decorative
+      { width: 2, color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.15 },
     ];
 
     for (const layer of layers) {

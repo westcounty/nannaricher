@@ -8,7 +8,7 @@ import type { GameState, Player, SpectatorInfo } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
 import '../styles/settlement.css';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 interface SettlementScreenProps {
   winner: WinnerInfo;
@@ -147,12 +147,12 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
                           <span className="settlement-badge settlement-badge--hospital">住院</span>
                         )}
                         {player.majorPlan && (
-                          <span className="settlement-badge" style={{ background: '#2196F3', color: 'white', fontSize: '10px' }}>
+                          <span className="settlement-badge" style={{ background: DESIGN_TOKENS.color.semantic.info, color: DESIGN_TOKENS.color.white, fontSize: '10px' }}>
                             主修: {player.trainingPlans.find(p => p.id === player.majorPlan)?.name || ''}
                           </span>
                         )}
                         {player.minorPlans.map(id => (
-                          <span key={id} className="settlement-badge" style={{ background: '#9E9E9E', color: 'white', fontSize: '10px' }}>
+                          <span key={id} className="settlement-badge" style={{ background: DESIGN_TOKENS.color.text.muted, color: DESIGN_TOKENS.color.white, fontSize: '10px' }}>
                             辅修: {player.trainingPlans.find(p => p.id === id)?.name || ''}
                           </span>
                         ))}
@@ -243,7 +243,7 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
           </div>
 
           {spectators.length > 0 && (
-            <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}>
+            <div style={{ marginTop: 12, padding: '8px 12px', background: hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.05), borderRadius: 8 }}>
               <div style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.muted, marginBottom: 4 }}>观战中</div>
               {spectators.map((s, i) => (
                 <span key={i} style={{ fontSize: '13px', color: DESIGN_TOKENS.color.text.secondary, marginRight: 8 }}>{s.name}</span>

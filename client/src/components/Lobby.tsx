@@ -172,9 +172,9 @@ export function Lobby() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
       >
-        <img src="/art/nanna-emblem/best.webp" alt="菜根人生" style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'block', borderRadius: '24px' }} />
+        <img src="/art/nanna-emblem/best.webp" alt="菜根人生" style={{ width: 100, height: 100, margin: '0 auto 10px', display: 'block', borderRadius: '22px' }} />
         <h1>菜根人生</h1>
-        <p className="subtitle">南大版大富翁</p>
+        <p className="subtitle">南哪版大富翁</p>
       </motion.div>
 
       {/* Floating background decoration */}
@@ -277,6 +277,10 @@ export function Lobby() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <p className="lobby-copyright">
+        &copy; {new Date().getFullYear()} 南哪助手 All Rights Reserved
+      </p>
     </div>
   );
 }

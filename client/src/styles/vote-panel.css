@@ -15,13 +15,13 @@
 }
 
 .vote-panel__panel {
-  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-elevated) 100%);
+  background: linear-gradient(135deg, var(--c-surface) 0%, var(--c-elevated) 100%);
   border-radius: 16px;
   padding: 24px;
   max-width: 420px;
   width: 90%;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--c-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .vote-panel__header {
@@ -35,7 +35,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .vote-panel__timer-badge {
@@ -43,19 +43,19 @@
   border-radius: var(--radius-full);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  background-color: rgba(10, 5, 2, 0.6);
+  color: var(--c-text);
+  background-color: var(--c-brand-a15);
   transition: background-color 0.3s ease;
 }
 
 .vote-panel__timer-badge--urgent {
-  background-color: var(--color-danger);
+  background-color: var(--c-danger);
 }
 
 .vote-panel__timer-bar-track {
   width: 100%;
   height: 3px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--c-brand-a06);
   border-radius: 2px;
   margin-bottom: 16px;
   overflow: hidden;
@@ -64,18 +64,18 @@
 .vote-panel__timer-bar-fill {
   height: 100%;
   border-radius: 2px;
-  background-color: var(--color-primary);
+  background-color: var(--c-brand);
   transition: width 1s linear, background-color 0.3s ease;
 }
 
 .vote-panel__timer-bar-fill--urgent {
-  background-color: var(--color-danger);
+  background-color: var(--c-danger);
 }
 
 .vote-panel__prompt {
   margin: 0 0 16px 0;
   font-size: 1rem;
-  color: var(--color-text-secondary);
+  color: var(--c-text-dim);
   line-height: 1.5;
 }
 
@@ -90,10 +90,10 @@
   display: block;
   width: 100%;
   padding: 12px 16px;
-  background: var(--color-bg-surface);
-  border: 2px solid rgba(212, 175, 55, 0.12);
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
   border-radius: var(--radius);
-  color: var(--color-text-primary);
+  color: var(--c-text);
   text-align: left;
   font-size: 1rem;
   transition: all 0.2s ease;
@@ -105,7 +105,7 @@
 }
 
 .vote-panel__option-btn--selected {
-  border-color: var(--color-accent);
+  border-color: var(--c-accent);
 }
 
 .vote-panel__option-btn--dimmed {
@@ -125,21 +125,21 @@
 
 .vote-panel__option-count {
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--c-accent);
   font-size: 1.1rem;
 }
 
 .vote-panel__tally-bar-track {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--c-brand-a06);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .vote-panel__tally-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  background: linear-gradient(90deg, var(--c-brand), var(--c-accent));
   border-radius: 2px;
   transition: width 0.5s ease-out;
 }
@@ -147,7 +147,7 @@
 .vote-panel__tally-summary {
   text-align: center;
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--c-text-dim);
   margin-bottom: 12px;
 }
 
@@ -167,7 +167,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg-elevated);
+  background: var(--c-elevated);
   transition: opacity 0.3s ease;
 }
 
@@ -178,7 +178,7 @@
 .vote-panel__avatar-text {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .vote-panel__checkmark {
@@ -188,8 +188,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--color-success);
-  color: #000;
+  background: var(--c-success);
+  color: var(--c-text);
   font-size: 8px;
   display: flex;
   align-items: center;
@@ -202,8 +202,8 @@
   margin-top: 12px;
   padding: 8px;
   border-radius: var(--radius);
-  background: rgba(10, 5, 2, 0.2);
-  color: var(--color-text-secondary);
+  background: var(--c-brand-a06);
+  color: var(--c-text-dim);
   font-size: 0.875rem;
 }
 

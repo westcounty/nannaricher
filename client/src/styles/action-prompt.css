@@ -6,35 +6,35 @@
   justify-content: center;
   height: 28px;
   padding: 0 12px;
-  background: rgba(24, 18, 14, 0.7);
+  background: var(--c-bg-a80);
   backdrop-filter: blur(6px);
   font-size: 1.1rem;
   letter-spacing: 0.3px;
   flex-shrink: 0;
   z-index: 50;
   transition: background 0.3s ease, color 0.3s ease;
-  border-top: 1px solid rgba(212, 175, 55, 0.1);
+  border-top: 1px solid var(--c-border);
 }
 
 /* Waiting / passive state */
 .action-prompt-bar--waiting {
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
 }
 
 /* Active state: player needs to act */
 .action-prompt-bar--active {
-  color: var(--color-accent);
-  background: rgba(201, 162, 39, 0.08);
-  border-top-color: rgba(201, 162, 39, 0.25);
+  color: var(--c-accent);
+  background: var(--c-brand-a06);
+  border-top-color: var(--c-border-strong);
   animation: prompt-pulse 2.5s ease-in-out infinite;
 }
 
 @keyframes prompt-pulse {
   0%, 100% {
-    background: rgba(201, 162, 39, 0.08);
+    background: var(--c-brand-a06);
   }
   50% {
-    background: rgba(201, 162, 39, 0.15);
+    background: var(--c-brand-a10);
   }
 }
 

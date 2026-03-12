@@ -9,7 +9,7 @@
 .dice-roller-player {
   font-size: 1rem;
   font-weight: 600;
-  color: #D4AF37;
+  color: var(--c-nju-gold);
   letter-spacing: 1px;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
@@ -66,13 +66,13 @@
 }
 
 .dice-body {
-  fill: #FFFFFF;
-  stroke: #D4AF37;
+  fill: var(--c-surface);
+  stroke: var(--c-nju-gold);
   stroke-width: 3;
 }
 
 .dice-dot {
-  fill: #5B2D8E;
+  fill: var(--c-brand);
 }
 
 .rolling-indicator {

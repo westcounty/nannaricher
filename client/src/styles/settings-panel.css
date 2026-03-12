@@ -8,7 +8,7 @@
 .settings-panel__toggle {
   background: transparent;
   border: none;
-  color: var(--color-text-primary, #e2e8f0);
+  color: var(--c-text);
   font-size: 1.2rem;
   cursor: pointer;
   padding: 4px 8px;
@@ -16,27 +16,27 @@
 }
 
 .settings-panel__toggle:hover {
-  background: rgba(212, 175, 55, 0.1);
+  background: var(--c-brand-a06);
 }
 
 .settings-panel {
   position: absolute;
   top: 100%;
   right: 0;
-  background: var(--color-bg-elevated, #1e1533);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
   border-radius: var(--radius-lg, 12px);
   padding: 16px;
   min-width: 240px;
   z-index: 1000;
-  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
+  box-shadow: var(--shadow-lg);
 }
 
 .settings-panel__title {
   margin: 0 0 12px;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--color-accent, #d4af37);
+  color: var(--c-accent);
 }
 
 .settings-panel__row {
@@ -53,23 +53,23 @@
 }
 
 .settings-panel__row--clickable:hover {
-  background: rgba(212, 175, 55, 0.067);
+  background: var(--c-brand-a04);
 }
 
 .settings-panel__label {
   font-size: 0.8rem;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--c-text-dim);
 }
 
 .settings-panel__value {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--color-text-primary, #e2e8f0);
+  color: var(--c-text);
 }
 
 .settings-panel__divider {
   height: 1px;
-  background: rgba(212, 175, 55, 0.1);
+  background: var(--c-brand-a06);
   margin: 8px 0;
 }
 
@@ -79,7 +79,7 @@
 
 .settings-panel__slider {
   width: 100%;
-  accent-color: var(--color-brand-primary, #7b4db8);
+  accent-color: var(--c-brand-light);
   margin-top: 4px;
 }
 
@@ -89,12 +89,12 @@
   padding: 2px 8px;
   border-radius: 10px;
   background: rgba(100, 100, 100, 0.3);
-  color: var(--color-text-muted, #64748b);
+  color: var(--c-text-muted);
 }
 
 .settings-panel__toggle-indicator--on {
-  background: rgba(10, 5, 2, 0.3);
-  color: var(--color-accent, #d4af37);
+  background: var(--c-brand-a10);
+  color: var(--c-accent);
 }
 
 /* Leave / Dissolve actions */
@@ -140,7 +140,7 @@
 
 .settings-panel__confirm-text {
   font-size: 0.78rem;
-  color: var(--color-text-primary, #e2e8f0);
+  color: var(--c-text);
   margin: 0 0 8px;
   line-height: 1.4;
 }
@@ -163,7 +163,7 @@
 .settings-panel__btn--cancel {
   flex: 1;
   background: rgba(100, 100, 100, 0.25);
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--c-text-dim);
 }
 
 .settings-panel__btn--cancel:hover {

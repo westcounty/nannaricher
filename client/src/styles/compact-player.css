@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 10px;
-  background: var(--color-bg-elevated);
+  background: var(--c-elevated);
   border-radius: 8px;
   border: 1px solid var(--game-border);
   border-left: 3px solid transparent;
@@ -15,12 +15,12 @@
 }
 
 .compact-player--current-turn {
-  border-left-color: var(--color-accent);
-  box-shadow: 0 0 12px rgba(201, 162, 39, 0.15);
+  border-left-color: var(--c-accent);
+  box-shadow: 0 0 12px var(--c-brand-a10);
 }
 
 .compact-player--local {
-  background: rgba(10, 5, 2, 0.12);
+  background: var(--c-brand-a04);
 }
 
 .compact-player--bankrupt {
@@ -53,7 +53,7 @@
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--c-text-on-brand);
 }
 
 .compact-player__info {
@@ -67,7 +67,7 @@
 .compact-player__name {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--c-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -75,7 +75,7 @@
 
 .compact-player__position {
   font-size: 0.6rem;
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
   gap: 6px;
   flex-shrink: 0;
   font-size: 0.7rem;
-  color: var(--color-text-secondary);
+  color: var(--c-text-dim);
 }
 
 .compact-player__stat {
@@ -102,11 +102,11 @@
 
 .compact-player__stat-value {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .compact-player__stat-value--low {
-  color: var(--color-danger);
+  color: var(--c-danger);
 }
 
 /* Row 2: position + badges + plans */
@@ -127,23 +127,23 @@
 }
 
 .compact-player__badge--bankrupt {
-  background: var(--color-danger);
-  color: #000;
+  background: var(--c-danger);
+  color: var(--c-text);
 }
 
 .compact-player__badge--hospital {
-  background: #42A5F5;
-  color: #000;
+  background: #42A5F5; /* hospital blue — game-specific */
+  color: var(--c-text);
 }
 
 .compact-player__badge--ding {
-  background: #FFB300;
-  color: #000;
+  background: var(--c-accent);
+  color: var(--c-text);
 }
 
 .compact-player__badge--disconnected {
   background: #888;
-  color: #fff;
+  color: var(--c-text-on-brand);
 }
 
 .compact-player__effects {
@@ -162,16 +162,16 @@
 
 .compact-player__plan-tag {
   font-size: 10px;
-  color: rgba(255,255,255,0.5);
-  background: rgba(255,255,255,0.05);
+  color: var(--c-text-a50);
+  background: var(--c-brand-a04);
   padding: 1px 6px;
   border-radius: 4px;
   white-space: nowrap;
 }
 
 .compact-player__plan-tag--major {
-  color: rgba(201, 162, 39, 0.85);
-  background: rgba(201, 162, 39, 0.1);
+  color: var(--c-brand-a80);
+  background: var(--c-brand-a08);
 }
 
 /* Pulse animation for current turn */
@@ -181,9 +181,9 @@
 
 @keyframes avatar-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.3);
+    box-shadow: 0 0 0 0 var(--c-brand-a20);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.1);
+    box-shadow: 0 0 0 4px var(--c-brand-a08);
   }
 }

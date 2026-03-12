@@ -5,7 +5,7 @@
   align-items: center;
   height: 64px;
   padding: 0 16px;
-  background: var(--color-bg-surface);
+  background: var(--c-surface);
   border-top: 1px solid var(--game-border);
   gap: 16px;
   flex-shrink: 0;
@@ -35,11 +35,11 @@
 
 .action-bar__stat-value {
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .action-bar__stat-value--low {
-  color: var(--color-danger);
+  color: var(--c-danger);
 }
 
 /* Center section: cards */
@@ -51,7 +51,7 @@
 
 .action-bar__card-count {
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
   padding: 4px 8px;
   white-space: nowrap;
 }
@@ -73,12 +73,12 @@
   height: 52px;
   font-size: 1.1rem;
   font-weight: 700;
-  color: white;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: var(--c-text-on-brand);
+  background: linear-gradient(135deg, var(--c-brand) 0%, var(--c-accent) 100%);
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(10, 5, 2, 0.4), 0 0 20px rgba(201, 162, 39, 0.15);
+  box-shadow: 0 4px 15px var(--c-brand-a15), 0 0 20px var(--c-brand-a10);
   transition: all 0.2s ease;
   white-space: nowrap;
   min-height: 44px;
@@ -88,7 +88,7 @@
 
 .action-bar__dice-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(10, 5, 2, 0.5), 0 0 30px rgba(201, 162, 39, 0.25);
+  box-shadow: 0 6px 20px var(--c-brand-a20), 0 0 30px var(--c-brand-a12);
 }
 
 .action-bar__dice-btn:active:not(:disabled) {
@@ -98,7 +98,7 @@
 .action-bar__dice-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background: rgba(10, 5, 2, 0.3);
+  background: var(--c-brand-a20);
   box-shadow: none;
 }
 
@@ -108,25 +108,25 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px #D4AF37, 0 0 20px rgba(212,175,55,0.3); }
-  50% { box-shadow: 0 0 16px #D4AF37, 0 0 40px rgba(212,175,55,0.5); }
+  0%, 100% { box-shadow: 0 0 8px var(--c-brand), 0 0 20px var(--c-brand-a20); }
+  50% { box-shadow: 0 0 16px var(--c-brand), 0 0 40px var(--c-brand-a35); }
 }
 
 .action-bar__wait-text {
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
   white-space: nowrap;
 }
 
 /* Spectator mode (bankrupt player) */
 .action-bar--spectator {
   justify-content: center;
-  background: rgba(24, 18, 14, 0.6);
+  background: rgba(235, 224, 208, 0.6); /* elevated alpha */
 }
 
 .action-bar__spectator-text {
   font-size: 0.85rem;
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
   text-align: center;
   letter-spacing: 0.3px;
 }

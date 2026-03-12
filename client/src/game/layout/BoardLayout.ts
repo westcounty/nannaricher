@@ -188,7 +188,7 @@ export function getCellColor(cell: BoardCellData, index: number): number {
       return hexToPixi(ct.lineEntry.pukou[1]);
     }
   }
-  return 0xffffff;
+  return hexToPixi(DESIGN_TOKENS.color.white); // fallback
 }
 
 /** Get the darker shade of a cell color (for gradient base) */
@@ -213,7 +213,7 @@ export function getCellColorDark(cell: BoardCellData, index: number): number {
       return hexToPixi(ct.lineEntry.pukou[0]);
     }
   }
-  return 0xcccccc;
+  return 0xcccccc; // fallback gray — no matching token
 }
 
 /** Get line theme color from design tokens */
@@ -239,4 +239,4 @@ export function getLineColorDark(lineId: string): number {
 // ============================================
 // Player Colors (PixiJS hex)
 // ============================================
-export const PLAYER_COLORS_HEX = [0xE53935, 0x1E88E5, 0x43A047, 0xFB8C00, 0x8E24AA, 0x00897B];
+export const PLAYER_COLORS_HEX = DESIGN_TOKENS.color.player.map(hexToPixi);

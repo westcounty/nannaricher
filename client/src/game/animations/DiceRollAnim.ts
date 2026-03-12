@@ -4,6 +4,7 @@
 import { Container, Text, TextStyle, Graphics } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 export async function animateDiceResult(
   layer: Container,
@@ -19,8 +20,8 @@ export async function animateDiceResult(
   // Background circle
   const bg = new Graphics();
   bg.circle(0, 0, 30);
-  bg.fill({ color: 0x5B2D8E, alpha: 0.9 });
-  bg.stroke({ color: 0xc9a227, width: 2 });
+  bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.primary), alpha: 0.9 });
+  bg.stroke({ color: hexToPixi(DESIGN_TOKENS.color.brand.accent), width: 2 });
   bg.x = centerX;
   bg.y = centerY;
   bg.scale.set(0);
@@ -30,7 +31,7 @@ export async function animateDiceResult(
   const style = new TextStyle({
     fontSize: 28,
     fontWeight: 'bold',
-    fill: '#D4AF37',
+    fill: DESIGN_TOKENS.color.brand.accent,
   });
   const text = new Text({ text: String(total), style });
   text.anchor.set(0.5);

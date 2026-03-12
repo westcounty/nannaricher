@@ -6,7 +6,7 @@
 .audio-control__toggle {
   background: transparent;
   border: none;
-  color: var(--color-text-primary, #e2e8f0);
+  color: var(--c-text);
   font-size: 1.2rem;
   cursor: pointer;
   padding: 4px 8px;
@@ -17,13 +17,13 @@
   position: absolute;
   top: 100%;
   right: 0;
-  background: var(--color-bg-elevated, #1e1533);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
   border-radius: var(--radius-lg, 12px);
   padding: 16px;
   min-width: 200px;
   z-index: 1000;
-  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
+  box-shadow: var(--shadow-lg);
 }
 
 .audio-control__mute-btn {
@@ -31,7 +31,7 @@
   padding: 8px;
   border: none;
   border-radius: var(--radius-md, 8px);
-  color: var(--color-text-primary, #e2e8f0);
+  color: var(--c-text);
   cursor: pointer;
   font-size: 0.9rem;
 }
@@ -41,7 +41,7 @@
 }
 
 .audio-control__mute-btn--unmuted {
-  background: rgba(10, 5, 2, 0.3);
+  background: var(--c-brand-a10);
 }
 
 .audio-control__mute-wrapper {
@@ -52,12 +52,12 @@
   display: block;
   margin-bottom: 4px;
   font-size: 0.8rem;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--c-text-dim);
 }
 
 .audio-control__slider {
   width: 100%;
-  accent-color: var(--color-brand-primary, #7b4db8);
+  accent-color: var(--c-brand-light);
 }
 
 .audio-control__slider--master {

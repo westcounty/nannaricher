@@ -179,7 +179,7 @@
 .card-draw-name {
   font-size: 1.6rem;
   font-weight: 700;
-  color: white;
+  color: var(--c-text-on-brand);
   margin: 0 0 12px 0;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   line-height: 1.3;

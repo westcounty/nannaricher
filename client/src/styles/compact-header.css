@@ -6,7 +6,7 @@
   justify-content: space-between;
   height: 48px;
   padding: 0 16px;
-  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-elevated) 100%);
+  background: linear-gradient(135deg, var(--c-surface) 0%, var(--c-elevated) 100%);
   border-bottom: 1px solid var(--game-border);
   box-shadow: var(--shadow-sm);
   z-index: 100;
@@ -23,7 +23,7 @@
 .compact-header__title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--c-accent);
   letter-spacing: 1px;
   white-space: nowrap;
 }
@@ -33,7 +33,7 @@
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: var(--color-text-secondary);
+  color: var(--c-text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -41,7 +41,7 @@
 
 .compact-header__round {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--c-text);
 }
 
 .compact-header__progress {
@@ -56,26 +56,26 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--c-brand-a08);
   transition: all 0.3s ease;
 }
 
 .compact-header__dot--active {
-  background: var(--color-accent);
+  background: var(--c-accent);
 }
 
 .compact-header__dot--current {
-  box-shadow: 0 0 6px rgba(201, 162, 39, 0.6);
+  box-shadow: 0 0 6px var(--c-brand-a40);
   animation: dot-pulse 2s ease-in-out infinite;
 }
 
 @keyframes dot-pulse {
-  0%, 100% { box-shadow: 0 0 4px rgba(201, 162, 39, 0.4); }
-  50% { box-shadow: 0 0 10px rgba(201, 162, 39, 0.8); }
+  0%, 100% { box-shadow: 0 0 4px var(--c-brand-a25); }
+  50% { box-shadow: 0 0 10px var(--c-brand-a50); }
 }
 
 .compact-header__separator {
-  color: var(--color-text-muted);
+  color: var(--c-text-muted);
 }
 
 .compact-header__status {
@@ -86,20 +86,20 @@
 }
 
 .compact-header__status--action {
-  background: rgba(201, 162, 39, 0.2);
-  color: var(--color-accent);
+  background: var(--c-brand-a12);
+  color: var(--c-accent);
   font-weight: 600;
 }
 
 .compact-header__status--waiting {
-  background: rgba(212, 175, 55, 0.1);
-  color: var(--color-text-secondary);
+  background: var(--c-brand-a06);
+  color: var(--c-text-dim);
 }
 
 /* My-turn: gold bottom glow + pulsing status */
 .compact-header--my-turn {
-  border-bottom: 2px solid var(--color-accent);
-  box-shadow: var(--shadow-sm), 0 2px 12px rgba(201, 162, 39, 0.35);
+  border-bottom: 2px solid var(--c-accent);
+  box-shadow: var(--shadow-sm), 0 2px 12px var(--c-brand-a20);
 }
 
 .compact-header--my-turn .compact-header__status--action {
@@ -110,11 +110,11 @@
 
 @keyframes turn-status-pulse {
   0%, 100% {
-    text-shadow: 0 0 4px rgba(201, 162, 39, 0.3);
+    text-shadow: 0 0 4px var(--c-brand-a20);
     transform: scale(1);
   }
   50% {
-    text-shadow: 0 0 12px rgba(201, 162, 39, 0.7);
+    text-shadow: 0 0 12px var(--c-brand-a40);
     transform: scale(1.05);
   }
 }
@@ -129,8 +129,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.95) 0%, rgba(218, 165, 32, 0.95) 100%);
-  color: #1a1a2e;
+  background: linear-gradient(135deg, var(--c-brand-a80) 0%, rgba(123, 77, 184, 0.95) /* brand-light alpha */ 100%);
+  color: var(--c-text-on-brand);
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 2px;

@@ -23,7 +23,7 @@ import {
   LINE_STATION_SIZE,
   LINE_STATION_HEIGHT,
 } from '../layout/MetroLayout';
-import { DESIGN_TOKENS } from '../../styles/tokens';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 import type { TweenEngine } from '../animations/TweenEngine';
 import { AnimationConfig } from '../animations/AnimationConfig';
 
@@ -323,14 +323,14 @@ export class StationLayer implements RenderLayer {
 
         const bg = new Graphics();
         bg.circle(0, 0, 8);
-        bg.fill({ color: 0xE53935 });
+        bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.player[0]) }); // player red for badge
         badge.addChild(bg);
 
         const text = new Text({
           text: `${count}`,
           style: new TextStyle({
             fontSize: 9,
-            fill: 0xFFFFFF,
+            fill: hexToPixi(DESIGN_TOKENS.color.white),
             fontWeight: 'bold',
           }),
         });
@@ -378,32 +378,37 @@ export class StationLayer implements RenderLayer {
       card.x = pos.x;
       card.y = pos.y;
 
-      // --- Card background ---
+      // --- Card background (warm white + color tint) ---
       const bg = new Graphics();
 
-      // Solid colored background (much more visible than old translucent style)
+      // Warm white base (matches illustration background tone)
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.fill({ color: colorDark, alpha: 0.95 });
+      bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.bg.main), alpha: 0.96 });
+
+      // Theme color tint overlay
+      bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
+      bg.fill({ color: colorLight, alpha: 0.12 });
 
       // Bold colored border
       bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-      bg.stroke({ width: borderWidth, color: colorLight, alpha: 1.0 });
+      bg.stroke({ width: borderWidth, color: colorLight, alpha: 0.9 });
 
-      // Inner glow (thicker, low-alpha stroke for soft glow effect)
-      bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, cardH - 2, cornerRadius - 1);
-      bg.stroke({ color: colorLight, width: 6, alpha: 0.15 });
+      // Top color band (header strip for type identification)
+      const bandH = isCorner ? 10 : 7;
+      bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, bandH, cornerRadius - 1);
+      bg.fill({ color: colorLight, alpha: 0.65 });
 
       // Corner glow halo
       if (isCorner) {
-        const glowRadius = Math.max(cardW, cardH) * 0.75;
+        const glowRadius = Math.max(cardW, cardH) * 0.7;
         bg.circle(0, 0, glowRadius);
-        bg.fill({ color: colorLight, alpha: 0.12 });
+        bg.fill({ color: colorLight, alpha: 0.08 });
       }
 
       // Force-entry red dot
       if (cell.forceEntry) {
         bg.circle(cardW / 2 - 10, -cardH / 2 + 10, 7);
-        bg.fill({ color: 0xEF5350 });
+        bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.semantic.danger) });
       }
 
       // Left color bar for line entries
@@ -432,14 +437,14 @@ export class StationLayer implements RenderLayer {
 
       // --- Station name (large, bold, at bottom) ---
       const displayName = this.getShortName(cell.name);
-      // Name background bar for readability
+      // Name background bar with theme color
       const nameBgH = isCorner ? 40 : 28;
       const nameBg = new Graphics();
       nameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, cornerRadius - 2);
-      nameBg.fill({ color: 0x000000, alpha: 0.7 });
+      nameBg.fill({ color: colorDark, alpha: 0.88 });
       card.addChild(nameBg);
 
-      const nameColor = isCorner ? 0xE8CC6E : 0xFFFFFF;
+      const nameColor = isCorner ? hexToPixi(DESIGN_TOKENS.color.brand.accentLight) : hexToPixi(DESIGN_TOKENS.color.white);
       const nameText = new Text({
         text: displayName,
         style: new TextStyle({
@@ -448,7 +453,7 @@ export class StationLayer implements RenderLayer {
           fill: nameColor,
           fontWeight: 'bold',
           align: 'center',
-          dropShadow: { alpha: 0.9, blur: 2, color: 0x000000, distance: 1 },
+          dropShadow: { alpha: 0.9, blur: 2, color: hexToPixi(DESIGN_TOKENS.color.black), distance: 1 },
         }),
       });
       nameText.anchor.set(0.5);
@@ -525,24 +530,24 @@ export class StationLayer implements RenderLayer {
         card.x = pos.x;
         card.y = pos.y;
 
-        // --- Card background (frosted glass style) ---
+        // --- Card background (colored theme per line) ---
         const bg = new Graphics();
 
-        // Dark tint
+        // Warm white base (matches illustration background tone)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.fill({ color: colorDark, alpha: 0.25 });
+        bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.bg.main), alpha: 0.96 });
 
-        // Glass overlay (higher opacity for readability)
+        // Line color tint overlay (soft wash of the line's theme color)
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.fill({ color: 0x241C18, alpha: 0.82 });
+        bg.fill({ color: colorLight, alpha: 0.15 });
 
-        // Border
+        // Bold colored border for strong line identity
         bg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        bg.stroke({ width: 2, color: colorLight, alpha: 0.6 });
+        bg.stroke({ width: 2.5, color: colorLight, alpha: 0.85 });
 
-        // Line color indicator bar (left edge)
-        bg.roundRect(-cardW / 2, -cardH / 2 + 5, 5, cardH - 10, 3);
-        bg.fill({ color: colorLight, alpha: 0.8 });
+        // Top color band (thin header strip for quick line identification)
+        bg.roundRect(-cardW / 2 + 1, -cardH / 2 + 1, cardW - 2, 6, cornerRadius - 1);
+        bg.fill({ color: colorLight, alpha: 0.7 });
 
         card.addChild(bg);
 
@@ -555,11 +560,11 @@ export class StationLayer implements RenderLayer {
         const lineData = boardData.lines[line.id];
         const stationName = lineData?.cells?.[i]?.name ?? `站点`;
 
-        // --- Station name with background bar for readability ---
+        // --- Station name with line-themed background bar ---
         const nameBgH = 26;
         const branchNameBg = new Graphics();
         branchNameBg.roundRect(-cardW / 2 + 2, cardH / 2 - nameBgH - 2, cardW - 4, nameBgH, 5);
-        branchNameBg.fill({ color: 0x000000, alpha: 0.75 });
+        branchNameBg.fill({ color: colorDark, alpha: 0.88 });
         card.addChild(branchNameBg);
 
         const nameText = new Text({
@@ -567,12 +572,12 @@ export class StationLayer implements RenderLayer {
           style: new TextStyle({
             fontFamily: DESIGN_TOKENS.typography.fontFamily,
             fontSize: 13,
-            fill: 0xFFFFFF,
+            fill: hexToPixi(DESIGN_TOKENS.color.white),
             fontWeight: 'bold',
             align: 'center',
             wordWrap: true,
             wordWrapWidth: cardW - 14,
-            dropShadow: { alpha: 0.9, blur: 2, color: 0x000000, distance: 1 },
+            dropShadow: { alpha: 0.9, blur: 2, color: hexToPixi(DESIGN_TOKENS.color.black), distance: 1 },
           }),
         });
         nameText.anchor.set(0.5);
@@ -664,7 +669,7 @@ export class StationLayer implements RenderLayer {
 
       const glow = new Graphics();
       glow.roundRect(-cardW / 2 - 4, -cardH / 2 - 4, cardW + 8, cardH + 8, cr + 3);
-      glow.stroke({ width: 3, color: 0xE8CC6E, alpha: 0.9 });
+      glow.stroke({ width: 3, color: hexToPixi(DESIGN_TOKENS.color.brand.accentLight), alpha: 0.9 });
       card.addChild(glow);
       this.highlights.set(key, glow);
     }
@@ -707,20 +712,29 @@ export class StationLayer implements RenderLayer {
   }
 
   /** Load an image and add it as a sprite to a card container. Loads thumbnail first, hi-res on demand. */
-  private loadAndAddImage(card: Container, url: string, cardW: number, cardH: number, isCorner: boolean, cellBgColor?: number, cardKey?: string): void {
+  /** Create a main ring image sprite with mask to clip within card bounds. */
+  private createMainSprite(texture: Texture, cardW: number, cardH: number, isCorner: boolean, cornerRadius: number): Sprite {
+    const sprite = this.createImageSprite(texture, cardW, cardH, isCorner);
+    // Clip sprite within card rounded rect
+    const mask = new Graphics();
+    mask.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
+    mask.fill({ color: 0xffffff });
+    sprite.mask = mask;
+    return sprite;
+  }
+
+  private loadAndAddImage(card: Container, url: string, cardW: number, cardH: number, isCorner: boolean, _cellBgColor?: number, cardKey?: string): void {
     const thumbUrl = toThumbUrl(url);
+    const cornerRadius = isCorner ? 16 : 10;
 
     // Load thumbnail first (fast, small file)
     loadCellTexture(thumbUrl).then(texture => {
-      if (!texture || !card.parent) return; // card may have been destroyed
+      if (!texture || !card.parent) return;
 
-      const sprite = this.createImageSprite(texture, cardW, cardH, isCorner);
-
-      // Insert after bg (index 1) but before name text
-      card.addChildAt(sprite, 1);
-
-      // Add dark gradient overlays to blend white-bg illustrations with dark theme
-      this.addImageOverlays(card, cardW, cardH, isCorner, cellBgColor);
+      const sprite = this.createMainSprite(texture, cardW, cardH, isCorner, cornerRadius);
+      // Insert mask + sprite after bg
+      card.addChildAt(sprite.mask as Graphics, 1);
+      card.addChildAt(sprite, 2);
 
       // Track for hi-res upgrade
       if (cardKey) {
@@ -734,20 +748,17 @@ export class StationLayer implements RenderLayer {
         });
       }
 
-      // If hi-res was already triggered (e.g., card loaded after zoom), load immediately
       if (this.hiResTriggered && cardKey) {
         this.loadHiResForCard(cardKey);
       }
     }).catch(() => {
-      // Thumbnail failed — try full-size image directly as fallback
       loadCellTexture(url).then(texture => {
         if (!texture || !card.parent) return;
 
-        const sprite = this.createImageSprite(texture, cardW, cardH, isCorner);
-        card.addChildAt(sprite, 1);
-        this.addImageOverlays(card, cardW, cardH, isCorner, cellBgColor);
+        const sprite = this.createMainSprite(texture, cardW, cardH, isCorner, cornerRadius);
+        card.addChildAt(sprite.mask as Graphics, 1);
+        card.addChildAt(sprite, 2);
 
-        // Mark as already hi-res
         if (cardKey) {
           this.hiResState.set(cardKey, {
             sprite,
@@ -758,36 +769,47 @@ export class StationLayer implements RenderLayer {
             isCorner,
           });
         }
-      }).catch(() => {
-        // Both failed — cell shows just its colored background (default behavior)
-      });
+      }).catch(() => {});
     });
   }
 
   /** Load and add image for branch cells (cover-fill style). */
-  private loadBranchImage(card: Container, url: string, cardW: number, cardH: number, cardKey: string): void {
-    const thumbUrl = toThumbUrl(url);
-
+  /** Create a branch image sprite with mask, fitted into the image area above the name bar. */
+  private createBranchSprite(texture: Texture, cardW: number, cardH: number): Sprite {
     const nameBgH = 18;
     const imgAreaH = cardH - nameBgH - 4;
+    const padding = 2;
+    const cornerRadius = 8;
+    const imgAreaW = cardW - padding * 2;
+    const scaleX = imgAreaW / texture.width;
+    const scaleY = (imgAreaH - padding) / texture.height;
+    const scale = Math.min(scaleX, scaleY);
+
+    const sprite = new Sprite(texture);
+    sprite.width = texture.width * scale;
+    sprite.height = texture.height * scale;
+    sprite.anchor.set(0.5);
+    sprite.y = -cardH / 2 + padding + imgAreaH / 2;
+
+    // Clip sprite within card rounded rect so white image backgrounds don't bleed out
+    const mask = new Graphics();
+    mask.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
+    mask.fill({ color: 0xffffff });
+    sprite.mask = mask;
+
+    return sprite;
+  }
+
+  private loadBranchImage(card: Container, url: string, cardW: number, cardH: number, cardKey: string): void {
+    const thumbUrl = toThumbUrl(url);
 
     loadCellTexture(thumbUrl).then(texture => {
       if (!texture || !card.parent) return;
 
-      const sprite = new Sprite(texture);
-      // Fit image into area above name bar
-      const padding = 2;
-      const imgAreaW = cardW - padding * 2;
-      const scaleX = imgAreaW / texture.width;
-      const scaleY = (imgAreaH - padding) / texture.height;
-      const scale = Math.min(scaleX, scaleY);
-      sprite.width = texture.width * scale;
-      sprite.height = texture.height * scale;
-      sprite.anchor.set(0.5);
-      sprite.y = -cardH / 2 + padding + imgAreaH / 2;
-
-      // Insert after bg (index 1) but before name
-      card.addChildAt(sprite, 1);
+      const sprite = this.createBranchSprite(texture, cardW, cardH);
+      // Add mask as child of card so it gets positioned correctly
+      card.addChildAt(sprite.mask as Graphics, 1);
+      card.addChildAt(sprite, 2);
 
       // Track for hi-res upgrade
       this.hiResState.set(cardKey, {
@@ -802,17 +824,9 @@ export class StationLayer implements RenderLayer {
       // Try full-size as fallback
       loadCellTexture(url).then(texture => {
         if (!texture || !card.parent) return;
-        const sprite = new Sprite(texture);
-        const padding = 2;
-        const imgAreaW = cardW - padding * 2;
-        const scaleX = imgAreaW / texture.width;
-        const scaleY = (imgAreaH - padding) / texture.height;
-        const scale = Math.min(scaleX, scaleY);
-        sprite.width = texture.width * scale;
-        sprite.height = texture.height * scale;
-        sprite.anchor.set(0.5);
-        sprite.y = -cardH / 2 + padding + imgAreaH / 2;
-        card.addChildAt(sprite, 1);
+        const sprite = this.createBranchSprite(texture, cardW, cardH);
+        card.addChildAt(sprite.mask as Graphics, 1);
+        card.addChildAt(sprite, 2);
         if (cardKey) {
           this.hiResState.set(cardKey, { sprite, hiResUrl: url, loaded: true, cardW, cardH, isCorner: false });
         }
@@ -841,27 +855,7 @@ export class StationLayer implements RenderLayer {
     return sprite;
   }
 
-  /** Add dark gradient overlays for non-corner cards. */
-  private addImageOverlays(card: Container, cardW: number, cardH: number, isCorner: boolean, cellBgColor?: number): void {
-    if (isCorner) return;
 
-    const nameBgH = 28;
-    const imgAreaH = cardH - nameBgH - 6;
-    const padding = 4;
-    const imgY = -cardH / 2 + padding;
-    const blendColor = cellBgColor ?? 0x241C18;
-
-    const overlayH = imgAreaH * 0.4;
-    const bottomOverlay = new Graphics();
-    bottomOverlay.rect(-cardW / 2 + 2, imgY + imgAreaH - overlayH, cardW - 4, overlayH);
-    bottomOverlay.fill({ color: blendColor, alpha: 0.35 });
-    card.addChildAt(bottomOverlay, 2);
-
-    const topOverlay = new Graphics();
-    topOverlay.rect(-cardW / 2 + 2, imgY, cardW - 4, imgAreaH * 0.15);
-    topOverlay.fill({ color: blendColor, alpha: 0.2 });
-    card.addChildAt(topOverlay, 3);
-  }
 
   /** Load hi-res images for all tracked cards. */
   private loadAllHiRes(): void {
@@ -877,16 +871,34 @@ export class StationLayer implements RenderLayer {
 
     const { sprite, hiResUrl, cardW, cardH, isCorner } = state;
 
+    const isBranch = cardKey.startsWith('line:');
+
     loadCellTexture(hiResUrl).then(texture => {
 
       if (!texture || !sprite.parent) return;
 
-      // Swap the texture on the existing sprite
-      const newSprite = this.createImageSprite(texture, cardW, cardH, isCorner);
       const parent = sprite.parent;
       const index = parent.getChildIndex(sprite);
-      parent.removeChildAt(index);
-      parent.addChildAt(newSprite, index);
+
+      // Remove old mask if present
+      if (sprite.mask) {
+        const oldMask = sprite.mask as Graphics;
+        parent.removeChild(oldMask);
+        oldMask.destroy();
+      }
+      parent.removeChildAt(parent.getChildIndex(sprite));
+
+      let newSprite: Sprite;
+      if (isBranch) {
+        newSprite = this.createBranchSprite(texture, cardW, cardH);
+      } else {
+        const cornerRadius = isCorner ? 16 : 10;
+        newSprite = this.createMainSprite(texture, cardW, cardH, isCorner, cornerRadius);
+      }
+      // Re-insert mask + sprite at correct position
+      const insertIdx = Math.min(index > 0 ? index - 1 : 0, parent.children.length);
+      parent.addChildAt(newSprite.mask as Graphics, insertIdx);
+      parent.addChildAt(newSprite, insertIdx + 1);
 
       state.sprite = newSprite;
       state.loaded = true;

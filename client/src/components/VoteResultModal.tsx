@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToRgba } from '../styles/tokens';
 
 export function VoteResultModal() {
   const voteResult = useGameStore((s) => s.voteResult);
@@ -28,7 +28,7 @@ export function VoteResultModal() {
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      background: 'rgba(36, 28, 24, 0.95)',
+      background: hexToRgba(DESIGN_TOKENS.color.white, 0.95),
       borderRadius: '12px',
       padding: '20px 24px',
       zIndex: 1100,
@@ -36,7 +36,7 @@ export function VoteResultModal() {
       minWidth: '280px',
       maxWidth: '400px',
       color: DESIGN_TOKENS.color.text.primary,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      boxShadow: `0 8px 32px ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.15)}`,
       animation: 'fadeIn 0.3s ease',
     }}>
       <h3 style={{ margin: '0 0 12px', fontSize: '16px', textAlign: 'center' }}>
@@ -51,11 +51,11 @@ export function VoteResultModal() {
             padding: '6px 10px',
             borderRadius: '6px',
             background: option === voteResult.winnerOption
-              ? 'rgba(76, 175, 80, 0.2)'
-              : 'rgba(255, 255, 255, 0.05)',
+              ? hexToRgba(DESIGN_TOKENS.color.semantic.success, 0.15)
+              : hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.05),
             border: option === voteResult.winnerOption
-              ? '1px solid rgba(76, 175, 80, 0.4)'
-              : '1px solid rgba(255, 255, 255, 0.1)',
+              ? `1px solid ${hexToRgba(DESIGN_TOKENS.color.semantic.success, 0.4)}`
+              : `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.1)}`,
           }}>
             <span style={{ fontSize: '13px', fontWeight: option === voteResult.winnerOption ? 600 : 400 }}>
               {voteResult.optionLabels?.[option] || option}

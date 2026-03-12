@@ -100,7 +100,7 @@ export class BoardLayer implements RenderLayer {
         style: new TextStyle({
           fontFamily: DESIGN_TOKENS.typography.fontFamily,
           fontSize: isCorner ? 13 : 9,
-          fill: 0xffffff,
+          fill: hexToPixi(DESIGN_TOKENS.color.text.primary),
           fontWeight: 'bold',
           align: 'center',
         }),

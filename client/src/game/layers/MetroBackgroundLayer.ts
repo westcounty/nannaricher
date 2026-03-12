@@ -6,7 +6,7 @@ import { Container, Graphics, Text, TextStyle, Sprite, Assets, Texture } from 'p
 import type { GameState } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
 import { METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT } from '../layout/MetroLayout';
-import { DESIGN_TOKENS } from '../../styles/tokens';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 export class MetroBackgroundLayer implements RenderLayer {
   private container: Container | null = null;
@@ -44,10 +44,10 @@ export class MetroBackgroundLayer implements RenderLayer {
       this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
       if (isMyTurn) {
         // Your turn: warm gold tint
-        this.turnOverlay.fill({ color: 0xD4AF37, alpha: 0.05 });
+        this.turnOverlay.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.05 });
       } else {
         // Waiting: cool blue-gray
-        this.turnOverlay.fill({ color: 0x241C18, alpha: 0.15 });
+        this.turnOverlay.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.15 });
       }
     }
     if (this.roundText) {
@@ -103,16 +103,17 @@ export class MetroBackgroundLayer implements RenderLayer {
     const hw = METRO_BOARD_WIDTH / 2;
     const hh = METRO_BOARD_HEIGHT / 2;
 
-    // Outermost dark rect
+    // Outermost cream rect
     const outerBg = new Graphics();
     outerBg.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
-    outerBg.fill({ color: 0x0D0A06 });
+    outerBg.fill({ color: hexToPixi(DESIGN_TOKENS.color.bg.main) });
     this.container!.addChild(outerBg);
 
-    // Concentric rounded rects blending from outer (0x0D0A06) to inner (0x1E1610)
+    // Concentric rounded rects blending from outer (bg.main) to inner (bg.board)
+    // Intentional: RGB components extracted for per-step interpolation
     const steps = 6;
-    const outerColor = { r: 0x0D, g: 0x0A, b: 0x06 };
-    const innerColor = { r: 0x1E, g: 0x16, b: 0x10 };
+    const outerColor = { r: 0xF5, g: 0xED, b: 0xE0 }; // DESIGN_TOKENS.color.bg.main
+    const innerColor = { r: 0xED, g: 0xE4, b: 0xD4 }; // DESIGN_TOKENS.color.bg.board
 
     for (let i = 0; i < steps; i++) {
       const t = (i + 1) / steps;
@@ -140,7 +141,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     const hw = METRO_BOARD_WIDTH / 2;
     const hh = METRO_BOARD_HEIGHT / 2;
     const spacing = 60;
-    const lineColor = 0x5B2D8E;
+    const lineColor = hexToPixi(DESIGN_TOKENS.color.brand.primary);
 
     const gridGfx = new Graphics();
 
@@ -183,7 +184,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       METRO_BOARD_HEIGHT - margin * 2,
       12,
     );
-    outerBorder.stroke({ width: 2, color: 0xD4AF37, alpha: 0.25 });
+    outerBorder.stroke({ width: 2, color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.25 });
     this.container!.addChild(outerBorder);
 
     // Inner accent border: purple stroke, 10px inset from outer
@@ -196,7 +197,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       METRO_BOARD_HEIGHT - innerInset * 2,
       10,
     );
-    innerBorder.stroke({ width: 1, color: 0x5B2D8E, alpha: 0.3 });
+    innerBorder.stroke({ width: 1, color: hexToPixi(DESIGN_TOKENS.color.brand.primary), alpha: 0.3 });
     this.container!.addChild(innerBorder);
 
     // Corner decorations: diamond shapes at the 4 corners
@@ -215,7 +216,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       diamond.lineTo(corner.x, corner.y + diamondSize);
       diamond.lineTo(corner.x - diamondSize, corner.y);
       diamond.closePath();
-      diamond.fill({ color: 0xD4AF37, alpha: 0.3 });
+      diamond.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.3 });
       this.container!.addChild(diamond);
     }
   }
@@ -225,7 +226,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     const hh = METRO_BOARD_HEIGHT / 2;
     this.turnOverlay = new Graphics();
     this.turnOverlay.roundRect(-hw, -hh, METRO_BOARD_WIDTH, METRO_BOARD_HEIGHT, 0);
-    this.turnOverlay.fill({ color: 0x241C18, alpha: 0.15 }); // default: waiting
+    this.turnOverlay.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.15 }); // default: waiting
     this.container!.addChild(this.turnOverlay);
   }
 
@@ -237,8 +238,8 @@ export class MetroBackgroundLayer implements RenderLayer {
     // Panel background
     const panel = new Graphics();
     panel.roundRect(-panelW / 2, -panelH / 2, panelW, panelH, 12);
-    panel.fill({ color: 0x241C18, alpha: 0.7 });
-    panel.stroke({ width: 1.5, color: 0xD4AF37, alpha: 0.4 });
+    panel.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.7 });
+    panel.stroke({ width: 1.5, color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.4 });
     this.container!.addChild(panel);
 
     // Title
@@ -246,7 +247,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '菜根人生',
       style: new TextStyle({
         fontSize: 36,
-        fill: 0xE8CC6E,
+        fill: hexToPixi(DESIGN_TOKENS.color.brand.accentLight),
         fontWeight: 'bold',
         fontFamily,
       }),
@@ -260,7 +261,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '南哪大富翁',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB8AA98,
+        fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
         fontFamily,
       }),
     });
@@ -272,7 +273,7 @@ export class MetroBackgroundLayer implements RenderLayer {
     const divider = new Graphics();
     divider.moveTo(-panelW / 2 + 30, -panelH / 2 + 95);
     divider.lineTo(panelW / 2 - 30, -panelH / 2 + 95);
-    divider.stroke({ width: 1, color: 0xD4AF37, alpha: 0.3 });
+    divider.stroke({ width: 1, color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.3 });
     this.container!.addChild(divider);
 
     // Dynamic round text
@@ -280,7 +281,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '第 1/20 回合',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB8AA98,
+        fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
         fontFamily,
       }),
     });
@@ -293,7 +294,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '🎲 —',
       style: new TextStyle({
         fontSize: 16,
-        fill: 0xB8AA98,
+        fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
         fontFamily,
       }),
     });
@@ -306,7 +307,7 @@ export class MetroBackgroundLayer implements RenderLayer {
       text: '',
       style: new TextStyle({
         fontSize: 14,
-        fill: 0x7A6E60,
+        fill: hexToPixi(DESIGN_TOKENS.color.text.muted),
         fontFamily,
       }),
     });

@@ -9,20 +9,21 @@
 }
 
 .event-dice-panel {
-  background: rgba(20, 20, 30, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--c-surface-a95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--c-border);
   border-radius: 12px;
   padding: 16px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .event-dice-label {
   font-size: 12px;
-  color: #aaa;
+  color: var(--c-text-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -38,18 +39,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 215, 0, 0.6);
+  background: var(--c-brand-a06);
+  border: 2px solid var(--c-brand-a25);
   border-radius: 8px;
   font-size: 24px;
   font-weight: 700;
-  color: #FFD700;
+  color: var(--c-nju-gold);
   animation: eventDiceBounce 0.4s ease;
 }
 
 .event-dice-total {
   font-size: 14px;
-  color: #ccc;
+  color: var(--c-text-dim);
 }
 
 @keyframes eventDiceFadeIn {

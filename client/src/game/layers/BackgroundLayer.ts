@@ -5,6 +5,7 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameState } from '@nannaricher/shared';
 import type { RenderLayer } from '../GameStage';
 import { BOARD_SIZE, CORNER_SIZE, CENTER_AREA_SIZE } from '../layout/BoardLayout';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
 export class BackgroundLayer implements RenderLayer {
   private container: Container | null = null;
@@ -41,7 +42,7 @@ export class BackgroundLayer implements RenderLayer {
   private drawOuterFrame(): void {
     const bg = new Graphics();
 
-    // Dark board frame (design token: bg.board #16102A)
+    // Cream board frame
     bg.roundRect(
       -BOARD_SIZE / 2 - 20,
       -BOARD_SIZE / 2 - 20,
@@ -49,8 +50,8 @@ export class BackgroundLayer implements RenderLayer {
       BOARD_SIZE + 40,
       16,
     );
-    bg.fill({ color: 0x1E1610 });
-    bg.stroke({ width: 2, color: 0x5B2D8E, alpha: 0.4 });
+    bg.fill({ color: hexToPixi(DESIGN_TOKENS.color.bg.board) });
+    bg.stroke({ width: 2, color: hexToPixi(DESIGN_TOKENS.color.brand.primary), alpha: 0.4 });
 
     this.container!.addChild(bg);
   }
@@ -59,9 +60,9 @@ export class BackgroundLayer implements RenderLayer {
     const inner = new Graphics();
     const innerSize = BOARD_SIZE - CORNER_SIZE * 2;
 
-    // Dark inner area (design token: bg.surface #241C18)
+    // White inner area (surface)
     inner.roundRect(-innerSize / 2, -innerSize / 2, innerSize, innerSize, 12);
-    inner.fill({ color: 0x241C18 });
+    inner.fill({ color: hexToPixi(DESIGN_TOKENS.color.white) });
 
     this.container!.addChild(inner);
   }
@@ -76,16 +77,16 @@ export class BackgroundLayer implements RenderLayer {
       CENTER_AREA_SIZE,
       12,
     );
-    centerGfx.fill({ color: 0x5B2D8E, alpha: 0.15 });
-    centerGfx.stroke({ width: 2, color: 0x5B2D8E, alpha: 0.5 });
+    centerGfx.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.primary), alpha: 0.15 });
+    centerGfx.stroke({ width: 2, color: hexToPixi(DESIGN_TOKENS.color.brand.primary), alpha: 0.5 });
     this.container!.addChild(centerGfx);
 
-    // Title — gold accent on dark background
+    // Title — NJU yellow accent on cream background
     const titleText = new Text({
       text: '菜根人生',
       style: new TextStyle({
         fontSize: 20,
-        fill: 0xE8CC6E,
+        fill: hexToPixi(DESIGN_TOKENS.color.brand.accentLight),
         fontWeight: 'bold',
       }),
     });
@@ -97,7 +98,7 @@ export class BackgroundLayer implements RenderLayer {
       text: '南哪大富翁',
       style: new TextStyle({
         fontSize: 12,
-        fill: 0xB8AA98,
+        fill: hexToPixi(DESIGN_TOKENS.color.text.secondary),
       }),
     });
     subtitleText.anchor.set(0.5);

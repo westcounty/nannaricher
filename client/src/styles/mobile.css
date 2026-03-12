@@ -76,7 +76,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--color-bg-elevated);
+    background: var(--c-elevated);
     border-top: 1px solid var(--game-border);
     z-index: var(--z-sticky);
     padding: 0;
@@ -94,7 +94,7 @@
     padding: var(--spacing-xs) 0;
     background: none;
     border: none;
-    color: var(--color-text-secondary);
+    color: var(--c-text-dim);
     font-size: var(--font-size-xs);
     cursor: pointer;
     transition: color var(--transition-fast), background var(--transition-fast);
@@ -102,11 +102,11 @@
   }
 
   .tablet-tab-bar .tab-item:hover {
-    background: rgba(212, 175, 55, 0.06);
+    background: var(--c-brand-a04);
   }
 
   .tablet-tab-bar .tab-item.tab-item--active {
-    color: var(--color-accent);
+    color: var(--c-accent);
   }
 
   .tablet-tab-bar .tab-item.tab-item--active::after {
@@ -116,7 +116,7 @@
     left: 25%;
     right: 25%;
     height: 2px;
-    background: var(--color-accent);
+    background: var(--c-accent);
     border-radius: 0 0 2px 2px;
   }
 
@@ -138,7 +138,7 @@
     left: 0;
     right: 0;
     max-height: 45vh;
-    background: var(--color-bg-surface);
+    background: var(--c-surface);
     border-top: 1px solid var(--game-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: var(--z-fixed);
@@ -165,7 +165,7 @@
     left: 0;
     right: 0;
     max-height: 50vh;
-    background: var(--color-bg-surface);
+    background: var(--c-surface);
     border-top: 1px solid var(--game-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: var(--z-fixed);
@@ -191,7 +191,7 @@
     align-items: center;
     padding: 12px 16px;
     border-bottom: 1px solid var(--game-border);
-    background: var(--color-bg-surface);
+    background: var(--c-surface);
   }
 
   .mobile-sheet-body {
@@ -282,7 +282,7 @@
     border-radius: 50% !important;
     font-size: 1.5rem !important;
     padding: 0 !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 12px rgba(212,175,55,0.3) !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 0 12px rgba(91,45,142,0.15) !important;
   }
 
   /* Hide the text in dice button on mobile, show only emoji */
@@ -329,7 +329,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--color-bg-elevated);
+    background: var(--c-elevated);
     border-top: 1px solid var(--game-border);
     z-index: 90;
     padding: 0;
@@ -348,7 +348,7 @@
     padding: var(--spacing-xs) 0;
     background: none;
     border: none;
-    color: var(--color-text-secondary);
+    color: var(--c-text-dim);
     font-size: var(--font-size-xs);
     cursor: pointer;
     transition: color var(--transition-fast);
@@ -357,7 +357,7 @@
   }
 
   .mobile-tab-bar .tab-item.tab-item--active {
-    color: var(--color-accent);
+    color: var(--c-accent);
   }
 
   .mobile-tab-bar .tab-item.tab-item--active::after {
@@ -367,7 +367,7 @@
     left: 20%;
     right: 20%;
     height: 2px;
-    background: var(--color-accent);
+    background: var(--c-accent);
     border-radius: 0 0 2px 2px;
   }
 
@@ -378,7 +378,7 @@
     left: 0;
     right: 0;
     max-height: 60vh;
-    background: var(--color-bg-surface);
+    background: var(--c-surface);
     border-top: 1px solid var(--game-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: var(--z-fixed);
@@ -406,14 +406,14 @@
     border-bottom: 1px solid var(--game-border);
     position: sticky;
     top: 0;
-    background: var(--color-bg-surface);
+    background: var(--c-surface);
     z-index: 1;
   }
 
   .mobile-sheet-title {
     font-size: var(--font-size-md);
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--c-text);
     margin: 0;
   }
 
@@ -422,8 +422,8 @@
     height: 32px;
     border-radius: var(--radius);
     border: 1px solid var(--game-border);
-    background: var(--color-bg-elevated);
-    color: var(--color-text-primary);
+    background: var(--c-elevated);
+    color: var(--c-text);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -449,11 +449,11 @@
   .mobile-hand-card {
     flex: 0 0 auto;
     padding: 8px 14px;
-    background: var(--color-bg-elevated);
+    background: var(--c-elevated);
     border: 1px solid var(--game-border);
     border-radius: var(--radius);
     font-size: var(--font-size-sm);
-    color: var(--color-text-primary);
+    color: var(--c-text);
     cursor: pointer;
     transition: all var(--transition-fast);
     position: relative;
@@ -467,12 +467,12 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    background: linear-gradient(90deg, var(--c-brand), var(--c-accent));
   }
 
   .mobile-hand-card:active {
     transform: scale(0.97);
-    background: rgba(212, 175, 55, 0.1);
+    background: var(--c-brand-a06);
   }
 
   /* Mobile overlay backdrop */
@@ -516,7 +516,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-danger);
+  background: var(--c-danger);
 }
 
 /* Sheet drag handle */
@@ -524,7 +524,7 @@
   width: 36px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--c-border);
   margin: 8px auto;
 }
 

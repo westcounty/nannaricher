@@ -1,10 +1,10 @@
 // client/src/components/CellDetailDrawer.tsx
 // Bottom drawer showing full cell details when a cell is clicked/tapped.
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { BoardCell, BoardLine } from '@nannaricher/shared';
 import '../styles/cell-detail-drawer.css';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, getCellTypeTokenColor } from '../styles/tokens';
 
 interface CellDetailDrawerProps {
   cell: BoardCell | null;
@@ -44,18 +44,7 @@ function getCellTypeLabel(type: string): string {
 }
 
 function getCellTypeColor(type: string): string {
-  switch (type) {
-    case 'corner':
-      return '#f59e0b';
-    case 'event':
-      return '#8b5cf6';
-    case 'chance':
-      return '#06b6d4';
-    case 'line_entry':
-      return '#10b981';
-    default:
-      return '#6b7280';
-  }
+  return getCellTypeTokenColor(type);
 }
 
 export function CellDetailDrawer({ cell, lineData, imageUrl, onClose }: CellDetailDrawerProps) {
@@ -129,21 +118,21 @@ export function CellDetailDrawer({ cell, lineData, imageUrl, onClose }: CellDeta
             <div className="cell-detail-drawer__body">
               {/* Corner description */}
               {cell.cornerType && (
-                <p className="cell-detail-drawer__desc" style={{ color: '#fbbf24' }}>
+                <p className="cell-detail-drawer__desc" style={{ color: DESIGN_TOKENS.color.brand.accent }}>
                   {getCornerDescription(cell.cornerType)}
                 </p>
               )}
 
               {/* Event description */}
               {cell.type === 'event' && (
-                <p className="cell-detail-drawer__desc" style={{ color: '#a78bfa' }}>
+                <p className="cell-detail-drawer__desc" style={{ color: DESIGN_TOKENS.color.brand.primaryLight }}>
                   停留时触发事件
                 </p>
               )}
 
               {/* Chance description */}
               {cell.type === 'chance' && (
-                <p className="cell-detail-drawer__desc" style={{ color: '#67e8f9' }}>
+                <p className="cell-detail-drawer__desc" style={{ color: DESIGN_TOKENS.color.semantic.info }}>
                   停留时抽取机会卡
                 </p>
               )}
@@ -156,11 +145,11 @@ export function CellDetailDrawer({ cell, lineData, imageUrl, onClose }: CellDeta
                       <strong>路线:</strong> {lineData.name}
                     </p>
                   )}
-                  <p style={{ color: '#4ade80' }}>
+                  <p style={{ color: DESIGN_TOKENS.color.semantic.successLight }}>
                     <strong>入场费:</strong> ${cell.entryFee || 0}
                   </p>
                   {cell.forceEntry && (
-                    <p style={{ color: '#f87171' }}>
+                    <p style={{ color: DESIGN_TOKENS.color.semantic.dangerLight }}>
                       <strong>强制进入</strong>
                     </p>
                   )}
@@ -172,7 +161,7 @@ export function CellDetailDrawer({ cell, lineData, imageUrl, onClose }: CellDeta
                 <div className="cell-detail-drawer__line-section">
                   <p className="cell-detail-drawer__line-name">{lineData.name}</p>
                   {lineData.experienceCard && cell.id === lineData.experienceCard.id && (
-                    <p className="cell-detail-drawer__line-desc" style={{ color: '#fbbf24' }}>
+                    <p className="cell-detail-drawer__line-desc" style={{ color: DESIGN_TOKENS.color.brand.accent }}>
                       {lineData.experienceCard.description}
                     </p>
                   )}

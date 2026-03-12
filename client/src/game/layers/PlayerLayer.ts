@@ -16,8 +16,10 @@ import {
 } from '../layout/MetroLayout';
 import type { Point } from '../layout/MetroLayout';
 import { PLAYER_COLORS_HEX } from '../layout/BoardLayout';
+import { DESIGN_TOKENS, hexToPixi } from '../../styles/tokens';
 
-/** Map player color hex values to whale piece sprite images (128px webp, ~5KB each) */
+/** Map player color hex values to whale piece sprite images (128px webp, ~5KB each).
+ *  Keys are intentional numeric color literals matching PLAYER_COLORS_HEX for sprite lookup. */
 const PIECE_IMAGE_MAP: Record<number, string> = {
   0xE53935: '/art/whale-piece-red/best.webp',
   0x1E88E5: '/art/whale-piece-blue/best.webp',
@@ -440,7 +442,7 @@ export class PlayerLayer implements RenderLayer {
     // Shadow ellipse beneath piece
     const shadow = new Graphics();
     shadow.ellipse(0, 18, 16, 6);
-    shadow.fill({ color: 0x000000, alpha: 0.3 });
+    shadow.fill({ color: hexToPixi(DESIGN_TOKENS.color.black), alpha: 0.3 });
     group.addChild(shadow);
 
     // Try to load whale sprite for this color, with circle fallback
@@ -451,7 +453,7 @@ export class PlayerLayer implements RenderLayer {
       // White circle background with colored border
       const bgCircle = new Graphics();
       bgCircle.circle(0, 0, pieceRadius);
-      bgCircle.fill({ color: 0xffffff });
+      bgCircle.fill({ color: hexToPixi(DESIGN_TOKENS.color.white) });
       bgCircle.circle(0, 0, pieceRadius);
       bgCircle.stroke({ width: 2.5, color, alpha: 0.9 });
       group.addChild(bgCircle);
@@ -482,16 +484,16 @@ export class PlayerLayer implements RenderLayer {
 
       // Single white stroke border
       piece.circle(0, 0, pieceRadius);
-      piece.stroke({ width: 2.5, color: 0xffffff, alpha: 0.85 });
+      piece.stroke({ width: 2.5, color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.85 });
 
       // Inner lighter circle for depth
       piece.circle(0, -2, pieceRadius * 0.6);
-      piece.fill({ color: 0xffffff, alpha: 0.18 });
+      piece.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.18 });
 
       // Specular highlight
       const hlOff = inLine ? 4 : 5;
       piece.circle(-hlOff, -hlOff, hlOff * 0.7);
-      piece.fill({ color: 0xffffff, alpha: 0.45 });
+      piece.fill({ color: hexToPixi(DESIGN_TOKENS.color.white), alpha: 0.45 });
 
       group.addChild(piece);
     }
@@ -500,7 +502,7 @@ export class PlayerLayer implements RenderLayer {
     if (isCurrent) {
       const ring = new Graphics();
       ring.circle(0, 0, pieceRadius + 5);
-      ring.stroke({ width: 3, color: 0xFFD700 });
+      ring.stroke({ width: 3, color: hexToPixi(DESIGN_TOKENS.color.brand.accent) });
       group.addChild(ring);
     }
 
@@ -510,10 +512,10 @@ export class PlayerLayer implements RenderLayer {
       pulseGlow = new Graphics();
       // Large outer glow
       pulseGlow.circle(0, 0, pieceRadius + 22);
-      pulseGlow.fill({ color: 0xFFD700, alpha: 0.12 });
+      pulseGlow.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.12 });
       // Bright inner ring
       pulseGlow.circle(0, 0, pieceRadius + 14);
-      pulseGlow.stroke({ width: 4, color: 0xFFD700, alpha: 0.9 });
+      pulseGlow.stroke({ width: 4, color: hexToPixi(DESIGN_TOKENS.color.brand.accent), alpha: 0.9 });
       pulseGlow.alpha = 0.5;
       // Insert behind the piece for glow effect
       group.addChildAt(pulseGlow, 0);
@@ -526,7 +528,7 @@ export class PlayerLayer implements RenderLayer {
       text: labelText,
       style: new TextStyle({
         fontSize: 13,
-        fill: 0xffffff,
+        fill: hexToPixi(DESIGN_TOKENS.color.white),
         fontWeight: 'bold',
         letterSpacing: 0.5,
       }),
@@ -541,7 +543,7 @@ export class PlayerLayer implements RenderLayer {
     const pillH = nameText.height + pillPadY * 2;
     const labelBg = new Graphics();
     labelBg.roundRect(-pillW / 2, labelY - pillH / 2, pillW, pillH, 6);
-    labelBg.fill({ color: 0x000000, alpha: 0.7 });
+    labelBg.fill({ color: hexToPixi(DESIGN_TOKENS.color.black), alpha: 0.7 });
     labelBg.roundRect(-pillW / 2, labelY - pillH / 2, pillW, pillH, 6);
     labelBg.stroke({ width: 1, color, alpha: 0.8 });
     group.addChild(labelBg);

@@ -23,7 +23,7 @@ export function playLandingEffect(
   y: number,
   type: EffectType,
   tweenEngine: TweenEngine,
-  color = 0xE8CC6E,
+  color = hexToPixi(DESIGN_TOKENS.color.brand.accentLight),
   cellId?: string,
   cellType?: string,
 ): void {
@@ -100,7 +100,7 @@ function spawnStarBurst(
     star.lineTo(0, 4);
     star.lineTo(-2, 0);
     star.closePath();
-    star.fill({ color: 0xE8CC6E, alpha: 0.9 });
+    star.fill({ color: hexToPixi(DESIGN_TOKENS.color.brand.accentLight), alpha: 0.9 });
     star.x = x;
     star.y = y;
     layer.addChild(star);
@@ -174,16 +174,16 @@ function spawnDoorEffect(
 
 /** Map cell identity to a particle color. */
 function getCellParticleColor(cellId?: string, cellType?: string): number {
-  // Corner cells
-  if (cellId === 'start') return 0xD4AF37;        // gold
-  if (cellId === 'hospital') return 0xE85070;      // red
-  if (cellId === 'ding') return 0x7B4DB8;          // purple
-  if (cellId === 'waiting_room') return 0x4A90CC;  // blue
+  // Corner cells — using cell token colors
+  if (cellId === 'start') return hexToPixi(DESIGN_TOKENS.color.brand.accent);
+  if (cellId === 'hospital') return hexToPixi(DESIGN_TOKENS.color.cell.corner.hospital[1]);
+  if (cellId === 'ding') return hexToPixi(DESIGN_TOKENS.color.brand.primaryLight);
+  if (cellId === 'waiting_room') return hexToPixi(DESIGN_TOKENS.color.cell.corner.waitingRoom[1]);
   // Type-based
-  if (cellType === 'chance') return 0x9B60D0;      // purple
-  if (cellType === 'event') return 0xE8842A;       // orange
-  if (cellType === 'line_entry') return 0x4A90CC;  // blue
-  return 0xE8CC6E; // default gold-light
+  if (cellType === 'chance') return hexToPixi(DESIGN_TOKENS.color.cell.chance[1]);
+  if (cellType === 'event') return hexToPixi(DESIGN_TOKENS.color.resource.exploration);
+  if (cellType === 'line_entry') return hexToPixi(DESIGN_TOKENS.color.cell.corner.waitingRoom[1]);
+  return hexToPixi(DESIGN_TOKENS.color.brand.accentLight); // default NJU yellow-light
 }
 
 /** Spawn circular particles that burst outward and fade. */

@@ -5,7 +5,7 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Application, Container } from 'pixi.js';
 import type { GameState, Position } from '@nannaricher/shared';
-import { DESIGN_TOKENS } from '../styles/tokens';
+import { DESIGN_TOKENS, hexToPixi } from '../styles/tokens';
 
 import { GameStage } from './GameStage';
 import { MetroBackgroundLayer } from './layers/MetroBackgroundLayer';
@@ -110,7 +110,7 @@ export const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({
     app.init({
       width: rect.width,
       height: rect.height,
-      backgroundColor: 0x18120E,
+      backgroundColor: hexToPixi(DESIGN_TOKENS.color.bg.main),
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,

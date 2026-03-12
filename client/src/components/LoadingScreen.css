@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, var(--c-bg) 0%, var(--c-elevated) 100%);
   z-index: 9999;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -34,14 +34,14 @@
 /* Icon Container */
 .loading-screen__icon {
   margin-bottom: 24px;
-  color: var(--color-secondary, #3498db);
+  color: var(--c-info);
 }
 
 /* Title */
 .loading-screen__title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--c-text);
   margin: 0 0 8px;
   min-height: 2rem;
 }
@@ -49,7 +49,7 @@
 /* Subtitle */
 .loading-screen__subtitle {
   font-size: 1rem;
-  color: #aaa;
+  color: var(--c-text-dim);
   margin: 0 0 24px;
 }
 
@@ -63,14 +63,14 @@
 .loading-screen__progress-bar {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--c-brand-a08);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .loading-screen__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-secondary, #3498db), var(--color-success, #27ae60));
+  background: linear-gradient(90deg, var(--c-info), var(--c-success));
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -87,8 +87,8 @@
 .loading-screen__spinner-ring {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-secondary, #3498db);
+  border: 3px solid var(--c-brand-a08);
+  border-top-color: var(--c-info);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   position: absolute;
@@ -98,14 +98,14 @@
   width: 30px;
   height: 30px;
   animation-delay: -0.3s;
-  border-top-color: var(--color-success, #27ae60);
+  border-top-color: var(--c-success);
 }
 
 .loading-screen__spinner-ring:nth-child(3) {
   width: 20px;
   height: 20px;
   animation-delay: -0.6s;
-  border-top-color: var(--color-warning, #f39c12);
+  border-top-color: var(--c-warning);
 }
 
 @keyframes spin {
@@ -117,7 +117,7 @@
 /* Percentage */
 .loading-screen__percentage {
   font-size: 0.9rem;
-  color: #888;
+  color: var(--c-text-muted);
   margin-bottom: 16px;
 }
 
@@ -131,7 +131,7 @@
 
 .loading-screen__tip {
   font-size: 0.9rem;
-  color: #888;
+  color: var(--c-text-muted);
   font-style: italic;
   max-width: 300px;
   animation: fadeInUp 0.5s ease;
@@ -158,7 +158,7 @@
 .loading-screen__pulse-dot {
   width: 10px;
   height: 10px;
-  background: var(--color-secondary, #3498db);
+  background: var(--c-info);
   border-radius: 50%;
   animation: pulse 1.5s ease-in-out infinite;
 }
@@ -235,7 +235,7 @@
 .waiting-dot {
   width: 16px;
   height: 16px;
-  background: var(--color-secondary, #3498db);
+  background: var(--c-info);
   border-radius: 50%;
   animation: bounce 1.4s ease-in-out infinite;
 }
@@ -291,7 +291,7 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  background: var(--color-secondary, #3498db);
+  background: var(--c-info);
   border-radius: 50%;
   animation: spinnerFade 1.2s ease-in-out infinite;
 }
@@ -358,8 +358,8 @@
 .inline-loading__spinner {
   width: 100%;
   height: 100%;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-secondary, #3498db);
+  border: 2px solid var(--c-brand-a08);
+  border-top-color: var(--c-info);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -368,9 +368,9 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.05) 25%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.05) 75%
+    var(--c-brand-a04) 25%,
+    var(--c-brand-a08) 50%,
+    var(--c-brand-a04) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;

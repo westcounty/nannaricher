@@ -4,13 +4,14 @@
 import { Container, Text, TextStyle } from 'pixi.js';
 import { TweenEngine, EASINGS } from './TweenEngine';
 import { AnimationConfig } from './AnimationConfig';
+import { DESIGN_TOKENS } from '../../styles/tokens';
 
 export function showFloatingText(
   layer: Container,
   x: number,
   y: number,
   text: string,
-  color: string = '#D4AF37',
+  color: string = DESIGN_TOKENS.color.brand.accent,
   tweenEngine?: TweenEngine,
 ): void {
   const duration = AnimationConfig.scaleDuration(1500);
@@ -20,8 +21,8 @@ export function showFloatingText(
     fontSize: 16,
     fontWeight: 'bold',
     fill: color,
-    stroke: { color: '#000000', width: 2 },
-    dropShadow: { color: '#000000', blur: 2, distance: 1 },
+    stroke: { color: DESIGN_TOKENS.color.white, width: 2 },
+    dropShadow: { color: DESIGN_TOKENS.color.brand.primary, blur: 2, distance: 1, alpha: 0.3 },
   });
 
   const textObj = new Text({ text, style });
