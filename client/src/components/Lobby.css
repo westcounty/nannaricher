@@ -727,6 +727,20 @@
     display: none;
   }
 
+  /* Remove lobby padding when showing form panels — let them take full width */
+  .lobby:has(.create-room),
+  .lobby:has(.join-room),
+  .lobby:has(.waiting-room) {
+    padding: 56px 0 0;
+  }
+
+  /* Also hide background decorations in form view */
+  .lobby:has(.create-room) .lobby-bg-decoration,
+  .lobby:has(.join-room) .lobby-bg-decoration,
+  .lobby:has(.waiting-room) .lobby-bg-decoration {
+    display: none;
+  }
+
   .lobby-buttons {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -746,8 +760,11 @@
   .join-room,
   .waiting-room {
     max-width: 100%;
-    padding: 24px 20px 24px;
-    border-radius: 16px;
+    padding: 24px 16px 24px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
   }
 
   .room-code {
