@@ -90,9 +90,11 @@ export class GameCoordinator {
         for (const v of vals) {
           if (v >= 5) {
             ss.consecutiveHighDice++;
+            ss.maxConsecutiveHighDice = Math.max(ss.maxConsecutiveHighDice, ss.consecutiveHighDice);
             ss.consecutiveLowDice = 0;
           } else if (v <= 2) {
             ss.consecutiveLowDice++;
+            ss.maxConsecutiveLowDice = Math.max(ss.maxConsecutiveLowDice, ss.consecutiveLowDice);
             ss.consecutiveHighDice = 0;
           } else {
             ss.consecutiveHighDice = 0;
@@ -118,6 +120,20 @@ export class GameCoordinator {
         const player = this.engine.getState().players.find(p => p.id === data.playerId);
         if (player) {
           ss.maxHandSize = Math.max(ss.maxHandSize, player.heldCards.length);
+          // Track: was hand empty before this draw? (card_05: 空城计)
+          if (player.heldCards.length === 1 && data.addedToHand) {
+            ss.emptyHandThenDrew = true;
+          }
+        }
+        // Track consecutiveRedraws (谢谢惠顾 = destiny_thank_you)
+        if (data.card.id === 'destiny_thank_you') {
+          ss.consecutiveRedraws++;
+        } else {
+          ss.consecutiveRedraws = 0; // reset on any non-redraw card
+        }
+        // Track stealCardsUsed (朋辈导师 peer_mentor — non-holdable, executed in engine)
+        if (data.card.id === 'chance_peer_mentor' && !data.addedToHand) {
+          ss.stealCardsUsed++;
         }
       }
     });
@@ -166,6 +182,11 @@ export class GameCoordinator {
         turn: state.turnNumber,
         round: state.roundNumber,
       });
+      // Track foodLineCompleted
+      if (data.lineId === 'food') {
+        const ss = this.sessionStatsMap.get(data.playerId);
+        if (ss) ss.foodLineCompleted = true;
+      }
     });
 
     // Initialize per-player session stats
@@ -231,18 +252,26 @@ export class GameCoordinator {
       wasLowestAtYear3End: false,
       consecutiveLowDice: 0,
       consecutiveHighDice: 0,
+      maxConsecutiveLowDice: 0,
+      maxConsecutiveHighDice: 0,
+      wasHighestAtYear1End: false,
+      emptyHandThenDrew: false,
       reverseOrderBenefit: false,
       startPassCount: 0,
-      foodLineAllPositive: true,
+      foodLineAllPositive: false,
       othersWentBankrupt: false,
       cafeteriaNoNegativeStreak: 0,
       foodLineCompleted: false,
       usedMaimenShield: false,
       hospitalVisits: 0,
+      hospitalEscapes: 0,
+      redistributionCardsUsed: 0,
+      stealCardsUsed: 0,
       totalTuitionPaid: 0,
       linesVisited: [],
       allPositiveChanceCards: true,
       consecutiveRedraws: 0,
+      maxDefenseChainLength: 0,
     };
   }
 
@@ -268,6 +297,32 @@ export class GameCoordinator {
     ss.linesVisited = [...(player.linesVisited || [])];
     ss.cafeteriaNoNegativeStreak = Math.max(ss.cafeteriaNoNegativeStreak, player.cafeteriaNoNegativeStreak);
     ss.maxHandSize = Math.max(ss.maxHandSize, player.heldCards?.length || 0);
+
+    // Check samePlanOpponentWin
+    const state = this.engine.getState();
+    if (player.trainingPlans?.length) {
+      const playerPlanIds = new Set(player.trainingPlans.map((p: any) => p.id));
+      for (const other of state.players) {
+        if (other.id !== player.id && other.trainingPlans?.length) {
+          if (other.trainingPlans.some((p: any) => playerPlanIds.has(p.id))) {
+            ss.samePlanOpponentWin = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // foodLineAllPositive: only true if player visited food line AND had no negatives
+    if ((player.linesVisited || []).includes('food')) {
+      ss.foodLineAllPositive = (player.cafeteriaNoNegativeStreak ?? 0) >= (player.foodLineNonNegativeCount ?? 0)
+        && (player.foodLineNonNegativeCount ?? 0) > 0;
+    }
+
+    // allPositiveChanceCards: defaults to true, set to false by handleCellLanding when
+    // a non-holdable card with negative effects is drawn. If no cards drawn, set to false.
+    if (ss.cardsDrawn.length === 0) {
+      ss.allPositiveChanceCards = false;
+    }
 
     return ss;
   }
@@ -684,6 +739,15 @@ export class GameCoordinator {
         cardDeckType,
       });
 
+      // Track maxDefenseChainLength for card_06 (连锁反应)
+      const chainLen = this.negateWindow.negateStack.length;
+      for (const entry of this.negateWindow.negateStack) {
+        const entrySS = this.sessionStatsMap.get(entry.playerId);
+        if (entrySS) {
+          entrySS.maxDefenseChainLength = Math.max(entrySS.maxDefenseChainLength, chainLen);
+        }
+      }
+
       const isCounterNegate = this.negateWindow.negateStack.length > 1;
       this.addLog(playerId, `${player.name} 使用【${card.name}】${isCounterNegate ? '反制' : '取消效果'}！`);
 
@@ -1008,6 +1072,17 @@ export class GameCoordinator {
           const ss = this.sessionStatsMap.get(p.id);
           if (ss) {
             ss.compositeScoreAtYear1End = p.gpa * 10 + p.exploration;
+          }
+        }
+        // Find highest score and mark wasHighestAtYear1End
+        const allScores = state.players
+          .filter(p => !p.isBankrupt && !p.isDisconnected)
+          .map(p => ({ id: p.id, score: p.gpa * 10 + p.exploration }));
+        const maxScore = Math.max(...allScores.map(s => s.score));
+        for (const s of allScores) {
+          const ss = this.sessionStatsMap.get(s.id);
+          if (ss && s.score === maxScore) {
+            ss.wasHighestAtYear1End = true;
           }
         }
       } else if (state.roundNumber === 4) {
@@ -2475,6 +2550,11 @@ export class GameCoordinator {
     // 主修方向变化时触发 on_confirm 效果
     if (majorId !== oldMajor) {
       console.log(`[PlanSelection] finalizePlanSelection: ${player.name} major changed ${oldMajor} -> ${majorId}, triggering effects`);
+      // Track plan swap (only count if oldMajor existed, meaning this is a real swap)
+      if (oldMajor) {
+        const swapSS = this.sessionStatsMap.get(player.id);
+        if (swapSS) swapSS.usedPlanSwap = true;
+      }
       this.triggerPlanConfirmEffects(player.id, majorId);
       // 检查是否有 post-confirm action
       const postAction = this.createPostConfirmAction(player, player.id);
@@ -3068,6 +3148,10 @@ export class GameCoordinator {
     // Trigger on_confirm if major changed
     if (majorId !== oldMajor) {
       console.log(`[PlanSelection] resolveNextPlayerPlan: ${player.name} major changed ${oldMajor} -> ${majorId}, triggering effects`);
+      if (oldMajor) {
+        const swapSS = this.sessionStatsMap.get(player.id);
+        if (swapSS) swapSS.usedPlanSwap = true;
+      }
       this.triggerPlanConfirmEffects(player.id, majorId);
 
       const postAction = this.createPostConfirmAction(player, player.id);
@@ -3338,6 +3422,13 @@ export class GameCoordinator {
 
               this.addLog(playerId, `${this.engine.getPlayer(playerId)?.name} 抽到${cardType === 'chance' ? '机会' : '命运'}卡: ${card.name}`);
 
+              // Track allPositiveChanceCards: if any non-holdable card has negative effects, mark false
+              const cardSS = this.sessionStatsMap.get(playerId);
+              if (cardSS && !card.holdable) {
+                const hasNegative = card.effects.some((e: any) => e.delta && e.delta < 0);
+                if (hasNegative) cardSS.allPositiveChanceCards = false;
+              }
+
               // Open negate window before executing card effect
               const deckLabel = cardType === 'chance' ? '机会卡' : '命运卡';
               this.openNegateWindow(
@@ -3352,6 +3443,12 @@ export class GameCoordinator {
                   let cardPendingAction = hasHandler
                     ? this.engine.getEventHandler().execute(cHandlerId, playerId)
                     : null;
+
+                  // Track reverseOrderBenefit (风水轮转)
+                  if (card.id === 'destiny_fengshui_rotation') {
+                    const fsSS = this.sessionStatsMap.get(playerId);
+                    if (fsSS) fsSS.reverseOrderBenefit = true;
+                  }
 
                   if (!hasHandler && card.effects.length > 0) {
                     for (const effect of card.effects) {
@@ -3466,6 +3563,23 @@ export class GameCoordinator {
             this.logger.log({ turn: state.turnNumber, playerId, type: 'event', message: `Cell landing: ${cellName}`, data: { position, cellName } });
             const snapshot = this.capturePlayerSnapshot(playerId);
             const pendingAction = this.engine.getEventHandler().execute(handlerId!, playerId);
+
+            // Post-event session stats tracking
+            if (handlerId === 'corner_ding') {
+              const p = this.engine.getPlayer(playerId);
+              if (p?.isAtDing) {
+                const ss = this.sessionStatsMap.get(playerId);
+                if (ss) ss.dingPenalties++;
+              }
+            }
+            if (handlerId === 'event_nanna_cp' || handlerId === 'event_nanda_cp') {
+              const ss = this.sessionStatsMap.get(playerId);
+              if (ss) {
+                const otherCount = this.engine.getState().players.filter(p => p.id !== playerId && !p.isBankrupt).length;
+                ss.nannaCPGifts += otherCount;
+              }
+            }
+
             if (pendingAction) {
               state.pendingAction = pendingAction;
               this.broadcastState();
@@ -3536,6 +3650,9 @@ export class GameCoordinator {
             if (shieldIdx >= 0) {
               // Consume the shield
               player.effects.splice(shieldIdx, 1);
+              // Track usedMaimenShield
+              const shieldSS = this.sessionStatsMap.get(playerId);
+              if (shieldSS) shieldSS.usedMaimenShield = true;
               // 护盾屏蔽算非负面效果
               player.foodLineNonNegativeCount++;
               // 生命科学学院被动：非负面食堂线事件+1探索
@@ -3906,9 +4023,55 @@ export class GameCoordinator {
         pendingAction = this.engine.getEventHandler().execute(
           savedPendingAction.callbackHandler, playerId, choice
         );
+
+        // Post-callback session stats tracking
+        if (savedPendingAction.callbackHandler === 'corner_waiting_room_move' && choice.startsWith('main_')) {
+          const ss = this.sessionStatsMap.get(playerId);
+          if (ss) ss.waitingRoomTeleports++;
+        }
+        // Track hospital escapes (dice success)
+        if (savedPendingAction.callbackHandler === 'corner_hospital_roll') {
+          const hp = this.engine.getPlayer(playerId);
+          if (hp && !hp.isInHospital) {
+            const ss = this.sessionStatsMap.get(playerId);
+            if (ss) ss.hospitalEscapes++;
+          }
+        }
+        // Track redistribution card (劫富济贫)
+        if (savedPendingAction.callbackHandler === 'card_robin_hood_target') {
+          const ss = this.sessionStatsMap.get(playerId);
+          if (ss) ss.redistributionCardsUsed++;
+        }
       } else {
         // Default: choice is the handler ID
         pendingAction = this.engine.getEventHandler().execute(choice, playerId);
+
+        // Track specific handler choices
+        // 八卦秘闻: participation and positive result
+        if (choice === 'card_gossip_participate') {
+          const ss = this.sessionStatsMap.get(playerId);
+          if (ss) {
+            ss.chainCardParticipated = true;
+            // Check if result was positive (money increased)
+            const gp = this.engine.getPlayer(playerId);
+            // The handler already ran — if money went up, it was positive
+            // We check the last dice result from session stats
+            const lastDice = ss.diceRolls[ss.diceRolls.length - 1];
+            if (lastDice !== undefined && lastDice > 1) {
+              ss.chainCardPositive = true;
+            }
+          }
+        }
+        // 延迟满足: player chose to use it
+        if (choice === 'card_delayed_gratification_yes') {
+          const ss = this.sessionStatsMap.get(playerId);
+          if (ss) ss.usedDelayedGratification = true;
+        }
+        // 医院: 支付出院
+        if (choice === 'corner_hospital_pay') {
+          const ss = this.sessionStatsMap.get(playerId);
+          if (ss) ss.hospitalEscapes++;
+        }
       }
 
       if (pendingAction) {
@@ -4100,6 +4263,20 @@ export class GameCoordinator {
           });
         }
 
+        // Track votesMajoritySide for each player
+        {
+          const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+          const majorityOption = sorted[0]?.[0];
+          if (majorityOption && sorted.length > 1 && sorted[0][1] > sorted[1][1]) {
+            // Clear majority exists
+            const majorityPlayers = groups[majorityOption] || [];
+            for (const pid of majorityPlayers) {
+              const ss = this.sessionStatsMap.get(pid);
+              if (ss) ss.votesMajoritySide++;
+            }
+          }
+        }
+
         try {
           if (cardId) {
             this.resolveMultiVoteCard(cardId, groups, counts);
@@ -4204,6 +4381,16 @@ export class GameCoordinator {
 
     // Remove card from hand (after validation)
     player.heldCards.splice(cardIndex, 1);
+
+    // Track offensive card usage (cards targeting other players)
+    if (targetPlayerId && targetPlayerId !== playerId) {
+      const ss = this.sessionStatsMap.get(playerId);
+      if (ss) ss.offensiveCardsUsed++;
+      // Track target being hit by a card
+      const targetSS = this.sessionStatsMap.get(targetPlayerId);
+      if (targetSS) targetSS.chanceCardsTargetedBy++;
+    }
+
     this.addLog(playerId, `${player.name} 使用手牌: ${card.name}`);
 
     // Announce card use to all players

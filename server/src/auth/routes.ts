@@ -112,4 +112,16 @@ router.get('/achievements/me', authenticateToken, (req: Request, res: Response) 
   }
 });
 
+// POST /api/achievements/check — manually trigger achievement re-check (debug)
+router.post('/achievements/check', authenticateToken, (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  try {
+    const summary = getPlayerAchievements(userId);
+    res.json({ message: 'Achievement check complete', summary });
+  } catch (err) {
+    console.error('[API] Error checking achievements:', err);
+    res.status(500).json({ error: 'Failed to check achievements' });
+  }
+});
+
 export { router as authRoutes, authenticateToken };

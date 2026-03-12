@@ -41,6 +41,7 @@ interface PlayerStatsRow {
   best_gpa: number;
   max_money: number;
   max_exploration: number;
+  plans_won_with: string;     // JSON string[] — plan IDs used when winning
   updated_at: string;
 }
 
@@ -87,6 +88,7 @@ export function updatePlayerStats(
   player: Player,
   isWinner: boolean,
   gameState: GameState,
+  sessionStats?: Partial<GameSessionStats>,
 ): { stats: PlayerStatsRow; preUpdateStats: PlayerStatsRow } {
   const db = getDatabase();
   const existing = ensurePlayerStats(userId);
@@ -146,6 +148,20 @@ export function updatePlayerStats(
   const maxMoney = Math.max(existing.max_money, player.money ?? 0);
   const maxExploration = Math.max(existing.max_exploration, player.exploration ?? 0);
 
+  // Merge plans_won_with: append current plan IDs if player won
+  const plansWonWith = parseJSON<string[]>(existing.plans_won_with, []);
+  if (isWinner && player.trainingPlans?.length) {
+    for (const plan of player.trainingPlans) {
+      if (plan?.id && !plansWonWith.includes(plan.id)) {
+        plansWonWith.push(plan.id);
+      }
+    }
+  }
+
+  // Merge food_events_triggered (keep existing; new food events tracked elsewhere)
+  const existingFoodEvents = parseJSON<string[]>(existing.food_events_triggered, []);
+  const foodEventsJson = JSON.stringify(existingFoodEvents);
+
   db.prepare(`
     UPDATE player_stats SET
       total_games = total_games + 1,
@@ -157,6 +173,16 @@ export function updatePlayerStats(
       current_loss_streak = ?,
       total_money_earned = total_money_earned + ?,
       total_gpa_sum = total_gpa_sum + ?,
+      total_cards_drawn = total_cards_drawn + ?,
+      total_defense_cards_used = total_defense_cards_used + ?,
+      total_dice_rolls = total_dice_rolls + ?,
+      total_dice_six_count = total_dice_six_count + ?,
+      total_hospital_escapes = total_hospital_escapes + ?,
+      total_votes_participated = total_votes_participated + ?,
+      total_redistribution_cards = total_redistribution_cards + ?,
+      total_steal_cards = total_steal_cards + ?,
+      total_start_passes = total_start_passes + ?,
+      food_events_triggered = ?,
       lines_ever_visited = ?,
       line_visit_counts = ?,
       plans_ever_used = ?,
@@ -165,6 +191,7 @@ export function updatePlayerStats(
       best_gpa = ?,
       max_money = ?,
       max_exploration = ?,
+      plans_won_with = ?,
       updated_at = datetime('now')
     WHERE user_id = ?
   `).run(
@@ -176,6 +203,16 @@ export function updatePlayerStats(
     lossStreak,
     player.money ?? 0,
     player.gpa ?? 0,
+    sessionStats?.cardsDrawn?.length ?? 0,
+    sessionStats?.defenseCardsUsed ?? 0,
+    sessionStats?.diceRolls?.length ?? 0,
+    sessionStats?.diceRolls?.filter(v => v === 6).length ?? 0,
+    sessionStats?.hospitalEscapes ?? 0,
+    sessionStats?.votesMajoritySide ?? 0,
+    sessionStats?.redistributionCardsUsed ?? 0,
+    sessionStats?.stealCardsUsed ?? 0,
+    sessionStats?.startPassCount ?? 0,
+    foodEventsJson,
     JSON.stringify([...linesEver]),
     JSON.stringify(visitCounts),
     JSON.stringify([...plansEver]),
@@ -184,6 +221,7 @@ export function updatePlayerStats(
     bestGpa,
     maxMoney,
     maxExploration,
+    JSON.stringify(plansWonWith),
     userId,
   );
 
@@ -294,12 +332,11 @@ function evaluateAchievement(
       return (visitCounts['gulou'] ?? 0) >= 10;
     case 'line_08':
       return linesEver.length >= 8;
-    case 'line_09':
-      // 仙林线全部格子: use lineEventsTriggered for xianlin line
-      // Check if player triggered all cells in xianlin line (approximate: 10+ unique events)
-      return Object.keys(player.lineEventsTriggered ?? {}).some(
-        k => k.startsWith('xianlin') || k === 'xianlin'
-      ) && (player.lineEventsTriggered?.['xianlin']?.length ?? 0) >= 8;
+    case 'line_09': {
+      // 仙林一日游: walked all 8 cells of the xianlin line in a single game
+      const xianlinEvents = player.lineEventsTriggered?.['xianlin'] ?? [];
+      return xianlinEvents.length >= 8;
+    }
     case 'line_10': {
       // 四校区线: pukou, gulou, xianlin, suzhou
       const campusLines = ['pukou', 'gulou', 'xianlin', 'suzhou'];
@@ -317,11 +354,10 @@ function evaluateAchievement(
       return (sessionStats?.maxHandSize ?? (player.heldCards?.length ?? 0)) >= 4;
     case 'card_05':
       // 空城计: drew card immediately after using all held cards
-      // sessionStats would track this; default false
-      return false; // will be properly tracked in Task 5
+      return sessionStats?.emptyHandThenDrew === true;
     case 'card_06':
-      // 连锁反应: chain defense card triggered 2+ times
-      return false; // will be properly tracked in Task 5
+      // 连锁反应: a single event triggered 2+ defense cards in a chain
+      return (sessionStats?.maxDefenseChainLength ?? 0) >= 2;
     case 'card_07':
       return stats.total_dice_six_count >= 20;
     case 'card_08':
@@ -330,7 +366,7 @@ function evaluateAchievement(
     case 'card_09':
       return sessionStats?.allPositiveChanceCards ?? false;
     case 'card_10':
-      return (sessionStats?.consecutiveHighDice ?? 0) >= 3;
+      return (sessionStats?.maxConsecutiveHighDice ?? sessionStats?.consecutiveHighDice ?? 0) >= 3;
 
     // ── Plans ─────────────────────────────────────────────────────────────────
     case 'plan_01':
@@ -340,21 +376,27 @@ function evaluateAchievement(
     case 'plan_03':
       return (player.trainingPlans?.length ?? 0) >= 3;
     case 'plan_04': {
-      // Used arts and science plans and won both times — tracked across games
-      // For now: check if plansEver includes both arts and science plan ids
-      // This is a simplification; full tracking would need per-win plan data
+      // 文理兼修: won at least once with an arts plan AND once with a science plan
       const artsIds = ['wenxue', 'lishi', 'zhexue', 'falv', 'jingji', 'shehui', 'xinwenxueyuan', 'waiguoyu', 'yishu'];
       const scienceIds = ['wuli', 'huaxue', 'shengming', 'tianwen', 'diqiu', 'jisuanji', 'dianzi', 'ruanjian', 'xinxi', 'jixie', 'jianzhu', 'kechuang', 'gongguan', 'yixue'];
-      const usedArts = plansEver.some(p => artsIds.includes(p));
-      const usedScience = plansEver.some(p => scienceIds.includes(p));
-      return isWinner && usedArts && usedScience;
+      const plansWon = parseJSON<string[]>(stats.plans_won_with, []);
+      const wonArts = plansWon.some(p => artsIds.includes(p));
+      const wonScience = plansWon.some(p => scienceIds.includes(p));
+      return wonArts && wonScience;
     }
     case 'plan_05':
       return isWinner && (player.trainingPlans ?? []).some(p => p.id === 'falv' || p.name?.includes('法'));
     case 'plan_06':
       return isWinner && (player.trainingPlans ?? []).some(p => p.id === 'yixue' || p.name?.includes('医'));
-    case 'plan_07':
-      return isWinner && (player.trainingPlans ?? []).some(p => p.id === 'jisuanji' || p.name?.includes('计算机'));
+    case 'plan_07': {
+      // 代码之神: 使用计算机系获胜，且金钱和探索都只含 0 和 1
+      const isCS07 = (player.trainingPlans ?? []).some(p => p.id === 'jisuanji' || p.name?.includes('计算机'));
+      if (!isCS07 || !isWinner) return false;
+      const moneyDigits07 = new Set(player.money.toString().split(''));
+      const expDigits07 = new Set(player.exploration.toString().split(''));
+      const allowed07 = new Set(['0', '1']);
+      return [...moneyDigits07].every(d => allowed07.has(d)) && [...expDigits07].every(d => allowed07.has(d));
+    }
     case 'plan_08':
       return isWinner && (player.trainingPlans ?? []).some(p => p.id === 'tianwen' || p.name?.includes('天文'));
     case 'plan_09':
@@ -364,7 +406,7 @@ function evaluateAchievement(
     case 'plan_11':
       return sessionStats?.usedPlanSwap ?? false;
     case 'plan_12':
-      return sessionStats?.samePlanOpponentWin ?? false;
+      return (sessionStats?.samePlanOpponentWin ?? false) && isWinner;
 
     // ── Survival ──────────────────────────────────────────────────────────────
     case 'surv_01':
@@ -423,8 +465,8 @@ function evaluateAchievement(
 
     // ── Food ──────────────────────────────────────────────────────────────────
     case 'food_01':
-      // First time visiting food line
-      return (player.linesVisited ?? []).includes('food');
+      // First time visiting food line (check cumulative or current game)
+      return linesEver.includes('food') || (player.linesVisited ?? []).includes('food');
     case 'food_02':
       return (sessionStats?.cafeteriaNoNegativeStreak ?? player.cafeteriaNoNegativeStreak ?? 0) >= 3;
     case 'food_03':
@@ -503,11 +545,11 @@ function evaluateAchievement(
     case 'hidden_08':
       return sessionStats?.reverseOrderBenefit ?? false;
     case 'hidden_09':
-      return (sessionStats?.consecutiveLowDice ?? 0) >= 5;
+      return (sessionStats?.maxConsecutiveLowDice ?? sessionStats?.consecutiveLowDice ?? 0) >= 5;
     case 'hidden_10':
       return (sessionStats?.usedDelayedGratification ?? false) && isWinner;
     case 'hidden_11':
-      return (sessionStats?.compositeScoreAtYear1End ?? 0) > 0 && !isWinner;
+      return sessionStats?.wasHighestAtYear1End === true && !isWinner;
     case 'hidden_12':
       return (sessionStats?.consecutiveRedraws ?? 0) >= 3;
 

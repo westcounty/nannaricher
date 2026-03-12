@@ -83,9 +83,18 @@ export function initDatabase(): Database.Database {
       best_gpa REAL DEFAULT 0,
       max_money INTEGER DEFAULT 0,
       max_exploration INTEGER DEFAULT 0,
+      plans_won_with TEXT DEFAULT '[]',
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: add plans_won_with column if missing (for existing databases)
+  try {
+    db.prepare("SELECT plans_won_with FROM player_stats LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE player_stats ADD COLUMN plans_won_with TEXT DEFAULT '[]'");
+    console.log('[DB] Migrated player_stats: added plans_won_with column');
+  }
 
   console.log('[DB] SQLite database initialized');
   return db;

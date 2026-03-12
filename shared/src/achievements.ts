@@ -71,6 +71,10 @@ export interface GameSessionStats {
   wasLowestAtYear3End: boolean;
   consecutiveLowDice: number;
   consecutiveHighDice: number;
+  maxConsecutiveLowDice: number;    // peak consecutive low dice (<=2) during the game
+  maxConsecutiveHighDice: number;   // peak consecutive high dice (>=5) during the game
+  wasHighestAtYear1End: boolean;    // was this player's composite score highest at year 1 end
+  emptyHandThenDrew: boolean;       // drew a card immediately after hand was emptied (card_05)
   reverseOrderBenefit: boolean;
   startPassCount: number;
   foodLineAllPositive: boolean;
@@ -79,10 +83,14 @@ export interface GameSessionStats {
   foodLineCompleted: boolean;
   usedMaimenShield: boolean;
   hospitalVisits: number;
+  hospitalEscapes: number;           // times escaped hospital (dice or pay)
+  redistributionCardsUsed: number;   // times used 劫富济贫
+  stealCardsUsed: number;            // times used 朋辈导师 to steal
   totalTuitionPaid: number;
   linesVisited: string[];
   allPositiveChanceCards: boolean;
   consecutiveRedraws: number;
+  maxDefenseChainLength: number;  // max negate cards chained in a single event
 }
 
 // ─── Rank / Tier System ──────────────────────────────────────────────────────
