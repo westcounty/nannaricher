@@ -257,6 +257,7 @@ export function Lobby() {
         {state.mode === 'create' && (
           <motion.div
             key="create"
+            style={{ width: '100%' }}
             variants={pageVariants}
             initial="initial"
             animate="animate"
@@ -273,6 +274,7 @@ export function Lobby() {
         {state.mode === 'join' && (
           <motion.div
             key="join"
+            style={{ width: '100%' }}
             variants={pageVariants}
             initial="initial"
             animate="animate"
@@ -289,6 +291,7 @@ export function Lobby() {
         {state.mode === 'waiting' && state.roomId && state.playerId && state.playerName && (
           <motion.div
             key="waiting"
+            style={{ width: '100%' }}
             variants={pageVariants}
             initial="initial"
             animate="animate"
