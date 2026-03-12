@@ -53,9 +53,9 @@ export class TrackLayer implements RenderLayer {
 
     // 4-layer neon tube effect
     const layers: { width: number; color: number; alpha: number }[] = [
-      { width: MAIN_TRACK_WIDTH + 10, color: 0x4A4A5A, alpha: 0.15 },
-      { width: MAIN_TRACK_WIDTH + 4, color: 0x2A2A3A, alpha: 0.9 },
-      { width: MAIN_TRACK_WIDTH, color: 0x5A5A6A, alpha: 0.9 },
+      { width: MAIN_TRACK_WIDTH + 10, color: 0x4A4238, alpha: 0.15 },
+      { width: MAIN_TRACK_WIDTH + 4, color: 0x2A2420, alpha: 0.9 },
+      { width: MAIN_TRACK_WIDTH, color: 0x5A5248, alpha: 0.9 },
       { width: 2, color: 0xffffff, alpha: 0.15 },
     ];
 
