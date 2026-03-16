@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { getRoundName, MAX_PLAYERS, getAchievementById } from '@nannaricher/shared';
+import { ShareCard } from './ShareCard';
 import type { GameState, Player, SpectatorInfo } from '@nannaricher/shared';
 import type { WinnerInfo } from '../stores/gameStore';
 import { useSocket } from '../context/SocketContext';
@@ -47,6 +48,7 @@ const RARITY_STARS: Record<string, string> = {
 export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby, readyPlayerIds, isHost, spectators, isSpectator }: SettlementScreenProps) {
   const { socket } = useSocket();
   const [visible, setVisible] = useState(true);
+  const [showShare, setShowShare] = useState(false);
   const newlyUnlocked = useAchievementStore(s => s.newlyUnlocked);
 
   // Derive ready state from server-synced readyPlayerIds (survives page refresh)
@@ -297,8 +299,31 @@ export function SettlementScreen({ winner, gameState, playerId, onReturnToLobby,
           <button className="settlement-btn settlement-btn--secondary" onClick={dismiss}>
             查看棋盘
           </button>
+          <button
+            className="settlement-btn settlement-btn--secondary"
+            onClick={() => setShowShare(true)}
+          >
+            📤 分享结果
+          </button>
         </div>
       </div>
+
+      {showShare && (() => {
+        const winnerPlayer = gameState.players.find(p => p.id === winner.playerId);
+        return (
+          <ShareCard
+            winnerName={winner.playerName}
+            winCondition={winner.condition || 'GPA×10 + 探索值 ≥ 60'}
+            money={winnerPlayer?.money ?? 0}
+            gpa={winnerPlayer?.gpa ?? 0}
+            exploration={winnerPlayer?.exploration ?? 0}
+            roundNumber={gameState.turnNumber}
+            playerCount={gameState.players.length}
+            rankings={ranked.map((p, i) => ({ name: p.name, rank: i + 1 }))}
+            onClose={() => setShowShare(false)}
+          />
+        );
+      })()}
     </div>
   );
 }
