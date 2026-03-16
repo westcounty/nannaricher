@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import type { PendingAction } from '@nannaricher/shared';
+import { PLAN_DIFFICULTY, DIFFICULTY_LABEL, DIFFICULTY_COLOR } from '@nannaricher/shared';
 import '../styles/plan-selection.css';
 import { DESIGN_TOKENS } from '../styles/tokens';
 
@@ -144,6 +145,17 @@ export function PlanSelectionPanel({ action }: Props) {
                       readOnly
                     />
                     <span className="plan-selection__name">{plan.name}</span>
+                    {PLAN_DIFFICULTY[plan.id] && (
+                      <span
+                        className="plan-difficulty-badge"
+                        style={{
+                          color: DIFFICULTY_COLOR[PLAN_DIFFICULTY[plan.id]],
+                          borderColor: DIFFICULTY_COLOR[PLAN_DIFFICULTY[plan.id]],
+                        }}
+                      >
+                        {DIFFICULTY_LABEL[PLAN_DIFFICULTY[plan.id]]}
+                      </span>
+                    )}
                     {majorId === plan.id && <span className="plan-selection__major-badge">{'\u2605'}主修</span>}
                     {selectedPlanIds.includes(plan.id) && majorId !== plan.id && (
                       <button
@@ -173,6 +185,17 @@ export function PlanSelectionPanel({ action }: Props) {
                   />
                   <div className="plan-selection__plan-info">
                     <span className="plan-selection__name">{plan.name}</span>
+                    {PLAN_DIFFICULTY[plan.id] && (
+                      <span
+                        className="plan-difficulty-badge"
+                        style={{
+                          color: DIFFICULTY_COLOR[PLAN_DIFFICULTY[plan.id]],
+                          borderColor: DIFFICULTY_COLOR[PLAN_DIFFICULTY[plan.id]],
+                        }}
+                      >
+                        {DIFFICULTY_LABEL[PLAN_DIFFICULTY[plan.id]]}
+                      </span>
+                    )}
                     <span className="plan-selection__desc">{plan.winCondition}</span>
                     {plan.passiveAbility && (
                       <div style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.secondary, marginTop: '4px' }}>

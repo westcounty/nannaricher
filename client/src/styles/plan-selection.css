@@ -102,9 +102,8 @@
 .plan-selection__desc {
   font-size: 0.75rem;
   color: var(--c-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .plan-selection__major-badge {
@@ -205,4 +204,17 @@
 .plan-selection__submitted p {
   font-size: 1.1rem;
   margin-bottom: 1rem;
+}
+
+.plan-difficulty-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid;
+  background: transparent;
+  white-space: nowrap;
+  margin-left: 6px;
+  vertical-align: middle;
 }
