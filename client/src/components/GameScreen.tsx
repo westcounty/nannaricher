@@ -23,6 +23,7 @@ import { TrainingPlanView } from './TrainingPlanView';
 import { useChat } from '../hooks/useChat';
 import { useLayout } from '../hooks/useLayout';
 import { TutorialSystem } from '../features/tutorial/TutorialSystem';
+import { TutorialSystem as ModalTutorial } from '../tutorial/TutorialSystem';
 import { CardDrawModal } from './CardDrawModal';
 import { LoadingScreen } from './LoadingScreen';
 import { MobileSheetContent } from './MobileSheetContent';
@@ -101,6 +102,11 @@ export function GameScreen() {
   const layout = useLayout();
   const { isConnected, reconnect } = useSocket();
   const canvasRef = useRef<GameCanvasHandle>(null);
+
+  // Modal tutorial — shown once for first-time players
+  const [showModalTutorial, setShowModalTutorial] = useState(() => {
+    return !localStorage.getItem('tutorial_completed');
+  });
 
   // Mobile/tablet panel state
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
@@ -751,6 +757,16 @@ export function GameScreen() {
         imageUrl={cellDetail?.imageUrl}
         onClose={() => setCellDetail(null)}
       />
+
+      {/* Modal Tutorial — first-time players only */}
+      {showModalTutorial && (
+        <ModalTutorial
+          onComplete={() => {
+            localStorage.setItem('tutorial_completed', 'true');
+            setShowModalTutorial(false);
+          }}
+        />
+      )}
 
       {/* Tutorial System */}
       <TutorialSystem />
