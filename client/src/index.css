@@ -109,6 +109,30 @@
   --c-gpa: #4DB870;
   --c-exploration: #E8842A;
 
+  /* ---- Hospital Status ---- */
+  --c-hospital: #42A5F5;
+
+  /* ---- Card Gradients ---- */
+  --c-card-chance-thumb-start: #1565C0;
+  --c-card-chance-thumb-end: #42A5F5;
+  --c-card-chance-header-start: #0D47A1;
+  --c-card-chance-header-mid: #1976D2;
+  --c-card-chance-header-end: #42A5F5;
+  --c-card-destiny-start: #4A148C;
+  --c-card-destiny-mid: #7B1FA2;
+  --c-card-destiny-thumb-end: #BA68C8;
+  --c-card-destiny-end: #AB47BC;
+
+  /* ---- Card Effect Pills (RGB values) ---- */
+  --c-pill-money: 76, 175, 80;
+  --c-pill-gpa: 33, 150, 243;
+  --c-pill-exploration: 255, 152, 0;
+  --c-pill-special: 171, 71, 188;
+
+  /* ---- Overlay Backgrounds ---- */
+  --c-overlay-dark: rgba(0, 0, 0, 0.65);
+  --c-overlay-medium: rgba(0, 0, 0, 0.5);
+
   /* ---- Brand Alpha (opacity variants for borders/bg tints) ---- */
   --c-brand-a02: rgba(91,45,142,0.02);
   --c-brand-a04: rgba(91,45,142,0.04);
