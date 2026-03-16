@@ -67,6 +67,22 @@ export function VoteResultModal() {
           </div>
         ))}
       </div>
+      {voteResult.effectDescriptions?.[voteResult.winnerOption] && (
+        <div style={{
+          marginTop: '10px',
+          padding: '8px 10px',
+          borderRadius: '6px',
+          background: hexToRgba(DESIGN_TOKENS.color.semantic.warning, 0.08),
+          border: `1px solid ${hexToRgba(DESIGN_TOKENS.color.brand.primary, 0.2)}`,
+        }}>
+          <div style={{ fontSize: '11px', color: DESIGN_TOKENS.color.text.muted, marginBottom: '2px' }}>
+            效果
+          </div>
+          <div style={{ fontSize: '12px', color: DESIGN_TOKENS.color.text.primary, lineHeight: 1.4 }}>
+            {voteResult.effectDescriptions[voteResult.winnerOption]}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

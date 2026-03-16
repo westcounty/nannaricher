@@ -1780,8 +1780,8 @@ export class GameCoordinator {
     switch (cardId) {
       case 'chance_light_shadow': {
         // 光影变幻 — majority decides
-        const lizhaohu = counts['lizhaohu'] || 0;
-        const caigentan = counts['caigentan'] || 0;
+        const lizhaohu = counts['lizhao_lake'] || 0;
+        const caigentan = counts['caigen_tan'] || 0;
         if (lizhaohu > caigentan) {
           this.engine.getAllPlayers().forEach(p => this.engine.modifyPlayerMoney(p.id, 200));
           this.addLog('system', '光影变幻：日照金波，所有玩家金钱+200');
@@ -1836,7 +1836,7 @@ export class GameCoordinator {
           for (const pid of groups['debate'] || []) this.engine.modifyPlayerExploration(pid, 2);
           this.addLog('system', `妙语连珠(${dice}奇数)：唇枪舌剑，选辩论赛的探索值+2`);
         } else {
-          for (const pid of groups['speaker'] || []) {
+          for (const pid of groups['speech'] || []) {
             this.engine.modifyPlayerExploration(pid, 1);
             this.engine.modifyPlayerMoney(pid, 100);
           }
@@ -1849,7 +1849,7 @@ export class GameCoordinator {
         const dice = this.rollAndBroadcast(1);
         const isOdd = dice % 2 === 1;
         if (isOdd) {
-          for (const pid of groups['exercise'] || []) {
+          for (const pid of groups['broadcast'] || []) {
             this.engine.modifyPlayerExploration(pid, 3);
             this.engine.modifyPlayerGpa(pid, -0.1);
           }
@@ -1905,13 +1905,13 @@ export class GameCoordinator {
         const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           // 闭馆不赔：年卡金钱-300，按次金钱+100
-          for (const pid of groups['annual'] || []) this.engine.modifyPlayerMoney(pid, -300);
-          for (const pid of groups['per_use'] || []) this.engine.modifyPlayerMoney(pid, 100);
+          for (const pid of groups['yearly_card'] || []) this.engine.modifyPlayerMoney(pid, -300);
+          for (const pid of groups['per_visit'] || []) this.engine.modifyPlayerMoney(pid, 100);
           this.addLog('system', `泳馆常客(${dice}奇)：闭馆不赔，年卡金钱-300，按次金钱+100`);
         } else {
           // 酷暑难耐：年卡探索+5，按次探索-1,GPA-0.1
-          for (const pid of groups['annual'] || []) this.engine.modifyPlayerExploration(pid, 5);
-          for (const pid of groups['per_use'] || []) {
+          for (const pid of groups['yearly_card'] || []) this.engine.modifyPlayerExploration(pid, 5);
+          for (const pid of groups['per_visit'] || []) {
             this.engine.modifyPlayerExploration(pid, -1);
             this.engine.modifyPlayerGpa(pid, -0.1);
           }
@@ -1931,7 +1931,7 @@ export class GameCoordinator {
           this.addLog('system', `相逢是缘(${dice}奇)：纸条传情，图书馆GPA+0.2,金钱-100`);
         } else {
           // 热血青春：运动场探索+2,金钱-100
-          for (const pid of groups['sports'] || []) {
+          for (const pid of groups['playground'] || []) {
             this.engine.modifyPlayerExploration(pid, 2);
             this.engine.modifyPlayerMoney(pid, -100);
           }
@@ -1941,18 +1941,18 @@ export class GameCoordinator {
       }
       case 'chance_first_snow': {
         // 初雪留痕 — 初雪告白人数决定效果
-        const confessionCount = (groups['confession'] || []).length;
+        const confessionCount = (groups['confess'] || []).length;
         if (confessionCount === 0) {
           // 全选大雪无声：所有玩家GPA+0.1
           this.engine.getAllPlayers().filter(p => !p.isBankrupt).forEach(p => this.engine.modifyPlayerGpa(p.id, 0.1));
           this.addLog('system', '初雪留痕：风声雪声读书声，所有玩家GPA+0.1');
         } else if (confessionCount % 2 === 1) {
           // 奇数：初雪告白者探索-2
-          for (const pid of groups['confession'] || []) this.engine.modifyPlayerExploration(pid, -2);
+          for (const pid of groups['confess'] || []) this.engine.modifyPlayerExploration(pid, -2);
           this.addLog('system', '初雪留痕：错综复杂，初雪告白者探索值-2');
         } else {
           // 偶数且不为0：初雪告白者探索+3
-          for (const pid of groups['confession'] || []) this.engine.modifyPlayerExploration(pid, 3);
+          for (const pid of groups['confess'] || []) this.engine.modifyPlayerExploration(pid, 3);
           this.addLog('system', '初雪留痕：圆满顺遂，初雪告白者探索值+3');
         }
         break;
@@ -1961,10 +1961,10 @@ export class GameCoordinator {
         // 怪奇物谈 — 骰子奇偶
         const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
-          for (const pid of groups['ding'] || []) this.engine.modifyPlayerExploration(pid, 2);
+          for (const pid of groups['in_ding'] || []) this.engine.modifyPlayerExploration(pid, 2);
           this.addLog('system', `怪奇物谈(${dice}奇)：理论专家，选鼎里的探索值+2`);
         } else {
-          for (const pid of groups['tianwenshan'] || []) this.engine.modifyPlayerGpa(pid, 0.2);
+          for (const pid of groups['astronomy_hill'] || []) this.engine.modifyPlayerGpa(pid, 0.2);
           this.addLog('system', `怪奇物谈(${dice}偶)：流星许愿，选天文山的GPA+0.2`);
         }
         break;
@@ -1998,16 +1998,16 @@ export class GameCoordinator {
         const dice = this.rollAndBroadcast(1);
         if (dice % 2 === 1) {
           // 工期紧张：装潢暂停一回合，历史古迹金钱+200
-          for (const pid of groups['renovate'] || []) this.engine.skipPlayerTurn(pid, 1);
-          for (const pid of groups['historic'] || []) this.engine.modifyPlayerMoney(pid, 200);
+          for (const pid of groups['renovated'] || []) this.engine.skipPlayerTurn(pid, 1);
+          for (const pid of groups['historical'] || []) this.engine.modifyPlayerMoney(pid, 200);
           this.addLog('system', `寻根时刻(${dice}奇)：装潢暂停一回合，历史古迹金钱+200`);
         } else {
           // 形象实际：装潢探索+1,GPA+0.1，历史古迹探索-1
-          for (const pid of groups['renovate'] || []) {
+          for (const pid of groups['renovated'] || []) {
             this.engine.modifyPlayerExploration(pid, 1);
             this.engine.modifyPlayerGpa(pid, 0.1);
           }
-          for (const pid of groups['historic'] || []) this.engine.modifyPlayerExploration(pid, -1);
+          for (const pid of groups['historical'] || []) this.engine.modifyPlayerExploration(pid, -1);
           this.addLog('system', `寻根时刻(${dice}偶)：装潢探索+1,GPA+0.1，历史古迹探索-1`);
         }
         break;
@@ -2015,7 +2015,7 @@ export class GameCoordinator {
       case 'chance_rest_moment': {
         // 休憩时刻 — 多数决
         const daqishan = counts['daqishan'] || 0;
-        const yangshanhu = counts['yangshanhu'] || 0;
+        const yangshanhu = counts['yangshan_lake'] || 0;
         const allPlayers = this.engine.getAllPlayers().filter(p => !p.isBankrupt);
         if (daqishan > yangshanhu) {
           allPlayers.forEach(p => {
@@ -2556,6 +2556,18 @@ export class GameCoordinator {
         if (swapSS) swapSS.usedPlanSwap = true;
       }
       this.triggerPlanConfirmEffects(player.id, majorId);
+      // If triggerPlanConfirmEffects already set a pendingAction, wait for it
+      const stateAfterConfirm = this.engine.getState();
+      if (stateAfterConfirm.pendingAction && stateAfterConfirm.pendingAction.playerId === player.id) {
+        console.log(`[PlanSelection] finalizePlanSelection: ${player.name} has confirm effect pendingAction, saving context`);
+        this.pendingConfirmContext = {
+          eligiblePlayers: ctx.eligiblePlayers,
+          playerIdx: ctx.playerIdx,
+          drawnPlanIds: ctx.drawnPlanIds,
+        };
+        this.broadcastState();
+        return;
+      }
       // 检查是否有 post-confirm action
       const postAction = this.createPostConfirmAction(player, player.id);
       if (postAction) {
@@ -2635,7 +2647,10 @@ export class GameCoordinator {
       if (fx.moveToCell) {
         const cellIndex = boardData.mainBoard.findIndex(c => c.cornerType === fx.moveToCell || c.id === fx.moveToCell);
         if (cellIndex >= 0) {
-          this.engine.movePlayerTo(playerId, { type: 'main', index: cellIndex });
+          const targetPos: Position = { type: 'main', index: cellIndex };
+          this.engine.movePlayerTo(playerId, targetPos);
+          // Trigger the destination cell's effect
+          this.handleCellLanding(playerId, targetPos);
         }
       }
       if (fx.drawCard) {
@@ -4252,12 +4267,57 @@ export class GameCoordinator {
               optionLabels[opt.id] = opt.label;
             }
           }
+          // Build optionId → Chinese consequence description mapping
+          const effectDescriptions: Record<string, string> = {
+            // chance_swimming_pool_regular
+            per_visit: '按次缴费：骰子奇数时金钱+100，偶数时探索-1且GPA-0.1',
+            yearly_card: '年卡用户：骰子奇数时金钱-300，偶数时探索+5',
+            // chance_meeting_is_fate
+            library: '图书馆：骰子奇数时GPA+0.2，金钱-100',
+            playground: '运动场：骰子偶数时探索+2，金钱-100',
+            // chance_first_snow
+            confess: '初雪告白：告白人数为0时全员GPA+0.1；奇数时探索-2；偶数时探索+3',
+            silent: '大雪无声：若无人告白则全员GPA+0.1',
+            // chance_strange_tales
+            in_ding: '鼎里：骰子奇数时探索+2',
+            astronomy_hill: '天文山：骰子偶数时GPA+0.2',
+            // chance_root_finding_moment
+            renovated: '装潢一新：骰子奇数时暂停一回合；偶数时探索+1，GPA+0.1',
+            historical: '历史古迹：骰子奇数时金钱+200；偶数时探索-1',
+            // chance_rest_moment
+            daqishan: '大气山：若多数选此，所有人金钱+100，探索+1',
+            yangshan_lake: '羊山湖：若多数选此，所有人金钱-100，探索+3',
+            // chance_light_shadow
+            lizhao_lake: '藜照湖：若多数选此，所有人金钱+200',
+            caigen_tan: '菜根谭：若多数选此，所有人探索+2',
+            // chance_course_group
+            qq: 'QQ群：若多数选此，所有人GPA+0.2',
+            wechat: '微信群：若多数选此，所有人探索+2',
+            // chance_transfer_moment
+            xinjiekou: '新街口：骰子奇数时探索-1；偶数时金钱+100',
+            jinmalu: '金马路：骰子奇数时探索+1；偶数时金钱-100',
+            // chance_wit_words
+            debate: '南哪辩论赛：骰子奇数时探索+2',
+            speech: '南哪演说家：骰子偶数时探索+1，金钱+100',
+            // chance_school_sports_meet
+            entrance: '入场式：骰子偶数时探索+3，金钱-100',
+            broadcast: '广播操：骰子奇数时探索+3，GPA-0.1',
+            // chance_travel_method
+            shared: '共享出行：若人多则须选惩罚；若人少则获GPA+0.2',
+            walk: '丈量校园：若人多则须选惩罚；若人少则获探索+2',
+            // destiny_four_schools
+            pukou: '浦口校区：骰子奇数时若同校区>1人则探索+2；偶数时若仅1人则探索+2',
+            xianlin: '仙林校区：骰子奇数时若同校区>1人则探索+2；偶数时若仅1人则探索+2',
+            gulou: '鼓楼校区：骰子奇数时若同校区>1人则探索+2；偶数时若仅1人则探索+2',
+            suzhou: '苏州校区：骰子奇数时若同校区>1人则探索+2；偶数时若仅1人则探索+2',
+          };
           this.io.to(this.roomId).emit('game:vote-result', {
             cardId,
             results: groups,
             winnerOption,
             isTie,
             optionLabels,
+            effectDescriptions,
             turn: state.turnNumber,
             round: state.roundNumber,
           });

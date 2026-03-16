@@ -245,6 +245,7 @@ export interface ServerToClientEvents {
     winnerOption: string;
     isTie?: boolean;
     optionLabels?: Record<string, string>;
+    effectDescriptions?: Record<string, string>;
     turn: number;
     round: number;
   }) => void;
