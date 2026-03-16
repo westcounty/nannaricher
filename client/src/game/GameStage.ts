@@ -75,8 +75,10 @@ export class GameStage {
   resize(viewWidth: number, viewHeight: number): void {
     const maxCanvasW = Math.min(viewWidth, 1900);
     const maxCanvasH = Math.min(viewHeight, 1600);
-    const scaleX = maxCanvasW / (METRO_BOARD_WIDTH + 100);
-    const scaleY = maxCanvasH / (METRO_BOARD_HEIGHT + 100);
+    // Extra padding to accommodate branch lines extending beyond the ring
+    // (ring at ±700, max bezier depth ~800 → tips at ~±1500, board is ±1250)
+    const scaleX = maxCanvasW / (METRO_BOARD_WIDTH + 600);
+    const scaleY = maxCanvasH / (METRO_BOARD_HEIGHT + 600);
     const scale = Math.max(0.1, Math.min(scaleX, scaleY));
     this.mainContainer.x = viewWidth / 2 - (METRO_BOARD_WIDTH / 2) * scale;
     this.mainContainer.y = viewHeight / 2 - (METRO_BOARD_HEIGHT / 2) * scale;

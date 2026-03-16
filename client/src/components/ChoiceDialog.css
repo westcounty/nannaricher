@@ -48,7 +48,7 @@
 
 .dialog-title {
   font-size: 1.3rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   color: var(--c-text-on-brand);
 }
@@ -58,7 +58,7 @@
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
   min-width: 40px;
   text-align: center;
   transition: background 0.2s ease, color 0.2s ease;
@@ -175,7 +175,7 @@
 
 .option-label {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: inherit;
 }
 
@@ -274,7 +274,7 @@
 .confirm-button {
   padding: 10px 32px;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text-on-brand);
   background: var(--g-brand);
   border: none;

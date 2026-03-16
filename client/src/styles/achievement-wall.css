@@ -126,7 +126,7 @@
   background: var(--c-brand-a10);
   border: 1px solid var(--c-brand-a20);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-brand);
 }
 
@@ -450,7 +450,7 @@
   align-items: center;
   gap: 3px;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-accent);
 }
 
@@ -542,7 +542,7 @@
 
 .achievement-wall__empty-title {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text-dim);
 }
 

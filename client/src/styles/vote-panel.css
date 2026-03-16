@@ -42,7 +42,7 @@
   padding: 4px 10px;
   border-radius: var(--radius-full);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-text);
   background-color: var(--c-brand-a15);
   transition: background-color 0.3s ease;
@@ -120,7 +120,7 @@
 }
 
 .vote-panel__option-label {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .vote-panel__option-count {
@@ -177,7 +177,7 @@
 
 .vote-panel__avatar-text {
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-text);
 }
 

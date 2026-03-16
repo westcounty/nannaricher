@@ -72,7 +72,7 @@
 
 .epic-effect {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
@@ -108,7 +108,7 @@
   border-color: var(--c-nju-gold);
 }
 
-.epic-option__label { display: block; font-size: 15px; font-weight: 600; }
+.epic-option__label { display: block; font-size: 15px; font-weight: 700; }
 .epic-option__desc { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
 
 .epic-card__confirm {
@@ -117,7 +117,7 @@
   border-radius: 10px;
   color: var(--c-text-on-brand);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 12px 32px;
   cursor: pointer;
   transition: transform 0.15s;

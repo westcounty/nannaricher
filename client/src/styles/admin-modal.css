@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
   color: var(--c-text);
   margin-bottom: 10px;
@@ -111,7 +111,7 @@
   border: none;
   border-radius: var(--radius-sm, 6px);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
 }

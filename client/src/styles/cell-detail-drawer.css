@@ -94,7 +94,7 @@
   padding: 3px 10px;
   border-radius: 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-text-on-brand);
   margin: 10px 16px 0;
 }
@@ -120,7 +120,7 @@
   margin: 0 0 4px;
   color: var(--c-brand-light);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .cell-detail-drawer__line-desc {

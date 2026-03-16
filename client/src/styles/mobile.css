@@ -229,6 +229,8 @@
 @media (max-width: 767px) {
   .game-screen {
     padding-bottom: 0;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     min-height: 100dvh;
   }
 
@@ -245,12 +247,12 @@
   /* Mobile: full-width board — minimize padding to maximize map area */
   .board-area {
     flex: 1;
-    padding: 0;
+    padding: 0 !important;
     min-height: 0;
   }
 
   .board-canvas-container {
-    border-radius: 0;
+    border-radius: 0 !important;
   }
 
   /* Mobile: hide desktop side panel / sidebar and bottom bar */
@@ -412,7 +414,7 @@
 
   .mobile-sheet-title {
     font-size: var(--font-size-md);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--c-text);
     margin: 0;
   }

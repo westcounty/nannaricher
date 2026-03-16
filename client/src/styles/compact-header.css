@@ -40,7 +40,7 @@
 }
 
 .compact-header__round {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text);
 }
 
@@ -88,7 +88,7 @@
 .compact-header__status--action {
   background: var(--c-brand-a12);
   color: var(--c-accent);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .compact-header__status--waiting {

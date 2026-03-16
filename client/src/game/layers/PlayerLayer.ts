@@ -357,24 +357,32 @@ export class PlayerLayer implements RenderLayer {
       return path;
     }
 
-    // Case 3: line → main (walk back through line to entry, then on main ring)
+    // Case 3: line → main (walk forward through line to exit, then on main ring)
     if (from.type === 'line' && to.type === 'main') {
       const line = LINE_CONFIGS.find(l => l.id === from.lineId);
       if (!line) return [this.getPositionPoint(to)];
 
       const path: Point[] = [];
-      // Walk backwards through the line to station 0
-      for (let i = from.index - 1; i >= 0; i--) {
+      const exitIndex = LINE_EXIT_MAP[from.lineId];
+
+      // Walk forward through remaining line stations to the end
+      for (let i = from.index + 1; i < line.cellCount; i++) {
         path.push(getLineStationPosition(from.lineId, i));
       }
-      // Entry point on the main ring
-      path.push(getMainStationPosition(line.entryIndex));
 
-      // Check if we exit via the line's exit station
-      const exitIndex = LINE_EXIT_MAP[from.lineId];
-      if (exitIndex !== undefined && to.index !== line.entryIndex) {
-        // Walk main ring from entry to target
-        path.push(...getMainRingPath(line.entryIndex, to.index));
+      // Exit point on the main ring
+      if (exitIndex !== undefined) {
+        path.push(getMainStationPosition(exitIndex));
+        // If target is not the exit itself, walk main ring from exit to target
+        if (to.index !== exitIndex) {
+          path.push(...getMainRingPath(exitIndex, to.index));
+        }
+      } else {
+        // Fallback: walk to entry then to target
+        path.push(getMainStationPosition(line.entryIndex));
+        if (to.index !== line.entryIndex) {
+          path.push(...getMainRingPath(line.entryIndex, to.index));
+        }
       }
       return path;
     }

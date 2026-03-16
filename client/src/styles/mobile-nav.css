@@ -42,8 +42,8 @@
 .mobile-bottom-nav {
   display: flex;
   align-items: stretch;
-  padding: 4px 4px;
-  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  padding: 2px 4px;
+  padding-bottom: max(2px, env(safe-area-inset-bottom));
   background: var(--c-elevated);
   border-top: 1px solid var(--game-border);
   gap: 4px;
@@ -62,7 +62,7 @@
   border: none;
   border-radius: 10px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   min-height: 44px;
@@ -190,7 +190,7 @@
   border: none;
   border-radius: 6px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   background: transparent;
   color: var(--c-text-dim);
@@ -279,7 +279,7 @@
 
 .mini-player-stat {
   font-size: 0.6rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-text-dim);
   white-space: nowrap;
 }

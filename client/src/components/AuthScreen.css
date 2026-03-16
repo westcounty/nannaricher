@@ -117,7 +117,7 @@
   z-index: 1;
   padding: 16px;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   color: var(--c-dim-a50);
   background: transparent;
@@ -211,7 +211,7 @@
   flex-shrink: 0;
   padding: 0 16px;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   color: var(--c-brand-a80);
   background: var(--c-brand-a06);

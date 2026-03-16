@@ -63,7 +63,7 @@
 
 .settings-panel__value {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text);
 }
 
@@ -85,7 +85,7 @@
 
 .settings-panel__toggle-indicator {
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 10px;
   background: rgba(100, 100, 100, 0.3);
@@ -111,7 +111,7 @@
   border: none;
   border-radius: var(--radius-sm, 6px);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
 }

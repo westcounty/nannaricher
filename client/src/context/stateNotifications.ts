@@ -46,7 +46,7 @@ export function buildLineExitSummaryNotification(
 ): DeferredNotification {
   const parts: string[] = [];
   if (deltas.money) parts.push(`资金${deltas.money > 0 ? '+' : ''}${deltas.money}`);
-  if (deltas.gpa) parts.push(`GPA${deltas.gpa > 0 ? '+' : ''}${deltas.gpa}`);
+  if (deltas.gpa) parts.push(`GPA${deltas.gpa > 0 ? '+' : ''}${+deltas.gpa.toFixed(2)}`);
   if (deltas.exploration) parts.push(`探索${deltas.exploration > 0 ? '+' : ''}${deltas.exploration}`);
   const summary = parts.length > 0 ? parts.join('，') : '无变化';
 
