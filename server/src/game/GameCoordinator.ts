@@ -3111,8 +3111,8 @@ export class GameCoordinator {
         message: `${player.name} 保持当前培养计划`,
         type: 'info' as const,
       });
-      // Don't broadcastState with null pendingAction — resolve next player first
-      setTimeout(() => this.resolveNextPlayerPlan(), 500);
+      // Resolve synchronously to avoid leaving pendingAction=null window
+      this.resolveNextPlayerPlan();
       return;
     }
 
@@ -3184,8 +3184,8 @@ export class GameCoordinator {
       }
     }
 
-    // Don't broadcastState with null pendingAction — resolve next player first
-    setTimeout(() => this.resolveNextPlayerPlan(), 500);
+    // Resolve synchronously to avoid leaving pendingAction=null window
+    this.resolveNextPlayerPlan();
   }
 
   /**
