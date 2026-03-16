@@ -28,7 +28,7 @@
 }
 
 .compact-player--hospital {
-  border-left-color: #42A5F5;
+  border-left-color: var(--c-hospital);
 }
 
 .compact-player--disconnected {
@@ -132,7 +132,7 @@
 }
 
 .compact-player__badge--hospital {
-  background: #42A5F5; /* hospital blue — game-specific */
+  background: var(--c-hospital); /* hospital blue — game-specific */
   color: var(--c-text);
 }
 

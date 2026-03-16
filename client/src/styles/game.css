@@ -241,7 +241,7 @@
 }
 
 .status-badge.hospital {
-  background: #42A5F5; /* hospital blue — game-specific */
+  background: var(--c-hospital); /* hospital blue — game-specific */
   color: var(--c-text);
 }
 
