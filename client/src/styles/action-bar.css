@@ -104,12 +104,7 @@
 
 /* Glow animation when it's my turn */
 .action-bar__dice-btn--my-turn:not(:disabled) {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px var(--c-brand), 0 0 20px var(--c-brand-a20); }
-  50% { box-shadow: 0 0 16px var(--c-brand), 0 0 40px var(--c-brand-a35); }
+  animation: dice-btn-glow 2s ease-in-out infinite;
 }
 
 .action-bar__wait-text {
