@@ -1410,3 +1410,112 @@
     transform: scale(1);
   }
 }
+
+/* Rule Drawer */
+.rule-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--c-overlay-medium, rgba(0,0,0,0.5));
+  z-index: 900;
+}
+.rule-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 100vw;
+  background: var(--c-surface, #fff);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+  animation: ruleDrawerSlideIn 0.3s ease-out;
+}
+@keyframes ruleDrawerSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.rule-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--c-border, #ddd);
+}
+.rule-drawer__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--c-brand, #5B2D8E);
+}
+.rule-drawer__close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--c-text-muted, #888);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.rule-drawer__close:hover {
+  background: rgba(91,45,142,0.1);
+}
+.rule-drawer__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--c-border, #ddd);
+  padding: 0 12px;
+}
+.rule-drawer__tab {
+  flex: 1;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 0.85rem;
+  color: var(--c-text-dim, #666);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.rule-drawer__tab.active {
+  color: var(--c-brand, #5B2D8E);
+  border-bottom-color: var(--c-brand, #5B2D8E);
+  font-weight: 700;
+}
+.rule-drawer__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.rule-section h3 {
+  color: var(--c-brand, #5B2D8E);
+  font-size: 0.95rem;
+  margin: 16px 0 8px;
+}
+.rule-section h3:first-child { margin-top: 0; }
+.rule-section p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 4px 0;
+}
+.rule-section__intro {
+  font-size: 0.85rem !important;
+  color: var(--c-text-dim, #666);
+  margin-bottom: 12px !important;
+}
+.rule-plan-item, .rule-line-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--c-border, #eee);
+}
+.rule-plan-item__condition, .rule-line-item__desc {
+  font-size: 0.85rem;
+  color: var(--c-text-dim, #666);
+  margin-top: 2px;
+}
+.rule-line-item__fee {
+  margin-left: 8px;
+  font-size: 0.8rem;
+  color: var(--c-text-muted, #999);
+}
+@media (max-width: 767px) {
+  .rule-drawer { width: 100vw; }
+}

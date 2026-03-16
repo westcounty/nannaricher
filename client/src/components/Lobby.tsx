@@ -5,6 +5,7 @@ import { JoinRoom } from './JoinRoom';
 import { WaitingRoom } from './WaitingRoom';
 import { BattleHistory } from './BattleHistory';
 import { AchievementWall } from './AchievementWall';
+import { RuleDrawer } from './RuleDrawer';
 import { useSocket } from '../context/SocketContext';
 import { useGameStore } from '../stores/gameStore';
 import { useAuthStore } from '../stores/authStore';
@@ -48,6 +49,7 @@ export function Lobby() {
     isHost: false,
     players: [],
   });
+  const [showRules, setShowRules] = useState(false);
 
   // Sync with context when we get room info (including reconnection)
   // Don't override history/achievements views — only auto-redirect from select/create/join
@@ -189,6 +191,9 @@ export function Lobby() {
           >
             成就
           </button>
+          <button className="user-action-btn" onClick={() => setShowRules(true)}>
+            📖 规则
+          </button>
           <button className="user-action-btn user-logout" onClick={logout}>
             登出
           </button>
@@ -313,6 +318,7 @@ export function Lobby() {
       <p className="lobby-copyright">
         &copy; {new Date().getFullYear()} 南哪助手 All Rights Reserved
       </p>
+      <RuleDrawer open={showRules} onClose={() => setShowRules(false)} />
     </div>
   );
 }
