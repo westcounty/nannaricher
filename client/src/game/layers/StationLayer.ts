@@ -107,36 +107,36 @@ const DEFAULT_EMOJI = '\u{1F4CD}'; // 📍
 // ============================================
 const CELL_IMAGE_MAP: Record<string, string> = {
   // Corner stations
-  start: '/art/cells/start_gen.png',
-  hospital: '/art/cells/hospital.jpg',
-  ding: '/art/cells/ding.jpg',
-  waiting_room: '/art/cells/waiting_room.jpg',
+  start: '/art/cells/start_gen.webp',
+  hospital: '/art/cells/hospital.webp',
+  ding: '/art/cells/ding.webp',
+  waiting_room: '/art/cells/waiting_room.webp',
   // Main ring events
-  tuition: '/art/cells/tuition.jpg',
-  zijing: '/art/cells/zijing.jpg',
-  qingong: '/art/cells/qingong.jpg',
-  retake: '/art/cells/retake.png',
-  jiang_gong: '/art/cells/jiang_gong.png',
-  society: '/art/cells/society.png',
-  kechuang: '/art/cells/kechuang.png',
-  nanna_cp: '/art/cells/nanna_cp.jpg',
-  chuangmen: '/art/cells/chuangmen.jpg',
+  tuition: '/art/cells/tuition.webp',
+  zijing: '/art/cells/zijing.webp',
+  qingong: '/art/cells/qingong.webp',
+  retake: '/art/cells/retake.webp',
+  jiang_gong: '/art/cells/jiang_gong.webp',
+  society: '/art/cells/society.webp',
+  kechuang: '/art/cells/kechuang.webp',
+  nanna_cp: '/art/cells/nanna_cp.webp',
+  chuangmen: '/art/cells/chuangmen.webp',
 };
 
 // Line entry images
 const LINE_IMAGE_MAP: Record<string, string> = {
-  study: '/art/cells/line_study.jpg',
-  money: '/art/cells/line_money.jpg',
-  pukou: '/art/cells/line_pukou.jpg',
-  suzhou: '/art/cells/line_suzhou.png',
-  explore: '/art/cells/line_explore_gen.png',
-  xianlin: '/art/cells/line_xianlin.jpg',
-  gulou: '/art/cells/line_gulou.jpg',
-  food: '/art/cells/line_food.jpg',
+  study: '/art/cells/line_study.webp',
+  money: '/art/cells/line_money.webp',
+  pukou: '/art/cells/line_pukou.webp',
+  suzhou: '/art/cells/line_suzhou.webp',
+  explore: '/art/cells/line_explore_gen.webp',
+  xianlin: '/art/cells/line_xianlin.webp',
+  gulou: '/art/cells/line_gulou.webp',
+  food: '/art/cells/line_food.webp',
 };
 
 // Chance card image
-const CHANCE_IMAGE = '/art/cells/chance.jpg';
+const CHANCE_IMAGE = '/art/cells/chance.webp';
 
 // Texture cache
 const textureCache = new Map<string, Texture>();
@@ -552,7 +552,7 @@ export class StationLayer implements RenderLayer {
         card.addChild(bg);
 
         // --- Branch cell illustration (each cell has its own image) ---
-        const branchImgUrl = `/art/cells/line/${line.id}_${i}.png`;
+        const branchImgUrl = `/art/cells/line/${line.id}_${i}.webp`;
         const cardKey = `line:${line.id}:${i}`;
         this.loadBranchImage(card, branchImgUrl, cardW, cardH, cardKey);
 
