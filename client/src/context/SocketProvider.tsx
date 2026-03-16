@@ -32,11 +32,14 @@ function diffAndPlaySounds(
 ): void {
   if (!prev) return;
 
+  let highPrioritySoundPlayed = false;
+
   const isHidden = document.hidden;
 
   // Round changed
   if (next.roundNumber > prev.roundNumber) {
     playSound('round_start');
+    highPrioritySoundPlayed = true;
   }
 
   // Current player changed — turn start / end
@@ -46,9 +49,11 @@ function diffAndPlaySounds(
 
     if (prevPlayer?.id === localPlayerId) {
       playSound('turn_end');
+      highPrioritySoundPlayed = true;
     }
     if (nextPlayer?.id === localPlayerId) {
       playSound('turn_start');
+      highPrioritySoundPlayed = true;
       // Notify player when tab is in the background
       if (isHidden) {
         if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
@@ -65,9 +70,11 @@ function diffAndPlaySounds(
 
   if (prevActionType !== 'multi_vote' && nextActionType === 'multi_vote') {
     playSound('vote_start');
+    highPrioritySoundPlayed = true;
   }
   if (prevActionType === 'multi_vote' && nextActionType !== 'multi_vote') {
     playSound('vote_end');
+    highPrioritySoundPlayed = true;
   }
 
   // Local-player status changes
@@ -78,9 +85,38 @@ function diffAndPlaySounds(
     if (prevLocal && nextLocal) {
       if (!prevLocal.isInHospital && nextLocal.isInHospital) {
         playSound('hospital_enter');
+        highPrioritySoundPlayed = true;
       }
       if (!prevLocal.isBankrupt && nextLocal.isBankrupt) {
         playSound('bankrupt');
+        highPrioritySoundPlayed = true;
+      }
+    }
+  }
+
+  // Resource change sounds — only for local player, only when no high-priority sound played
+  if (!highPrioritySoundPlayed && localPlayerId) {
+    const prevLocal = prev?.players.find(p => p.id === localPlayerId);
+    const currLocal = next?.players.find(p => p.id === localPlayerId);
+    if (prevLocal && currLocal) {
+      const moneyDelta = currLocal.money - prevLocal.money;
+      const gpaDelta = currLocal.gpa - prevLocal.gpa;
+      const exploreDelta = currLocal.exploration - prevLocal.exploration;
+
+      if (moneyDelta !== 0 || gpaDelta !== 0 || exploreDelta !== 0) {
+        const absChanges = [
+          { key: 'money' as const, abs: Math.abs(moneyDelta), delta: moneyDelta },
+          { key: 'gpa' as const, abs: Math.abs(gpaDelta * 1000), delta: gpaDelta },
+          { key: 'explore' as const, abs: Math.abs(exploreDelta * 10), delta: exploreDelta },
+        ];
+        const biggest = absChanges.sort((a, b) => b.abs - a.abs)[0];
+        if (biggest.key === 'money') {
+          playSound(biggest.delta > 0 ? 'coin_gain' : 'coin_loss');
+        } else if (biggest.key === 'gpa') {
+          playSound(biggest.delta > 0 ? 'gpa_up' : 'gpa_down');
+        } else if (biggest.delta > 0) {
+          playSound('explore_up');
+        }
       }
     }
   }

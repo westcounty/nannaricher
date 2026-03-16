@@ -94,6 +94,7 @@ export function GameScreen() {
   const rawUseCard = socketActions?.useCard ?? (() => {});
   // Wrap useCard to close mobile sheet when card is used (prevents sheet blocking EventModal)
   const useCard = (cardId: string, targetPlayerId?: string) => {
+    playSound('card_use');
     rawUseCard(cardId, targetPlayerId);
     setActivePanel(null);
   };
