@@ -19,10 +19,11 @@ import time
 import os
 from playwright.sync_api import sync_playwright, Page
 
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:5173")
+BASE_URL = os.environ.get("BASE_URL", "https://richer.nju.top")
 SCREENSHOT_DIR = "balance-test/screenshots"
 MAX_GAME_SECONDS = 2700  # 45 min max (server action timeouts can add up with more players)
 NUM_PLAYERS = int(os.environ.get("NUM_PLAYERS", "3"))  # 3-player game by default
+NUM_GAMES = int(os.environ.get("NUM_GAMES", "1"))  # number of games to play
 
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
@@ -40,7 +41,20 @@ def dismiss_overlays(page: Page) -> bool:
     """Dismiss any tutorial or blocking overlay. Returns True if something was dismissed."""
     dismissed = False
 
-    # Tutorial overlay - "跳过全部" (skip all)
+    # Modal tutorial (5-step) — "跳过教程" (skip tutorial) or "跳过" buttons
+    for skip_text in ["跳过教程", "跳过"]:
+        try:
+            skip = page.locator(f"text={skip_text}")
+            if skip.count() > 0 and skip.first.is_visible():
+                skip.first.click(force=True)
+                page.wait_for_timeout(400)
+                dismissed = True
+                print(f"    [Overlay] Dismissed modal tutorial ({skip_text})")
+                break
+        except:
+            pass
+
+    # Tutorial overlay - "跳过全部" (skip all tooltip tutorial)
     try:
         skip = page.locator("text=跳过全部")
         if skip.count() > 0 and skip.first.is_visible():
@@ -59,6 +73,19 @@ def dismiss_overlays(page: Page) -> bool:
             page.wait_for_timeout(400)
             dismissed = True
             print("    [Overlay] Dismissed tutorial step (got it)")
+    except:
+        pass
+
+    # Vote result modal — dismiss by clicking
+    try:
+        vote_result = page.locator(".vote-result-overlay")
+        if vote_result.count() > 0 and vote_result.first.is_visible():
+            close_btn = vote_result.locator("button")
+            if close_btn.count() > 0:
+                close_btn.last.click(force=True)
+                page.wait_for_timeout(400)
+                dismissed = True
+                print("    [Overlay] Dismissed vote result modal")
     except:
         pass
 
@@ -141,8 +168,8 @@ def get_visible_text(page: Page, selector: str) -> str:
 
 def bypass_auth(page: Page, player_name: str):
     """Inject mock auth tokens into localStorage to bypass login screen."""
-    page.goto(BASE_URL, timeout=60000)
-    page.wait_for_load_state("networkidle", timeout=60000)
+    page.goto(BASE_URL, timeout=120000, wait_until="domcontentloaded")
+    page.wait_for_load_state("networkidle", timeout=120000)
     import json, base64, time as _time
     user_id = f"test-{int(_time.time() * 1000)}"
     mock_user = json.dumps({"userId": user_id, "username": player_name, "nickname": player_name})
@@ -155,6 +182,8 @@ def bypass_auth(page: Page, player_name: str):
         localStorage.setItem('nannaricher_access_token', '{mock_token}');
         localStorage.setItem('nannaricher_refresh_token', 'mock-refresh');
         localStorage.setItem('nannaricher_user', {json.dumps(mock_user)});
+        localStorage.setItem('tutorial_completed', 'true');
+        localStorage.setItem('nannaricher_tutorial_completed', JSON.stringify(['first_dice','plan_confirm','first_card_draw','first_branch']));
     }}""")
     page.reload()
     page.wait_for_load_state("networkidle")
@@ -213,8 +242,8 @@ def join_room(page: Page, room_code: str, player_name: str):
 
 def start_game(page: Page):
     """Host starts the game."""
-    btn = page.locator(".start-button")
-    btn.wait_for(state="visible", timeout=10000)
+    btn = page.locator("button.start-button:has-text('开始游戏')")
+    btn.wait_for(state="visible", timeout=15000)
     shot(page, "before-start")
     btn.click()
     page.wait_for_timeout(2000)
@@ -302,20 +331,27 @@ def handle_action(page: Page, player_name: str) -> str:
 
     # 1. Event modal with options (using .option-card selector)
     #    Modal IS the topmost element, so clicking its children is valid.
+    #    Use force=True because animation overlays can temporarily intercept clicks.
     event = page.locator(".event-modal.has-options")
     if event.count() > 0 and event.first.is_visible():
         # Click first option card
         opts = event.locator(".option-card:not(.selected)")
         if opts.count() > 0:
-            opts.first.click(timeout=3000, no_wait_after=True)
-            page.wait_for_timeout(400)
-            return "event_option_card"
+            try:
+                opts.first.click(timeout=3000, force=True, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "event_option_card"
+            except:
+                pass
         # If no unselected cards, try confirm
         cfm = event.locator(".confirm-button")
         if cfm.count() > 0 and cfm.first.is_visible():
-            cfm.first.click(timeout=3000, no_wait_after=True)
-            page.wait_for_timeout(400)
-            return "event_confirm"
+            try:
+                cfm.first.click(timeout=3000, force=True, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "event_confirm"
+            except:
+                pass
 
     # 2. Event modal with tabbed options
     tabbed = page.locator(".options-tabbed")
@@ -336,9 +372,12 @@ def handle_action(page: Page, player_name: str) -> str:
     if event_ro.count() > 0 and event_ro.first.is_visible():
         cfm = event_ro.locator(".confirm-button")
         if cfm.count() > 0 and cfm.first.is_visible():
-            cfm.first.click(timeout=3000, no_wait_after=True)
-            page.wait_for_timeout(400)
-            return "event_confirm"
+            try:
+                cfm.first.click(timeout=3000, force=True, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "event_confirm"
+            except:
+                pass
         # Click overlay edge to dismiss (force ok — clicking the overlay itself)
         overlay = page.locator(".event-modal-overlay")
         if overlay.count() > 0:
@@ -458,119 +497,156 @@ def handle_settlement(page: Page, player_name: str):
         pass
 
 
+def run_one_game(browser, num_players: int, game_num: int) -> dict:
+    """Run a single game with given player count. Returns result dict."""
+    print(f"\n{'='*60}")
+    print(f"  Game {game_num}: {num_players} players")
+    print(f"{'='*60}")
+
+    contexts = []
+    pages = []
+    names = [f"G{game_num}P{i+1}" for i in range(num_players)]
+    result = {"game": game_num, "players": num_players, "status": "unknown", "actions": 0, "duration": 0, "winner": ""}
+
+    for i in range(num_players):
+        ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+        pg = ctx.new_page()
+        pg.set_default_timeout(60000)
+        contexts.append(ctx)
+        pages.append(pg)
+
+    try:
+        # Create & join room
+        print(f"  [1] Creating room (host: {names[0]})...")
+        code = create_room(pages[0], names[0])
+
+        print(f"  [2] {num_players - 1} players joining...")
+        for i in range(1, num_players):
+            join_room(pages[i], code, names[i])
+            pages[0].wait_for_timeout(1000)
+
+        # Start game
+        print("  [3] Starting game...")
+        start_game(pages[0])
+
+        # Dismiss tutorials on all pages
+        pages[0].wait_for_timeout(2000)
+        for i, pg in enumerate(pages):
+            dismiss_all_overlays(pg)
+
+        # Game loop
+        print("  [4] Playing game...")
+        start_time = time.time()
+        actions = 0
+        last_action_time = time.time()
+        STUCK_THRESHOLD = 90
+
+        while time.time() - start_time < MAX_GAME_SECONDS:
+            game_over = False
+            for i, pg in enumerate(pages):
+                if is_game_over(pg):
+                    duration = time.time() - start_time
+                    print(f"\n  GAME OVER! Actions: {actions}, Duration: {duration:.0f}s")
+                    winner = ""
+                    try:
+                        winner = pg.locator(".settlement-rankings__row--winner .settlement-rankings__name").inner_text()
+                    except:
+                        pass
+                    print(f"  Winner: {winner}")
+                    shot(pg, f"g{game_num}-gameover")
+                    result.update(status="completed", actions=actions, duration=round(duration), winner=winner)
+                    game_over = True
+                    break
+            if game_over:
+                break
+
+            acted = False
+            for i, pg in enumerate(pages):
+                action = handle_action(pg, names[i])
+                if action:
+                    actions += 1
+                    acted = True
+                    last_action_time = time.time()
+                    elapsed = time.time() - start_time
+                    if actions % 20 == 0:
+                        print(f"  [Action #{actions}] {names[i]}: {action} ({elapsed:.0f}s)")
+
+            if not acted:
+                pages[0].wait_for_timeout(500)
+                idle_secs = time.time() - last_action_time
+                if idle_secs > STUCK_THRESHOLD and int(idle_secs) % STUCK_THRESHOLD < 1:
+                    elapsed = time.time() - start_time
+                    print(f"  [STUCK?] No actions for {idle_secs:.0f}s (elapsed: {elapsed:.0f}s)")
+                    for i, pg in enumerate(pages):
+                        shot(pg, f"g{game_num}-stuck-p{i+1}")
+                    if idle_secs > STUCK_THRESHOLD * 3:
+                        print(f"  [FATAL] Game stuck after {idle_secs:.0f}s idle.")
+                        result.update(status="stuck", actions=actions, duration=round(time.time() - start_time))
+                        break
+        else:
+            duration = time.time() - start_time
+            print(f"  TIMEOUT after {MAX_GAME_SECONDS}s, {actions} actions")
+            result.update(status="timeout", actions=actions, duration=round(duration))
+
+    except Exception as e:
+        print(f"  ERROR: {e}")
+        result.update(status=f"error: {e}", duration=round(time.time() - start_time) if 'start_time' in dir() else 0)
+    finally:
+        for ctx in contexts:
+            try:
+                ctx.close()
+            except:
+                pass
+
+    return result
+
+
 def main():
+    # Game configs: 10 games, cycling through 2-6 players
+    player_counts = [2, 3, 4, 5, 6, 2, 3, 4, 5, 6]
+    num_games = int(os.environ.get("NUM_GAMES", str(len(player_counts))))
+    player_counts = player_counts[:num_games]
+
     print("=" * 60)
-    print(f"  Nannaricher Playwright E2E Game Test ({NUM_PLAYERS} players)")
+    print(f"  Nannaricher E2E Test: {num_games} games")
+    print(f"  Player counts: {player_counts}")
+    print(f"  Target: {BASE_URL}")
     print("=" * 60)
+
+    results = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-
-        # Create contexts and pages for all players
-        contexts = []
-        pages = []
-        names = [f"Player{i+1}" for i in range(NUM_PLAYERS)]
-
-        for i in range(NUM_PLAYERS):
-            ctx = browser.new_context(viewport={"width": 1280, "height": 900})
-            pg = ctx.new_page()
-            pg.set_default_timeout(60000)
-            contexts.append(ctx)
-            pages.append(pg)
-
         try:
-            # Create & join room
-            print(f"\n[1] Creating room (host: {names[0]})...")
-            code = create_room(pages[0], names[0])
-
-            print(f"[2] {NUM_PLAYERS - 1} players joining...")
-            for i in range(1, NUM_PLAYERS):
-                join_room(pages[i], code, names[i])
-                pages[0].wait_for_timeout(1000)
-            shot(pages[0], "all-ready")
-
-            # Start game
-            print("[3] Starting game...")
-            start_game(pages[0])
-
-            # Dismiss tutorials on all pages
-            pages[0].wait_for_timeout(2000)
-            for i, pg in enumerate(pages):
-                dismiss_all_overlays(pg)
-
-            for i, pg in enumerate(pages):
-                shot(pg, f"game-start-p{i+1}")
-
-            # Game loop
-            print("[4] Playing game...")
-            start_time = time.time()
-            actions = 0
-            last_action_time = time.time()
-            STUCK_THRESHOLD = 90  # seconds with no action = stuck
-
-            while time.time() - start_time < MAX_GAME_SECONDS:
-                # Check game over on all pages
-                game_over = False
-                for i, pg in enumerate(pages):
-                    if is_game_over(pg):
-                        print(f"\n  GAME OVER detected on {names[i]}'s screen!")
-                        for j, pg2 in enumerate(pages):
-                            shot(pg2, f"game-over-p{j+1}")
-                        print(f"  Total actions: {actions}")
-                        print(f"  Duration: {time.time() - start_time:.0f}s")
-                        handle_settlement(pages[0], names[0])
-                        game_over = True
-                        break
-                if game_over:
-                    return
-
-                # Try actions on ALL players
-                acted = False
-                for i, pg in enumerate(pages):
-                    action = handle_action(pg, names[i])
-                    if action:
-                        actions += 1
-                        acted = True
-                        last_action_time = time.time()
-                        elapsed = time.time() - start_time
-                        print(f"  [Action #{actions}] {names[i]}: {action} ({elapsed:.0f}s)")
-                        shot(pg, f"action-{actions:03d}-{action}")
-
-                if not acted:
-                    pages[0].wait_for_timeout(500)
-                    idle_secs = time.time() - last_action_time
-                    # Stuck detection: screenshot every 90s of idle
-                    if idle_secs > STUCK_THRESHOLD and int(idle_secs) % STUCK_THRESHOLD < 1:
-                        elapsed = time.time() - start_time
-                        print(f"\n  [STUCK?] No actions for {idle_secs:.0f}s (total elapsed: {elapsed:.0f}s)")
-                        print(f"  Dumping screenshots to diagnose...")
-                        for i, pg in enumerate(pages):
-                            shot(pg, f"stuck-p{i+1}-{int(elapsed)}s")
-                        # After 3 stuck cycles (270s), consider it a real stuck
-                        if idle_secs > STUCK_THRESHOLD * 3:
-                            print(f"\n  [FATAL] Game appears stuck after {idle_secs:.0f}s idle. Aborting.")
-                            for i, pg in enumerate(pages):
-                                shot(pg, f"fatal-stuck-p{i+1}")
-                            raise Exception(f"Game stuck: no action possible for {idle_secs:.0f}s")
-
-            print(f"\n  TIMEOUT after {MAX_GAME_SECONDS}s, {actions} actions taken")
-            for i, pg in enumerate(pages):
-                shot(pg, f"timeout-p{i+1}")
-
-        except Exception as e:
-            print(f"\n  ERROR: {e}")
-            for i, pg in enumerate(pages):
-                try:
-                    shot(pg, f"error-p{i+1}")
-                except:
-                    pass
-            raise
+            for i, nplayers in enumerate(player_counts):
+                result = run_one_game(browser, nplayers, i + 1)
+                results.append(result)
+                print(f"  => Game {i+1}: {result['status']} ({result['players']}p, {result['actions']} actions, {result['duration']}s)")
+                # Brief pause between games to let server recover
+                time.sleep(3)
         finally:
             browser.close()
 
+    # Summary
     print("\n" + "=" * 60)
-    print("  Test Complete")
+    print("  E2E TEST SUMMARY")
     print("=" * 60)
+    print(f"  {'Game':<6} {'Players':<9} {'Status':<12} {'Actions':<9} {'Duration':<10} {'Winner'}")
+    print(f"  {'-'*6} {'-'*9} {'-'*12} {'-'*9} {'-'*10} {'-'*15}")
+    completed = 0
+    for r in results:
+        status_mark = "✅" if r['status'] == 'completed' else "❌"
+        print(f"  {r['game']:<6} {r['players']:<9} {status_mark} {r['status']:<10} {r['actions']:<9} {r['duration']:<10} {r['winner']}")
+        if r['status'] == 'completed':
+            completed += 1
+    print(f"\n  Result: {completed}/{num_games} games completed successfully")
+    print("=" * 60)
+
+    # Save results
+    import json
+    with open("balance-test/report/e2e-results.json", "w") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    print(f"  Results saved to balance-test/report/e2e-results.json")
 
 
 if __name__ == "__main__":
