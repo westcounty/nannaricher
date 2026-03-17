@@ -160,7 +160,7 @@ def get_visible_text(page: Page, selector: str) -> str:
     try:
         loc = page.locator(selector)
         if loc.count() > 0 and loc.first.is_visible():
-            return loc.first.inner_text()
+            return loc.first.inner_text(timeout=2000)
     except:
         pass
     return ""
@@ -358,14 +358,20 @@ def handle_action(page: Page, player_name: str) -> str:
     if tabbed.count() > 0 and tabbed.first.is_visible():
         tab_opts = tabbed.locator(".option-card:not(.selected):not([disabled])")
         if tab_opts.count() > 0:
-            tab_opts.first.click(timeout=3000, no_wait_after=True)
-            page.wait_for_timeout(400)
-            return "event_tabbed_option"
+            try:
+                tab_opts.first.click(timeout=3000, force=True, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "event_tabbed_option"
+            except:
+                pass
         tab_btns = tabbed.locator(".option-button:not(.disabled):not([disabled])")
         if tab_btns.count() > 0:
-            tab_btns.first.click(timeout=3000, no_wait_after=True)
-            page.wait_for_timeout(400)
-            return "event_tabbed_option"
+            try:
+                tab_btns.first.click(timeout=3000, force=True, no_wait_after=True)
+                page.wait_for_timeout(400)
+                return "event_tabbed_option"
+            except:
+                pass
 
     # 3. Event modal without options — click confirm or overlay to dismiss
     event_ro = page.locator(".event-modal:not(.has-options):not(.read-only)")
@@ -423,44 +429,44 @@ def handle_action(page: Page, player_name: str) -> str:
             opts = choice.locator(".option-button:not(.disabled):not([disabled])")
             if opts.count() > 0:
                 try:
-                    opts.first.click(timeout=3000, no_wait_after=True)
+                    opts.first.click(timeout=3000, force=True, no_wait_after=True)
                     page.wait_for_timeout(400)
                     return "choice_dialog"
                 except:
-                    # Click intercepted by overlay (e.g. VoteResultModal) — retry next cycle
                     pass
 
-    # 5. Dice button — NO force! If a modal covers it, the click should fail
-    #    just like it would for a real user.
+    # 5. Dice button
     for dice_sel in [".action-bar__dice-btn", ".mobile-bottom-nav__dice-btn"]:
-        dice_btn = page.locator(dice_sel)
-        if dice_btn.count() > 0 and dice_btn.first.is_visible():
-            is_disabled = dice_btn.first.is_disabled()
-            txt = get_visible_text(page, dice_sel)
-            if not is_disabled and ("掷骰子" in txt or "投骰" in txt) and "等待" not in txt and "中..." not in txt:
-                try:
-                    dice_btn.first.click(timeout=3000)
-                    page.wait_for_timeout(1500)
+        try:
+            dice_btn = page.locator(dice_sel)
+            if dice_btn.count() > 0:
+                vis = dice_btn.first.is_visible()
+                if not vis:
+                    continue
+                is_disabled = dice_btn.first.evaluate("el => el.disabled")
+                txt = dice_btn.first.evaluate("el => el.innerText || ''")
+                if not is_disabled and ("掷骰子" in txt or "投骰" in txt) and "等待" not in txt and "中..." not in txt:
+                    dice_btn.first.click(timeout=5000, force=True)
+                    page.wait_for_timeout(2000)
                     return "roll_dice"
-                except:
-                    # Click failed — likely covered by an overlay
-                    pass
+        except:
+            pass
 
-    # 6. Fallback: any .option-card visible — no force
+    # 6. Fallback: any .option-card visible
     any_card = page.locator(".option-card:visible")
     if any_card.count() > 0:
         try:
-            any_card.first.click(timeout=3000)
+            any_card.first.click(timeout=3000, force=True)
             page.wait_for_timeout(400)
             return "generic_option_card"
         except:
             pass
 
-    # 7. Legacy fallback: any .option-button — no force
+    # 7. Legacy fallback: any .option-button
     any_opt = page.locator(".option-button:visible")
     if any_opt.count() > 0:
         try:
-            any_opt.first.click(timeout=3000)
+            any_opt.first.click(timeout=3000, force=True)
             page.wait_for_timeout(400)
             return "generic_option"
         except:
@@ -529,10 +535,11 @@ def run_one_game(browser, num_players: int, game_num: int) -> dict:
         print("  [3] Starting game...")
         start_game(pages[0])
 
-        # Dismiss tutorials on all pages
-        pages[0].wait_for_timeout(2000)
+        # Wait for game to fully initialize + dismiss tutorials
+        pages[0].wait_for_timeout(4000)
         for i, pg in enumerate(pages):
             dismiss_all_overlays(pg)
+        pages[0].wait_for_timeout(1000)
 
         # Game loop
         print("  [4] Playing game...")
